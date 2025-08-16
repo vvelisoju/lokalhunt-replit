@@ -1,0 +1,322 @@
+import React, { useState, useEffect, useCallback } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { PlusIcon, MagnifyingGlassIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+
+import AdCard from '../../components/employer/AdCard'
+import EmptyState from '../../components/employer/EmptyState'
+import Button from '../../components/ui/Button'
+import FormInput from '../../components/ui/FormInput'
+import Select from '../../components/ui/Select'
+import Loader from '../../components/ui/Loader'
+import Modal from '../../components/ui/Modal'
+import { getAds, submitForApproval, archiveAd } from '../../services/employer/ads'
+import { toast } from 'react-hot-toast'
+
+// Debounce hook for search
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
+
+const AdsList = () => {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [ads, setAds] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: '', adId: null })
+  
+  // Filters
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '')
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '')
+  const [page, setPage] = useState(parseInt(searchParams.get('page')) || 1)
+  
+  // Debounce search term
+  const debouncedSearchTerm = useDebounce(searchTerm, 500)
+
+  const statusOptions = [
+    { value: '', label: 'All Statuses' },
+    { value: 'DRAFT', label: 'Draft' },
+    { value: 'PENDING_APPROVAL', label: 'Pending Approval' },
+    { value: 'APPROVED', label: 'Approved' },
+    { value: 'ARCHIVED', label: 'Archived' }
+  ]
+
+  useEffect(() => {
+    loadAds()
+  }, [debouncedSearchTerm, statusFilter, page])
+
+  useEffect(() => {
+    // Reset to page 1 when search term changes
+    if (page !== 1) {
+      setPage(1)
+    }
+  }, [debouncedSearchTerm, statusFilter])
+
+  useEffect(() => {
+    // Update URL params
+    const params = new URLSearchParams()
+    if (debouncedSearchTerm) params.set('search', debouncedSearchTerm)
+    if (statusFilter) params.set('status', statusFilter)
+    if (page > 1) params.set('page', page.toString())
+    setSearchParams(params)
+  }, [debouncedSearchTerm, statusFilter, page, setSearchParams])
+
+  const loadAds = async () => {
+    setIsLoading(true)
+    try {
+      const params = {
+        page,
+        limit: 12,
+        search: debouncedSearchTerm.trim(),
+        status: typeof statusFilter === 'string' ? statusFilter.trim() : ''
+      }
+      
+      // Remove empty params
+      Object.keys(params).forEach(key => {
+        if (!params[key] || params[key] === '') {
+          delete params[key]
+        }
+      })
+      
+      const result = await getAds(params)
+      if (result.success) {
+        setAds({
+          data: result.data.data || [],
+          pagination: result.data.pagination || {
+            page: 1,
+            limit: 12,
+            total: 0,
+            pages: 1,
+            hasNext: false,
+            hasPrev: false
+          }
+        })
+      } else {
+        toast.error(result.error)
+      }
+    } catch (error) {
+      console.error('Error loading ads:', error)
+      toast.error('Failed to load ads')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSubmitForApproval = async (adId) => {
+    try {
+      const result = await submitForApproval(adId)
+      if (result.success) {
+        toast.success('Ad submitted for approval successfully')
+        loadAds()
+      } else {
+        toast.error(result.error)
+      }
+    } catch (error) {
+      toast.error('Failed to submit ad for approval')
+    }
+    setConfirmModal({ isOpen: false, type: '', adId: null })
+  }
+
+  const handleArchiveAd = async (adId) => {
+    try {
+      const result = await archiveAd(adId)
+      if (result.success) {
+        toast.success('Ad archived successfully')
+        loadAds()
+      } else {
+        toast.error(result.error)
+      }
+    } catch (error) {
+      toast.error('Failed to archive ad')
+    }
+    setConfirmModal({ isOpen: false, type: '', adId: null })
+  }
+
+  const handleConfirmAction = () => {
+    if (confirmModal.type === 'submit') {
+      handleSubmitForApproval(confirmModal.adId)
+    } else if (confirmModal.type === 'archive') {
+      handleArchiveAd(confirmModal.adId)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader />
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div className="py-8">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Job Ads</h1>
+            <p className="text-gray-600 mt-1">Manage your job postings</p>
+          </div>
+          <Link to="/employer/ads/new">
+            <Button>
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Create New Ad
+            </Button>
+          </Link>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormInput
+              label="Search ads"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by title, company, or location..."
+              icon={MagnifyingGlassIcon}
+            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                options={statusOptions}
+                placeholder="All Statuses"
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setSearchTerm('')
+                  setStatusFilter('')
+                  setPage(1)
+                }}
+                className="w-full"
+              >
+                Clear Filters
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Ads Grid */}
+        {ads.data && ads.data.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {ads.data.map((ad) => (
+                <AdCard
+                  key={ad.id}
+                  ad={ad}
+                  onSubmit={(adId) => setConfirmModal({ 
+                    isOpen: true, 
+                    type: 'submit', 
+                    adId 
+                  })}
+                  onArchive={(adId) => setConfirmModal({ 
+                    isOpen: true, 
+                    type: 'archive', 
+                    adId 
+                  })}
+                />
+              ))}
+            </div>
+            
+            {/* Pagination */}
+            {ads.pagination && ads.pagination.pages > 1 && (
+              <div className="flex justify-center items-center space-x-2 mt-8">
+                <Button
+                  variant="secondary"
+                  disabled={!ads.pagination.hasPrev}
+                  onClick={() => setPage(page - 1)}
+                  className="px-3 py-1"
+                >
+                  Previous
+                </Button>
+                
+                <div className="flex space-x-1">
+                  {[...Array(ads.pagination.pages)].map((_, i) => {
+                    const pageNum = i + 1
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={pageNum === page ? "primary" : "secondary"}
+                        onClick={() => setPage(pageNum)}
+                        className="px-3 py-1 text-sm"
+                      >
+                        {pageNum}
+                      </Button>
+                    )
+                  })}
+                </div>
+                
+                <Button
+                  variant="secondary"
+                  disabled={!ads.pagination.hasNext}
+                  onClick={() => setPage(page + 1)}
+                  className="px-3 py-1"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </>
+        ) : (
+          <EmptyState
+            icon={DocumentTextIcon}
+            title="No job ads found"
+            description={
+              debouncedSearchTerm || statusFilter 
+                ? "Try adjusting your filters to find more ads."
+                : "Get started by creating your first job posting."
+            }
+            actionText={!debouncedSearchTerm && !statusFilter ? "Create Your First Ad" : null}
+            onAction={() => {}}
+          />
+        )}
+
+        {/* Confirmation Modal */}
+        <Modal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal({ isOpen: false, type: '', adId: null })}
+          title={confirmModal.type === 'submit' ? 'Submit for Approval' : 'Archive Ad'}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              {confirmModal.type === 'submit' 
+                ? 'Are you sure you want to submit this ad for approval? Once submitted, you won\'t be able to edit it until it\'s reviewed.'
+                : 'Are you sure you want to archive this ad? Archived ads won\'t be visible to candidates.'
+              }
+            </p>
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="secondary"
+                onClick={() => setConfirmModal({ isOpen: false, type: '', adId: null })}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant={confirmModal.type === 'archive' ? 'danger' : 'primary'}
+                onClick={handleConfirmAction}
+              >
+                {confirmModal.type === 'submit' ? 'Submit' : 'Archive'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      </div>
+    </div>
+  )
+}
+
+export default AdsList

@@ -1,0 +1,742 @@
+const express = require('express');
+const { createResponse, createErrorResponse } = require('../utils/response');
+const { optionalAuth } = require('../middleware/auth');
+const router = express.Router();
+
+// Public routes that don't require authentication
+
+// =======================
+// PUBLIC JOB DATA
+// =======================
+
+// Get public job statistics
+router.get('/stats', async (req, res, next) => {
+  try {
+    // Get basic platform statistics
+    const [totalJobs, totalCompanies, totalCandidates, totalCities] = await Promise.all([
+      req.prisma.ad.count({
+        where: {
+          status: 'APPROVED',
+          isActive: true
+        }
+      }),
+      req.prisma.company.count({
+        where: { isActive: true }
+      }),
+      req.prisma.candidate.count(),
+      req.prisma.city.count({
+        where: { isActive: true }
+      })
+    ]);
+
+    const stats = {
+      jobs: totalJobs,
+      companies: totalCompanies,
+      candidates: totalCandidates,
+      cities: totalCities
+    };
+
+    res.json(createResponse('Platform statistics retrieved successfully', stats));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get all cities
+router.get('/cities', async (req, res, next) => {
+  try {
+    const { stateId } = req.query;
+    
+    const where = {
+      isActive: true,
+      ...(stateId && { stateId })
+    };
+
+    const cities = await req.prisma.city.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        state: true
+      },
+      orderBy: [
+        { name: 'asc' }
+      ]
+    });
+
+    res.json(createResponse('Cities retrieved successfully', cities));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get featured/popular jobs for landing page
+router.get('/jobs/featured', async (req, res, next) => {
+  try {
+    const { limit = 8 } = req.query;
+    
+    const featuredJobs = await req.prisma.ad.findMany({
+      where: {
+        status: 'APPROVED',
+        isActive: true
+        // Prioritize jobs with higher engagement or recent postings
+      },
+      take: parseInt(limit),
+      include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            industry: true
+          }
+        },
+        location: {
+          select: {
+            id: true,
+            name: true,
+            state: true
+          }
+        },
+        _count: {
+          select: {
+            allocations: true
+          }
+        }
+      },
+      orderBy: [
+        { createdAt: 'desc' }
+      ]
+    });
+
+    // Transform jobs for frontend
+    const transformedJobs = featuredJobs.map(job => ({
+      id: job.id,
+      title: job.title,
+      company: {
+        name: job.company.name,
+        logo: job.company.logo
+      },
+      location: job.location ? `${job.location.name}, ${job.location.state}` : 'Remote',
+      salary: job.categorySpecificFields?.salaryRange ? 
+        `₹${job.categorySpecificFields.salaryRange.min} - ₹${job.categorySpecificFields.salaryRange.max}` : 
+        'Negotiable',
+      vacancies: job.numberOfPositions || 1,
+      postedAt: job.createdAt,
+      jobType: job.categorySpecificFields?.employmentType || 'Full Time',
+      featured: true,
+      experienceLevel: job.categorySpecificFields?.experienceLevel
+    }));
+
+    res.json(createResponse('Featured jobs retrieved successfully', transformedJobs));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get job categories with counts
+router.get('/categories', async (req, res, next) => {
+  try {
+    // Get all job categories from database
+    const categories = await req.prisma.jobCategory.findMany({
+      where: {
+        isActive: true
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+
+    // Add job counts to categories (simplified approach for now)
+    const categoriesWithCounts = categories.map(category => ({
+      id: category.id,
+      name: category.name,
+      description: category.description,
+      count: 0 // Will be updated when jobs are properly categorized
+    }));
+
+    res.json(createResponse('Job categories retrieved successfully', categoriesWithCounts));
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    next(error);
+  }
+});
+
+// Get education qualifications
+router.get('/education-qualifications', async (req, res, next) => {
+  try {
+    const qualifications = await req.prisma.educationQualification.findMany({
+      where: {
+        isActive: true
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        sortOrder: true
+      },
+      orderBy: {
+        sortOrder: 'asc'
+      }
+    });
+
+    res.json(createResponse('Education qualifications retrieved successfully', qualifications));
+  } catch (error) {
+    console.error('Error fetching education qualifications:', error);
+    next(error);
+  }
+});
+
+// Get popular cities
+router.get('/cities', async (req, res, next) => {
+  try {
+    const cities = await req.prisma.city.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        state: true,
+        _count: {
+          select: {
+            ads: {
+              where: {
+                status: 'APPROVED',
+                isActive: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        ads: {
+          _count: 'desc'
+        }
+      },
+      take: 20
+    });
+
+    const transformedCities = cities.map(city => ({
+      id: city.id,
+      name: city.name,
+      state: city.state,
+      jobCount: city._count.ads
+    }));
+
+    res.json(createResponse('Cities retrieved successfully', transformedCities));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Search jobs (public endpoint with limited info)
+router.get('/jobs/search', optionalAuth, async (req, res, next) => {
+  try {
+    console.log('=== JOBS SEARCH ENDPOINT HIT ===', req.query);
+    const { 
+      page = 1, 
+      limit = 12, 
+      search, 
+      location, 
+      category,
+      jobType,
+      experience,
+      salaryRange,
+      sortBy = 'newest'
+    } = req.query;
+    
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    let where = {
+      status: 'APPROVED',
+      isActive: true
+    };
+
+    // Add search functionality
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    // Location filter
+    if (location) {
+      where.location = {
+        OR: [
+          { name: { contains: location, mode: 'insensitive' } },
+          { state: { contains: location, mode: 'insensitive' } }
+        ]
+      };
+    }
+
+    // Job type filter
+    if (jobType && jobType !== '') {
+      const jobTypes = Array.isArray(jobType) ? jobType : [jobType];
+      where.OR = [
+        ...(where.OR || []),
+        ...jobTypes.map(type => ({
+          categorySpecificFields: {
+            path: ['employmentType'],
+            equals: type
+          }
+        }))
+      ];
+    }
+
+    // Experience level filter  
+    if (experience && experience !== '') {
+      const experienceLevels = Array.isArray(experience) ? experience : [experience];
+      if (!where.OR) where.OR = [];
+      where.OR.push(
+        ...experienceLevels.map(level => ({
+          categorySpecificFields: {
+            path: ['experienceLevel'],
+            equals: level
+          }
+        }))
+      );
+    }
+
+    // Category filter
+    if (category && category !== '') {
+      where.categoryName = category;
+    }
+
+    // Salary range filter
+    if (salaryRange && salaryRange !== '') {
+      if (salaryRange.includes('+')) {
+        // Min salary filter (e.g., "100000+")
+        const minSalary = parseInt(salaryRange.replace('+', ''));
+        where.AND = [
+          ...(where.AND || []),
+          {
+            categorySpecificFields: {
+              path: ['salaryRange', 'min'],
+              gte: minSalary
+            }
+          }
+        ];
+      } else {
+        // Range filter (e.g., "25000-50000")
+        const [minSalary, maxSalary] = salaryRange.split('-').map(Number);
+        where.AND = [
+          ...(where.AND || []),
+          {
+            AND: [
+              {
+                categorySpecificFields: {
+                  path: ['salaryRange', 'min'],
+                  gte: minSalary
+                }
+              },
+              {
+                categorySpecificFields: {
+                  path: ['salaryRange', 'max'],
+                  lte: maxSalary
+                }
+              }
+            ]
+          }
+        ];
+      }
+    }
+
+    // Set up sorting
+    let orderBy = [{ createdAt: 'desc' }]; // default
+    switch (sortBy) {
+      case 'oldest':
+        orderBy = [{ createdAt: 'asc' }];
+        break;
+      case 'salary-high':
+        orderBy = [{ categorySpecificFields: { path: ['salaryRange', 'max'], sort: 'desc' } }];
+        break;
+      case 'salary-low':
+        orderBy = [{ categorySpecificFields: { path: ['salaryRange', 'min'], sort: 'asc' } }];
+        break;
+      case 'relevance':
+        // For relevance, we'd need more complex scoring
+        orderBy = [{ updatedAt: 'desc' }];
+        break;
+    }
+
+    const [jobs, total] = await Promise.all([
+      req.prisma.ad.findMany({
+        where,
+        skip,
+        take: parseInt(limit),
+        include: {
+          company: {
+            select: {
+              id: true,
+              name: true,
+              logo: true,
+              industry: true
+            }
+          },
+          location: {
+            select: {
+              id: true,
+              name: true,
+              state: true
+            }
+          },
+          _count: {
+            select: {
+              allocations: true
+            }
+          }
+        },
+        orderBy
+      }),
+      req.prisma.ad.count({ where })
+    ]);
+
+    // Transform jobs for frontend with status checking if authenticated
+    let transformedJobs = jobs.map(job => ({
+      id: job.id,
+      title: job.title,
+      company: {
+        name: job.company.name,
+        logo: job.company.logo
+      },
+      location: job.location ? `${job.location.name}, ${job.location.state}` : 'Remote',
+      salary: job.categorySpecificFields?.salaryRange ? 
+        `₹${job.categorySpecificFields.salaryRange.min} - ₹${job.categorySpecificFields.salaryRange.max}` : 
+        'Negotiable',
+      vacancies: job.numberOfPositions || 1,
+      postedAt: job.createdAt,
+      jobType: job.categorySpecificFields?.employmentType?.toLowerCase()?.replace('_', '-') || 'full-time',
+      featured: false, // Public search doesn't show featured status
+      experienceLevel: job.categorySpecificFields?.experienceLevel,
+      description: job.description?.substring(0, 150) + '...' || '',
+      skills: job.categorySpecificFields?.skills || [],
+      applicationCount: job._count?.allocations || 0,
+      isBookmarked: false,
+      hasApplied: false
+    }));
+
+    // Add status information for authenticated candidates
+    if (req.user && req.user.role === 'CANDIDATE') {
+      const candidate = await req.prisma.candidate.findUnique({
+        where: { userId: req.user.userId }
+      });
+
+      if (candidate) {
+        // Get all bookmarks and applications for this candidate
+        const [bookmarks, applications] = await Promise.all([
+          req.prisma.bookmark.findMany({
+            where: { 
+              candidateId: candidate.id,
+              adId: { in: jobs.map(job => job.id) }
+            },
+            select: { adId: true }
+          }),
+          req.prisma.allocation.findMany({
+            where: { 
+              candidateId: candidate.id,
+              adId: { in: jobs.map(job => job.id) }
+            },
+            select: { adId: true }
+          })
+        ]);
+
+        const bookmarkedJobIds = new Set(bookmarks.map(b => b.adId));
+        const appliedJobIds = new Set(applications.map(a => a.adId));
+
+        // Update job status
+        transformedJobs = transformedJobs.map(job => ({
+          ...job,
+          isBookmarked: bookmarkedJobIds.has(job.id),
+          hasApplied: appliedJobIds.has(job.id)
+        }));
+      }
+    }
+
+    const response = {
+      jobs: transformedJobs,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit))
+    };
+
+    res.json(createResponse('Jobs retrieved successfully', response));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get single job by ID (public endpoint) - MUST be after /jobs/search
+router.get('/jobs/:id', optionalAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    
+    const job = await req.prisma.ad.findFirst({
+      where: {
+        id,
+        status: 'APPROVED',
+        isActive: true
+      },
+      include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            industry: true,
+            description: true,
+            website: true,
+            size: true
+          }
+        },
+        location: {
+          select: {
+            id: true,
+            name: true,
+            state: true
+          }
+        },
+        employer: {
+          select: {
+            isVerified: true,
+            user: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!job) {
+      return res.status(404).json(
+        createErrorResponse('Job not found', 404)
+      );
+    }
+
+    // Transform job for frontend
+    let transformedJob = {
+      id: job.id,
+      title: job.title,
+      description: job.description,
+      company: {
+        id: job.company?.id,
+        name: job.company?.name || 'Company Name',
+        logo: job.company?.logo,
+        industry: job.company?.industry,
+        description: job.company?.description,
+        website: job.company?.website
+      },
+      location: job.location ? `${job.location.name}, ${job.location.state}` : 'Remote',
+      salary: job.categorySpecificFields?.salaryRange ? 
+        `₹${job.categorySpecificFields.salaryRange.min} - ₹${job.categorySpecificFields.salaryRange.max}` : 
+        'Negotiable',
+      categorySpecificFields: job.categorySpecificFields,
+      vacancies: job.numberOfPositions || 1,
+      postedAt: job.createdAt,
+      jobType: job.categorySpecificFields?.employmentType || 'FULL_TIME',
+      experienceLevel: job.categorySpecificFields?.experienceLevel,
+      skills: job.categorySpecificFields?.skills || [],
+      applicationCount: 0, // Will be updated with real count
+      isBookmarked: false,
+      hasApplied: false
+    };
+
+    // Get application count for all users
+    const applicationCount = await req.prisma.allocation.count({
+      where: {
+        adId: id
+      }
+    });
+    transformedJob.applicationCount = applicationCount;
+
+    // Add bookmark status and application status if user is authenticated
+    if (req.user && req.user.role === 'CANDIDATE') {
+      const candidate = await req.prisma.candidate.findUnique({
+        where: { userId: req.user.userId }
+      });
+
+      if (candidate) {
+        console.log(`Checking status for candidate ${candidate.id} on job ${id}`);
+        
+        const [bookmark, application] = await Promise.all([
+          req.prisma.bookmark.findUnique({
+            where: {
+              candidateId_adId: {
+                candidateId: candidate.id,
+                adId: id
+              }
+            }
+          }),
+          req.prisma.allocation.findFirst({
+            where: {
+              candidateId: candidate.id,
+              adId: id
+            }
+          })
+        ]);
+
+        console.log(`Bookmark found: ${!!bookmark}, Application found: ${!!application}`);
+        
+        transformedJob = {
+          ...transformedJob,
+          isBookmarked: !!bookmark,
+          applicationStatus: application?.status || null,
+          hasApplied: !!application
+        };
+      }
+    }
+
+    res.json(createResponse('Job retrieved successfully', transformedJob));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get testimonials/reviews (mock data for now)
+router.get('/testimonials', async (req, res, next) => {
+  try {
+    const testimonials = [
+      {
+        id: 1,
+        name: 'Rajesh Kumar',
+        role: 'Software Engineer',
+        avatar: '👨‍💻',
+        rating: 5,
+        review: 'LokalHunt helped me find my dream job in my hometown. The local focus made all the difference in connecting with the right opportunities.'
+      },
+      {
+        id: 2,
+        name: 'Priya Sharma',
+        role: 'Marketing Manager',
+        avatar: '👩‍💼',
+        rating: 5,
+        review: 'LokalHunt simplifies the hiring journey with smart filters, real-time updates, and personalized recommendations. It saves time and connects with meaningful opportunities.'
+      },
+      {
+        id: 3,
+        name: 'Arjun Reddy',
+        role: 'Business Owner',
+        avatar: '👨‍💼',
+        rating: 5,
+        review: 'LokalHunt offers a streamlined platform for job seekers and employers. Its intuitive interface, quick application process, and reliable listings make job searching efficient and effective.'
+      }
+    ];
+
+    res.json(createResponse('Testimonials retrieved successfully', testimonials));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// =======================
+// PUBLIC COMPANY DATA
+// =======================
+
+// Get companies with filtering and pagination
+router.get('/companies', async (req, res, next) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 12, 
+      search, 
+      industry, 
+      size,
+      location
+    } = req.query;
+    
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    let where = {
+      isActive: true
+    };
+
+    // Add search functionality
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    // Industry filter
+    if (industry && industry !== '') {
+      where.industry = { contains: industry, mode: 'insensitive' };
+    }
+
+    // Size filter
+    if (size && size !== '') {
+      where.size = size;
+    }
+
+    // Location filter
+    if (location && location !== '') {
+      where.city = {
+        name: { contains: location, mode: 'insensitive' }
+      };
+    }
+
+    const [companies, total] = await Promise.all([
+      req.prisma.company.findMany({
+        where,
+        skip,
+        take: parseInt(limit),
+        include: {
+          city: {
+            select: {
+              id: true,
+              name: true,
+              state: true
+            }
+          },
+          _count: {
+            select: {
+              ads: {
+                where: {
+                  status: 'APPROVED',
+                  isActive: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: [
+          { createdAt: 'desc' }
+        ]
+      }),
+      req.prisma.company.count({ where })
+    ]);
+
+    // Transform companies for frontend
+    const transformedCompanies = companies.map(company => ({
+      id: company.id,
+      name: company.name,
+      description: company.description,
+      industry: company.industry,
+      size: company.size,
+      logo: company.logo,
+      website: company.website,
+      city: company.city,
+      openJobs: company._count.ads,
+      createdAt: company.createdAt
+    }));
+
+    const response = {
+      companies: transformedCompanies,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit))
+    };
+
+    res.json(createResponse('Companies retrieved successfully', response));
+  } catch (error) {
+    next(error);
+  }
+});
+
+module.exports = router;

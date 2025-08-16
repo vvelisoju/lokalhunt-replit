@@ -1,0 +1,39 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Test styles to ensure CSS is loading */
+body {
+  font-family: Inter, system-ui, sans-serif;
+}
+
+/* Custom utility classes for landing page */
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Landing page hero gradient overlay */
+.hero-gradient {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+}
+
+.test-class {
+  background-color: red;
+  color: white;
+  padding: 10px;
+}

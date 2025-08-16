@@ -1,0 +1,61 @@
+{
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome back, {{name}}!",
+    "subtitle": "Here's what's happening with your job search today.",
+    "browseJobs": "Browse Jobs",
+    "completeProfile": "Complete your profile to get better job matches",
+    "completeProfileButton": "Complete Profile"
+  },
+  "header": {
+    "myProfile": "My Profile",
+    "settings": "Settings",
+    "language": "Language",
+    "logout": "Logout"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "appliedJobs": "Applied Jobs",
+    "bookmarks": "Bookmarks",
+    "myProfile": "My Profile",
+    "manageResume": "Manage Resume",
+    "testInterface": "Test Interface",
+    "completeProfile": "Complete Your Profile",
+    "percentComplete": "{{percent}}% complete"
+  },
+  "stats": {
+    "applications": "Applications",
+    "bookmarks": "Bookmarks",
+    "profileViews": "Profile Views",
+    "resume": "Resume",
+    "missing": "Missing",
+    "uploaded": "Uploaded"
+  },
+  "applications": {
+    "recent": "Recent Applications",
+    "viewAll": "View All",
+    "noApplications": "No applications yet",
+    "startApplying": "Start applying for jobs to track your applications here.",
+    "browseJobs": "Browse Jobs",
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved", 
+      "rejected": "Rejected",
+      "interview": "Interview"
+    }
+  },
+  "jobs": {
+    "recommended": "Recommended Jobs",
+    "noJobs": "No recommended jobs available",
+    "checkBack": "Check back later for personalized job recommendations."
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "add": "Add",
+    "close": "Close"
+  }
+}

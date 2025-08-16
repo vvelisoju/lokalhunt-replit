@@ -1,0 +1,346 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  CANDIDATE
+  EMPLOYER
+  BRANCH_ADMIN
+  SUPER_ADMIN
+}
+
+enum AdStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ARCHIVED
+}
+
+enum AllocationStatus {
+  APPLIED
+  SCREENED
+  RATED
+  ALLOCATED
+  SHORTLISTED
+  HIRED
+  REJECTED
+  WITHDRAWN
+}
+
+enum FeeType {
+  FIXED
+  PERCENTAGE
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+  FREELANCE
+}
+
+enum ExperienceLevel {
+  ENTRY_LEVEL
+  MID_LEVEL
+  SENIOR_LEVEL
+  EXECUTIVE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+// Core User Model
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  firstName    String?  @map("first_name")
+  lastName     String?  @map("last_name")
+  email        String   @unique
+  phone        String?
+  passwordHash String   @map("password_hash")
+  role         UserRole
+  city         String?  // Simple string city name
+  cityId       String?  @map("city_id")
+  gender       Gender?  // Optional gender field
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  cityRef   City?      @relation("CityToUser", fields: [cityId], references: [id])
+  candidate Candidate?
+  employer  Employer?
+  branchAdmin BranchAdmin?
+
+  @@map("users")
+}
+
+// City Management
+model City {
+  id        String   @id @default(uuid())
+  name      String
+  state     String
+  country   String   @default("India")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  users        User[] @relation("CityToUser")
+  ads          Ad[]
+  companies    Company[]
+  branchAdmins BranchAdmin[]
+
+  @@unique([name, state])
+  @@map("cities")
+}
+
+// Candidate Profile
+model Candidate {
+  id             String   @id @default(uuid())
+  userId         String   @unique @map("user_id")
+  profileData    Json?    @map("profile_data") // Education, experience, skills, portfolio
+  resumeUrl      String?  @map("resume_url")
+  education      Json?    // Array of education entries
+  experience     Json?    // Array of experience entries
+  portfolio      Json?    // Portfolio links and details
+  tags           String[] // Searchable tags from Branch Admin
+  ratings        Json?    // {skillName: rating} permanent ratings
+  overallRating  Decimal? @map("overall_rating") @db.Decimal(3, 2)
+  ratingHistory  Json?    @map("rating_history") // Historical ratings
+  profilePhoto   String?  @map("profile_photo")
+  coverPhoto     String?  @map("cover_photo")
+  dateOfBirth    DateTime? @map("date_of_birth")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  allocations     Allocation[]
+  bookmarks       Bookmark[]
+  employerBookmarks EmployerBookmark[]
+
+  @@map("candidates")
+}
+
+// Employer Profile
+model Employer {
+  id             String   @id @default(uuid())
+  userId         String   @unique @map("user_id")
+  contactDetails Json?    @map("contact_details") // Business contact info
+  mouHistory     Json?    @map("mou_history") // History of signed agreements
+  isVerified     Boolean  @default(false) @map("is_verified")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companies   Company[]
+  ads         Ad[]
+  allocations Allocation[]
+  mous        MOU[]
+  bookmarks   EmployerBookmark[]
+
+  @@map("employers")
+}
+
+// Company Management
+model Company {
+  id          String   @id @default(uuid())
+  employerId  String   @map("employer_id")
+  name        String
+  description String?
+  cityId      String   @map("city_id")
+  logo        String?
+  website     String?
+  industry    String?
+  size        String?  // e.g., "1-10", "11-50", "51-200"
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  employer Employer @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  city     City     @relation(fields: [cityId], references: [id])
+  ads      Ad[]
+
+  @@map("companies")
+}
+
+// Universal Ad Posting System
+model Ad {
+  id                      String   @id @default(uuid())
+  employerId              String   @map("employer_id")
+  companyId               String   @map("company_id")
+  categoryName            String   @map("category_name") // Jobs, Deals, Events, etc.
+  title                   String
+  description             String
+  status                  AdStatus @default(DRAFT)
+  locationId              String   @map("location_id")
+  categorySpecificFields  Json?    @map("category_specific_fields") // Jobs: skills, salary, etc.
+  contactInfo             Json?    @map("contact_info")
+  validUntil              DateTime? @map("valid_until")
+  isActive                Boolean  @default(true) @map("is_active")
+  approvedAt              DateTime? @map("approved_at")
+  approvedBy              String?  @map("approved_by") // Branch Admin ID
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  employer     Employer     @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  company      Company      @relation(fields: [companyId], references: [id])
+  location     City         @relation(fields: [locationId], references: [id])
+  allocations  Allocation[]
+  bookmarks    Bookmark[]
+
+  @@map("ads")
+}
+
+// Candidate-Job Application & Allocation
+model Allocation {
+  id           String           @id @default(uuid())
+  candidateId  String           @map("candidate_id")
+  adId         String           @map("ad_id")
+  employerId   String           @map("employer_id")
+  status       AllocationStatus @default(APPLIED)
+  feeType      FeeType?         @map("fee_type")
+  feeValue     Decimal?         @map("fee_value") @db.Decimal(10, 2)
+  notes        String?          // Branch Admin notes
+  allocatedBy  String?          @map("allocated_by") // Branch Admin ID
+  allocatedAt  DateTime?        @map("allocated_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  ad        Ad        @relation(fields: [adId], references: [id], onDelete: Cascade)
+  employer  Employer  @relation(fields: [employerId], references: [id])
+
+  @@map("allocations")
+}
+
+// MOU Management
+model MOU {
+  id            String   @id @default(uuid())
+  employerId    String   @map("employer_id")
+  branchAdminId String   @map("branch_admin_id")
+  feeType       FeeType
+  feeValue      Decimal  @map("fee_value") @db.Decimal(10, 2)
+  terms         String?  // Agreement terms
+  notes         String?  // Additional notes
+  status        String   @default("PENDING_APPROVAL") // PENDING_APPROVAL, APPROVED, REJECTED
+  signedAt      DateTime @map("signed_at")
+  fileUrl       String?  @map("file_url")
+  version       String   @default("1.0")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  employer     Employer     @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  branchAdmin  BranchAdmin  @relation(fields: [branchAdminId], references: [id])
+
+  @@map("mous")
+}
+
+// Branch Admin Management
+model BranchAdmin {
+  id                  String   @id @default(uuid())
+  userId              String   @unique @map("user_id")
+  assignedCityId      String   @map("assigned_city_id")
+  performanceMetrics  Json?    @map("performance_metrics") // Approval rates, screening stats
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedCity City @relation(fields: [assignedCityId], references: [id])
+  mous         MOU[]
+
+  @@map("branch_admins")
+}
+
+// Candidate Bookmarks (Candidates bookmarking jobs)
+model Bookmark {
+  id          String   @id @default(uuid())
+  candidateId String   @map("candidate_id")
+  adId        String   @map("ad_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  ad        Ad        @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateId, adId])
+  @@map("bookmarks")
+}
+
+// Employer Bookmarks (Employers bookmarking candidates)
+model EmployerBookmark {
+  id          String   @id @default(uuid())
+  employerId  String   @map("employer_id")
+  candidateId String   @map("candidate_id")
+  notes       String?  // Optional notes about the candidate
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  employer  Employer  @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([employerId, candidateId])
+  @@map("employer_bookmarks")
+}
+
+// Master Data for Skills
+model Skill {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  category    String   // Technical, Soft Skills, etc.
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("skills")
+}
+
+// Master Data for Job Categories
+model JobCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("job_categories")
+}
+
+// Education Qualifications Model
+model EducationQualification {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  sortOrder   Int      @map("sort_order") // For maintaining the education level hierarchy
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("education_qualifications")
+}
