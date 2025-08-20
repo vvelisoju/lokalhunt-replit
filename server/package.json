@@ -1,6 +1,48 @@
 
 {
+  "name": "lokalhunt-server",
+  "version": "1.0.0",
+  "description": "Lokalhunt API Server - Express.js backend with PostgreSQL and Prisma ORM",
+  "main": "server-with-db.js",
+  "scripts": {
+    "start": "node server-with-db.js",
+    "dev": "nodemon server-with-db.js",
+    "db:push": "npx prisma db push",
+    "db:generate": "npx prisma generate",
+    "db:studio": "npx prisma studio",
+    "db:seed:categories": "node seeds/categories.js",
+    "db:seed:categories:reset": "node seeds/reset-and-seed-categories.js",
+    "db:seed:education": "node seeds/education-qualifications.js",
+    "db:seed:education:reset": "node seeds/reset-and-seed-education-qualifications.js",
+    "db:seed:all": "node seeds/categories.js",
+    "db:migrate": "npx prisma migrate dev",
+    "db:reset": "npx prisma migrate reset"
+  },
+  "keywords": [
+    "express",
+    "postgresql",
+    "prisma",
+    "job-portal",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "groq-sdk": "^0.7.0"
+    "@google-cloud/storage": "^7.16.0",
+    "@prisma/client": "^6.14.0",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^4.21.2",
+    "fs-extra": "^11.3.1",
+    "groq-sdk": "^0.30.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {
+    "eslint": "^9.33.0",
+    "nodemon": "^3.1.10",
+    "prisma": "^6.14.0"
   }
 }

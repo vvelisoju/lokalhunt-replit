@@ -1,10 +1,11 @@
+
 {
   "name": "lokalhunt-client",
   "version": "1.0.0",
   "description": "Lokalhunt Frontend - React application with Vite and Tailwind CSS",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
@@ -14,15 +15,27 @@
   "license": "ISC",
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@tailwindcss/forms": "^0.5.10",
+    "@tailwindcss/typography": "^0.5.16",
+    "@uiw/react-md-editor": "^4.0.8",
+    "@uppy/aws-s3": "^4.3.2",
+    "@uppy/core": "^4.5.2",
+    "@uppy/dashboard": "^4.4.3",
+    "@uppy/drag-drop": "^4.2.2",
+    "@uppy/file-input": "^4.2.2",
+    "@uppy/progress-bar": "^4.3.2",
+    "@uppy/react": "^4.5.2",
     "axios": "^1.11.0",
+    "i18next": "^25.3.6",
+    "i18next-browser-languagedetector": "^8.2.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-hot-toast": "^2.6.0",
+    "react-i18next": "^15.6.1",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.8.0"
   },
   "devDependencies": {
-    "@tailwindcss/forms": "^0.5.10",
-    "@tailwindcss/postcss": "^1.0.0",
-    "@tailwindcss/typography": "^0.5.16",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.33.0",
