@@ -1,9 +1,9 @@
 const express = require('express');
 const { createResponse, createErrorResponse } = require('../utils/response');
 const { optionalAuth } = require('../middleware/auth');
-const router = express.Router();
-import { PrismaClient } from "@prisma/client";
+const { PrismaClient } = require("@prisma/client");
 
+const router = express.Router();
 const prisma = new PrismaClient();
 
 // Public routes that don't require authentication
