@@ -2,6 +2,9 @@ const express = require('express');
 const { createResponse, createErrorResponse } = require('../utils/response');
 const { optionalAuth } = require('../middleware/auth');
 const router = express.Router();
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 // Public routes that don't require authentication
 
@@ -14,17 +17,17 @@ router.get('/stats', async (req, res, next) => {
   try {
     // Get basic platform statistics
     const [totalJobs, totalCompanies, totalCandidates, totalCities] = await Promise.all([
-      req.prisma.ad.count({
+      prisma.ad.count({
         where: {
           status: 'APPROVED',
           isActive: true
         }
       }),
-      req.prisma.company.count({
+      prisma.company.count({
         where: { isActive: true }
       }),
-      req.prisma.candidate.count(),
-      req.prisma.city.count({
+      prisma.candidate.count(),
+      prisma.city.count({
         where: { isActive: true }
       })
     ]);
@@ -52,7 +55,7 @@ router.get('/cities', async (req, res, next) => {
       ...(stateId && { stateId })
     };
 
-    const cities = await req.prisma.city.findMany({
+    const cities = await prisma.city.findMany({
       where,
       select: {
         id: true,
@@ -75,7 +78,7 @@ router.get('/jobs/featured', async (req, res, next) => {
   try {
     const { limit = 8 } = req.query;
 
-    const featuredJobs = await req.prisma.ad.findMany({
+    const featuredJobs = await prisma.ad.findMany({
       where: {
         status: 'APPROVED',
         isActive: true
@@ -144,7 +147,7 @@ router.get('/jobs/featured', async (req, res, next) => {
 router.get('/categories', async (req, res, next) => {
   try {
     // Get all job categories from database
-    const categories = await req.prisma.jobCategory.findMany({
+    const categories = await prisma.jobCategory.findMany({
       where: {
         isActive: true
       },
@@ -176,7 +179,7 @@ router.get('/categories', async (req, res, next) => {
 // Get education qualifications
 router.get('/education-qualifications', async (req, res, next) => {
   try {
-    const qualifications = await req.prisma.educationQualification.findMany({
+    const qualifications = await prisma.educationQualification.findMany({
       where: {
         isActive: true
       },
@@ -201,7 +204,7 @@ router.get('/education-qualifications', async (req, res, next) => {
 // Get popular cities
 router.get('/cities', async (req, res, next) => {
   try {
-    const cities = await req.prisma.city.findMany({
+    const cities = await prisma.city.findMany({
       where: { isActive: true },
       select: {
         id: true,
@@ -356,7 +359,7 @@ router.get('/jobs/search', optionalAuth, async (req, res, next) => {
     }
 
     const [jobs, total] = await Promise.all([
-      req.prisma.ad.findMany({
+      prisma.ad.findMany({
         where,
         skip,
         take: parseInt(limit),
@@ -384,7 +387,7 @@ router.get('/jobs/search', optionalAuth, async (req, res, next) => {
         },
         orderBy
       }),
-      req.prisma.ad.count({ where })
+      prisma.ad.count({ where })
     ]);
 
     // Transform jobs for frontend with status checking if authenticated
@@ -419,21 +422,21 @@ router.get('/jobs/search', optionalAuth, async (req, res, next) => {
 
     // Add status information for authenticated candidates
     if (req.user && req.user.role === 'CANDIDATE') {
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId }
       });
 
       if (candidate) {
         // Get all bookmarks and applications for this candidate
         const [bookmarks, applications] = await Promise.all([
-          req.prisma.bookmark.findMany({
+          prisma.bookmark.findMany({
             where: { 
               candidateId: candidate.id,
               adId: { in: jobs.map(job => job.id) }
             },
             select: { adId: true }
           }),
-          req.prisma.allocation.findMany({
+          prisma.allocation.findMany({
             where: { 
               candidateId: candidate.id,
               adId: { in: jobs.map(job => job.id) }
@@ -472,7 +475,7 @@ router.get('/jobs/:id', optionalAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const job = await req.prisma.ad.findFirst({
+    const job = await prisma.ad.findFirst({
       where: {
         id,
         status: 'APPROVED',
@@ -563,7 +566,7 @@ router.get('/jobs/:id', optionalAuth, async (req, res, next) => {
     };
 
     // Get application count for all users
-    const applicationCount = await req.prisma.allocation.count({
+    const applicationCount = await prisma.allocation.count({
       where: {
         adId: id
       }
@@ -572,7 +575,7 @@ router.get('/jobs/:id', optionalAuth, async (req, res, next) => {
 
     // Add bookmark status and application status if user is authenticated
     if (req.user && req.user.role === 'CANDIDATE') {
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId }
       });
 
@@ -580,7 +583,7 @@ router.get('/jobs/:id', optionalAuth, async (req, res, next) => {
         console.log(`Checking status for candidate ${candidate.id} on job ${id}`);
 
         const [bookmark, application] = await Promise.all([
-          req.prisma.bookmark.findUnique({
+          prisma.bookmark.findUnique({
             where: {
               candidateId_adId: {
                 candidateId: candidate.id,
@@ -588,7 +591,7 @@ router.get('/jobs/:id', optionalAuth, async (req, res, next) => {
               }
             }
           }),
-          req.prisma.allocation.findFirst({
+          prisma.allocation.findFirst({
             where: {
               candidateId: candidate.id,
               adId: id
@@ -618,7 +621,7 @@ router.get('/jobs/:id/preview', optionalAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const job = await req.prisma.ad.findFirst({
+    const job = await prisma.ad.findFirst({
       where: {
         id,
         status: {
@@ -801,7 +804,7 @@ router.get('/companies', async (req, res, next) => {
     }
 
     const [companies, total] = await Promise.all([
-      req.prisma.company.findMany({
+      prisma.company.findMany({
         where,
         skip,
         take: parseInt(limit),
@@ -828,7 +831,7 @@ router.get('/companies', async (req, res, next) => {
           { createdAt: 'desc' }
         ]
       }),
-      req.prisma.company.count({ where })
+      prisma.company.count({ where })
     ]);
 
     // Transform companies for frontend
