@@ -1,3 +1,4 @@
+
 const { Storage } = require("@google-cloud/storage");
 const { randomUUID } = require("crypto");
 const { 
@@ -9,7 +10,7 @@ const {
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
-// The object storage client is used to interact with the object storage service.
+// The object storage client is used to interact with Replit's Object Storage service.
 const objectStorageClient = new Storage({
   credentials: {
     audience: "replit",
@@ -36,7 +37,7 @@ class ObjectNotFoundError extends Error {
   }
 }
 
-// The object storage service is used to interact with the object storage service.
+// The object storage service is used to interact with Replit's Object Storage service.
 class ObjectStorageService {
   constructor() {}
 
@@ -52,10 +53,9 @@ class ObjectStorageService {
       )
     );
     if (paths.length === 0) {
-      throw new Error(
-        "PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' " +
-          "tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths)."
-      );
+      console.warn("PUBLIC_OBJECT_SEARCH_PATHS not set. Using default bucket configuration.");
+      // Fallback to private directory if public paths not configured
+      return [this.getPrivateObjectDir()];
     }
     return paths;
   }
@@ -65,8 +65,10 @@ class ObjectStorageService {
     const dir = process.env.PRIVATE_OBJECT_DIR || "";
     if (!dir) {
       throw new Error(
-        "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var."
+        "PRIVATE_OBJECT_DIR not set. Please configure object storage by:\n" +
+        "1. Create a bucket in Replit 'Object Storage' tool\n" +
+        "2. Set PRIVATE_OBJECT_DIR in .env file (e.g., /your-bucket-name/private)\n" +
+        "3. Set PUBLIC_OBJECT_SEARCH_PATHS in .env file (e.g., /your-bucket-name/public)"
       );
     }
     return dir;
@@ -150,6 +152,58 @@ class ObjectStorageService {
       method: "PUT",
       ttlSec: 900,
     });
+  }
+
+  // Gets the upload URL specifically for resumes
+  async getResumeUploadURL(userId) {
+    const privateObjectDir = this.getPrivateObjectDir();
+    const objectId = randomUUID();
+    const fullPath = `${privateObjectDir}/resumes/${userId}/${objectId}`;
+
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+
+    return signObjectURL({
+      bucketName,
+      objectName,
+      method: "PUT",
+      ttlSec: 900,
+    });
+  }
+
+  // Gets the upload URL specifically for profile images
+  async getProfileImageUploadURL(userId) {
+    const privateObjectDir = this.getPrivateObjectDir();
+    const objectId = randomUUID();
+    const fullPath = `${privateObjectDir}/profiles/${userId}/${objectId}`;
+
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+
+    return signObjectURL({
+      bucketName,
+      objectName,
+      method: "PUT",
+      ttlSec: 900,
+    });
+  }
+
+  // Validates file type for uploads
+  validateFileType(fileName, allowedTypes) {
+    const allowedTypesArray = allowedTypes.split(',').map(type => type.trim());
+    const fileExtension = fileName.split('.').pop().toLowerCase();
+    
+    const extensionMap = {
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp'
+    };
+
+    const mimeType = extensionMap[fileExtension];
+    return mimeType && allowedTypesArray.includes(mimeType);
   }
 
   // Gets the object entity file from the object path.

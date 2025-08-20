@@ -56,13 +56,6 @@ enum ExperienceLevel {
   EXECUTIVE
 }
 
-enum Gender {
-  MALE
-  FEMALE
-  OTHER
-  PREFER_NOT_TO_SAY
-}
-
 // Core User Model
 model User {
   id           String   @id @default(uuid())
@@ -73,9 +66,7 @@ model User {
   phone        String?
   passwordHash String   @map("password_hash")
   role         UserRole
-  city         String?  // Simple string city name
   cityId       String?  @map("city_id")
-  gender       Gender?  // Optional gender field
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -187,11 +178,18 @@ model Ad {
   employerId              String   @map("employer_id")
   companyId               String   @map("company_id")
   categoryName            String   @map("category_name") // Jobs, Deals, Events, etc.
+  categoryId              String?  @map("category_id") // Reference to JobCategory
   title                   String
   description             String
   status                  AdStatus @default(DRAFT)
   locationId              String   @map("location_id")
-  categorySpecificFields  Json?    @map("category_specific_fields") // Jobs: skills, salary, etc.
+  gender                  String?  // MALE, FEMALE, BOTH
+  educationQualificationId String? @map("education_qualification_id") // Reference to EducationQualification
+  skills                  String?  // Required skills for the job
+  salaryMin               Decimal? @map("salary_min") @db.Decimal(10, 2) // Minimum salary
+  salaryMax               Decimal? @map("salary_max") @db.Decimal(10, 2) // Maximum salary
+  experienceLevel         String?  @map("experience_level") // FRESHER, ENTRY_LEVEL, MID_LEVEL, SENIOR_LEVEL, EXECUTIVE
+  employmentType          String?  @map("employment_type") // FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP, FREELANCE
   contactInfo             Json?    @map("contact_info")
   validUntil              DateTime? @map("valid_until")
   isActive                Boolean  @default(true) @map("is_active")
@@ -201,11 +199,13 @@ model Ad {
   updatedAt               DateTime @updatedAt @map("updated_at")
 
   // Relations
-  employer     Employer     @relation(fields: [employerId], references: [id], onDelete: Cascade)
-  company      Company      @relation(fields: [companyId], references: [id])
-  location     City         @relation(fields: [locationId], references: [id])
-  allocations  Allocation[]
-  bookmarks    Bookmark[]
+  employer             Employer              @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  company              Company               @relation(fields: [companyId], references: [id])
+  location             City                  @relation(fields: [locationId], references: [id])
+  category             JobCategory?          @relation(fields: [categoryId], references: [id])
+  educationQualification EducationQualification? @relation(fields: [educationQualificationId], references: [id])
+  allocations          Allocation[]
+  bookmarks            Bookmark[]
 
   @@map("ads")
 }
@@ -329,6 +329,9 @@ model JobCategory {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  // Relations
+  ads         Ad[]
+
   @@map("job_categories")
 }
 
@@ -341,6 +344,9 @@ model EducationQualification {
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  ads         Ad[]
 
   @@map("education_qualifications")
 }

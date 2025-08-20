@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeftIcon, UserIcon, PhoneIcon, EnvelopeIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, UserIcon, EnvelopeIcon, PhoneIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { authService } from '../../services/authService';
 import publicApi from '../../services/publicApi';
+import CityDropdown from '../../components/ui/CityDropdown'; // Import the shared CityDropdown component
 
 const CreateEmployer = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const [citiesLoading, setCitiesLoading] = useState(true);
-  const [cities, setCities] = useState([]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -25,51 +24,7 @@ const CreateEmployer = () => {
 
   const [errors, setErrors] = useState({});
 
-  useEffect(() => {
-    loadCities();
-  }, []);
-
-  const loadCities = async () => {
-    setCitiesLoading(true);
-    try {
-      const response = await publicApi.getCities();
-      console.log('Cities response:', response);
-      
-      if (response && response.data && Array.isArray(response.data)) {
-        setCities(response.data);
-        console.log('Cities loaded:', response.data);
-      } else if (response && Array.isArray(response)) {
-        setCities(response);
-        console.log('Cities loaded (direct array):', response);
-      } else {
-        console.error('Invalid cities response format:', response);
-        // Fallback to default cities if API fails
-        const fallbackCities = [
-          { id: 'c66cc663-ec21-41bc-b58c-7f6a53c8ed70', name: 'Bangalore', state: 'Karnataka' },
-          { id: '4ae30f5b-d4d1-4d7a-a3c7-de3040eb94fa', name: 'Delhi', state: 'Delhi' },
-          { id: 'd505a6c5-8140-459b-8ff3-39565c65b74e', name: 'Hyderabad', state: 'Telangana' },
-          { id: '69f77c2d-aaaa-4c14-bf9c-61a1910a018a', name: 'Mumbai', state: 'Maharashtra' },
-          { id: 'aba48839-eb36-4d8a-8a40-963017304952', name: 'Pune', state: 'Maharashtra' }
-        ];
-        setCities(fallbackCities);
-        toast.error('Using fallback cities due to API error');
-      }
-    } catch (error) {
-      console.error('Error loading cities:', error);
-      // Fallback to default cities
-      const fallbackCities = [
-        { id: 'c66cc663-ec21-41bc-b58c-7f6a53c8ed70', name: 'Bangalore', state: 'Karnataka' },
-        { id: '4ae30f5b-d4d1-4d7a-a3c7-de3040eb94fa', name: 'Delhi', state: 'Delhi' },
-        { id: 'd505a6c5-8140-459b-8ff3-39565c65b74e', name: 'Hyderabad', state: 'Telangana' },
-        { id: '69f77c2d-aaaa-4c14-bf9c-61a1910a018a', name: 'Mumbai', state: 'Maharashtra' },
-        { id: 'aba48839-eb36-4d8a-8a40-963017304952', name: 'Pune', state: 'Maharashtra' }
-      ];
-      setCities(fallbackCities);
-      toast.error('Failed to load cities from server. Using default cities.');
-    } finally {
-      setCitiesLoading(false);
-    }
-  };
+  // Removed cities loading logic as CityDropdown will handle it
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -104,9 +59,9 @@ const CreateEmployer = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     console.log('Form submitted with data:', formData);
-    
+
     if (!validateForm()) {
       toast.error('Please fix the errors below');
       return;
@@ -127,7 +82,7 @@ const CreateEmployer = () => {
       console.log('Submitting data:', submitData);
       const response = await authService.register(submitData);
       console.log('Create employer response:', response);
-      
+
       if (response.success) {
         toast.success('Employer created successfully!');
         // Since registration response includes user data, use the user ID
@@ -158,18 +113,7 @@ const CreateEmployer = () => {
     }
   };
 
-  if (citiesLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span className="text-gray-600">Loading cities...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Removed the citiesLoading conditional rendering
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -283,25 +227,16 @@ const CreateEmployer = () => {
                 )}
               </div>
 
-              {/* City */}
+              {/* City - Replaced with CityDropdown */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   City <span className="text-red-500">*</span>
                 </label>
-                <select
+                <CityDropdown
                   value={formData.cityId}
-                  onChange={(e) => handleInputChange('cityId', e.target.value)}
-                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                    errors.cityId ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select your city</option>
-                  {cities.map((city) => (
-                    <option key={city.id} value={city.id}>
-                      {city.name}, {city.state}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(cityId) => handleInputChange('cityId', cityId)}
+                  error={errors.cityId}
+                />
                 {errors.cityId && (
                   <p className="mt-1 text-sm text-red-600">{errors.cityId}</p>
                 )}

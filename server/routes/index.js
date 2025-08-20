@@ -5,6 +5,9 @@ const employerRoutes = require('./employerRoutes');
 const branchAdminRoutes = require('./branchAdminRoutes');
 const adRoutes = require('./adRoutes');
 const publicRoutes = require('./publicRoutes');
+const sharedRoutes = require('./sharedRoutes');
+const aiRoutes = require('./aiRoutes');
+const profileRoutes = require('./profileRoutes');
 const { createResponse } = require('../utils/response');
 
 const router = express.Router();
@@ -22,17 +25,22 @@ router.get('/', (req, res) => {
       candidate: '/api/candidate',
       employer: '/api/employer',
       branchAdmin: '/api/branch-admin',
-      health: '/health'
+      profile: '/api/profile',
+      health: '/health',
+      ai: '/api/ai'
     }
   }));
 });
 
-// Mount route modules
+// Routes
 router.use('/auth', authRoutes);
-router.use('/ads', adRoutes);
+router.use('/profile', profileRoutes);
 router.use('/candidate', candidateRoutes);
 router.use('/employer', employerRoutes);
 router.use('/branch-admin', branchAdminRoutes);
+router.use('/ads', adRoutes);
 router.use('/public', publicRoutes);
+router.use('/shared', sharedRoutes);
+router.use('/ai', aiRoutes);
 
 module.exports = router;

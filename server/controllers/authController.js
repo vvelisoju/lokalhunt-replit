@@ -14,7 +14,6 @@ class AuthController {
         phone, 
         password, 
         role = 'CANDIDATE',
-        city,
         cityId 
       } = req.body;
 
@@ -56,7 +55,7 @@ class AuthController {
           phone,
           passwordHash,
           role,
-          city: city || null
+          cityId
         },
         select: {
           id: true,
@@ -66,7 +65,7 @@ class AuthController {
           email: true,
           phone: true,
           role: true,
-          city: true,
+          cityId: true,
           createdAt: true
         }
       });
@@ -173,7 +172,18 @@ class AuthController {
     try {
       const user = await req.prisma.user.findUnique({
         where: { id: req.user.userId },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          role: true,
+          cityId: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
           candidate: true,
           employer: {
             include: {

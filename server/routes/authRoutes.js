@@ -7,6 +7,15 @@ const router = express.Router();
 // Authentication routes
 router.post('/register', authController.register);
 router.post('/login', authController.login);
-router.get('/profile', authenticateToken, authController.getProfile);
+// Get user profile
+router.get('/profile', authenticateToken, authController.getProfile)
 
-module.exports = router;
+// Logout user (for JWT, this is mainly for consistency)
+router.post('/logout', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Logged out successfully' 
+  })
+})
+
+module.exports = router

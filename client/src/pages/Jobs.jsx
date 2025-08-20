@@ -137,8 +137,12 @@ const Jobs = () => {
     setSearchParams(newSearchParams)
   }, [setSearchParams])
 
-  const handleJobCardClick = (jobId) => {
-    navigate(`/jobs/${jobId}`)
+  const handleJobCardClick = (jobId, jobStatus) => {
+    if (jobStatus === 'DRAFT' || jobStatus === 'PENDING_APPROVAL') {
+      navigate(`/jobs/${jobId}/preview`)
+    } else {
+      navigate(`/jobs/${jobId}`)
+    }
   }
 
   const handleApply = async (jobId) => {
@@ -328,24 +332,29 @@ const Jobs = () => {
                   skills: Array.isArray(job.skills) ? job.skills : (job.categorySpecificFields?.requiredSkills || []),
                   postedAt: job.postedAt || job.createdAt,
                   createdAt: job.createdAt,
+                  candidatesCount: typeof job.applicationCount === 'number' ? job.applicationCount : 0,
                   applicationCount: typeof job.applicationCount === 'number' ? job.applicationCount : 0,
                   isBookmarked: Boolean(job.isBookmarked),
                   hasApplied: Boolean(job.hasApplied),
-                  experienceLevel: job.experienceLevel
+                  experienceLevel: job.experienceLevel,
+                  status: job.status || 'APPROVED' // Default to APPROVED for public jobs
                 }
+
+                // Debug log to check user role
+                console.log('Current user:', user, 'Role:', user?.role, 'Is authenticated:', isAuthenticated)
 
                 return (
                   <SharedJobCard 
                     key={job.id} 
                     job={jobData} 
                     variant="default"
-                    onApply={handleApply}
-                    onBookmark={handleBookmark}
+                    onApply={handleApply} // Always show Apply button
+                    onBookmark={isAuthenticated && user?.role === 'CANDIDATE' ? handleBookmark : undefined}
                     loading={{
                       apply: applying === job.id,
                       bookmark: false
                     }}
-                    onClick={() => handleJobCardClick(job.id)}
+                    onClick={() => handleJobCardClick(job.id, job.status)}
                   />
                 )
               })}

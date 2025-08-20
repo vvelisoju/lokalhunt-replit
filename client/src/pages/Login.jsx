@@ -16,25 +16,36 @@ const Login = () => {
   const location = useLocation()
   const from = location.state?.from?.pathname || '/'
 
-  // Redirect authenticated users to their respective dashboards
+  // Redirect authenticated users appropriately
   useEffect(() => {
     if (isAuthenticated && user?.role) {
-      console.log('User already authenticated, redirecting based on role:', user.role)
-      switch (user.role) {
-        case 'CANDIDATE':
-          navigate('/candidate/dashboard', { replace: true })
-          break
-        case 'EMPLOYER':
-          navigate('/employer/dashboard', { replace: true })
-          break
-        case 'BRANCH_ADMIN':
-          navigate('/branch-admin/dashboard', { replace: true })
-          break
-        default:
-          navigate('/candidate/dashboard', { replace: true })
+      console.log('User already authenticated, checking redirect:', user.role)
+      
+      // Check if they came from a protected route
+      const returnUrl = location.state?.from?.pathname
+      
+      if (returnUrl && returnUrl !== '/' && returnUrl !== '/login') {
+        console.log('Redirecting authenticated user to:', returnUrl)
+        navigate(returnUrl, { replace: true })
+      } else {
+        // Default role-based redirects
+        console.log('No return URL, redirecting based on role:', user.role)
+        switch (user.role) {
+          case 'CANDIDATE':
+            navigate('/candidate/dashboard', { replace: true })
+            break
+          case 'EMPLOYER':
+            navigate('/employer/dashboard', { replace: true })
+            break
+          case 'BRANCH_ADMIN':
+            navigate('/branch-admin/dashboard', { replace: true })
+            break
+          default:
+            navigate('/candidate/dashboard', { replace: true })
+        }
       }
     }
-  }, [isAuthenticated, user, navigate])
+  }, [isAuthenticated, user, navigate, location.state])
 
 
   const [formData, setFormData] = useState({
@@ -74,10 +85,15 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    e.stopPropagation()
     
-    if (!validateForm()) return
+    if (!validateForm()) {
+      return
+    }
     
     setIsLoading(true)
+    setErrors({}) // Clear any existing errors
+    
     try {
       // Try general auth first to determine user role
       const result = await login({
@@ -85,17 +101,24 @@ const Login = () => {
         password: formData.password
       })
       
-      if (result.success) {
+      if (result.success && result.user) {
         const user = result.user
         console.log('Login successful, user:', user, 'role:', user?.role)
         
-        if (user?.role === 'EMPLOYER') {
+        toast.success('Login successful!')
+        
+        // Check if user came from a protected route and redirect appropriately
+        const returnUrl = location.state?.from?.pathname
+        console.log('Login successful, return URL:', returnUrl, 'user role:', user?.role)
+        
+        if (returnUrl && returnUrl !== '/' && returnUrl !== '/login') {
+          // If they came from a specific route, try to redirect there
+          navigate(returnUrl, { replace: true })
+        } else if (user?.role === 'EMPLOYER') {
           console.log('Redirecting to employer dashboard')
-          toast.success('Login successful!')
           navigate('/employer/dashboard', { replace: true })
         } else if (user?.role === 'BRANCH_ADMIN') {
           console.log('Redirecting to branch admin dashboard') 
-          toast.success('Login successful!')
           navigate('/branch-admin/dashboard', { replace: true })
         } else if (user?.role === 'CANDIDATE') {
           console.log('Candidate login - setting up candidate auth')
@@ -105,7 +128,6 @@ const Login = () => {
           if (token) {
             localStorage.setItem('candidateToken', token)
           }
-          toast.success('Login successful!')
           console.log('Redirecting to candidate dashboard')
           navigate('/candidate/dashboard', { replace: true })
         } else {
@@ -115,13 +137,17 @@ const Login = () => {
           if (token) {
             localStorage.setItem('candidateToken', token)
           }
-          toast.success('Login successful!')
           navigate('/candidate/dashboard', { replace: true })
         }
-      } else {
-        // Show user-friendly error messages
-        let errorMessage = result.error
-        if (errorMessage.includes('Invalid credentials') || errorMessage.includes('password')) {
+        // Early return to prevent error handling for successful login
+        return
+      }
+      
+      // Only handle errors if login was not successful
+      if (!result.success) {
+        // Handle login failure - show error but don't reload page
+        let errorMessage = result.error || 'Login failed'
+        if (errorMessage.includes('Invalid credentials') || errorMessage.includes('password') || errorMessage.includes('Unauthorized')) {
           errorMessage = 'Invalid email or password. Please check your credentials and try again.'
         } else if (errorMessage.includes('not found') || errorMessage.includes('does not exist')) {
           errorMessage = 'No account found with this email. Please check your email or create a new account.'
@@ -129,14 +155,21 @@ const Login = () => {
           errorMessage = 'Connection error. Please check your internet and try again.'
         }
         toast.error(errorMessage)
+        // Keep form data intact so user can try again
       }
     } catch (error) {
       console.error('Login error:', error)
+      
       let errorMessage = 'Login failed. Please try again.'
-      if (error.message.includes('network')) {
+      if (error.message && error.message.includes('network')) {
         errorMessage = 'Network error. Please check your connection and try again.'
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Invalid email or password. Please check your credentials and try again.'
+      } else if (error.response?.status >= 500) {
+        errorMessage = 'Server error. Please try again later.'
       }
       toast.error(errorMessage)
+      // Keep form data intact so user can try again
     } finally {
       setIsLoading(false)
     }

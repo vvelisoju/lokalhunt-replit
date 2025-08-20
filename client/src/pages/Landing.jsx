@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { publicApi } from '../services/publicApi'
+import { useAuth } from '../context/AuthContext'
 import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
 import { 
@@ -21,6 +22,15 @@ import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid'
 
 const Landing = () => {
   const { t, i18n } = useTranslation()
+  const { isAuthenticated } = useAuth()
+
+  // Helper function to get correct job route based on status
+  const getJobRoute = (jobId, status) => {
+    if (status === 'DRAFT' || status === 'PENDING_APPROVAL') {
+      return `/jobs/${jobId}/preview`
+    }
+    return `/jobs/${jobId}`
+  }
   const [searchQuery, setSearchQuery] = useState('')
   const [location, setLocation] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
@@ -295,9 +305,12 @@ const Landing = () => {
                   <div className="text-sm text-gray-500">{job.posted}</div>
                 </div>
 
-                <button className="w-full bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-primary-50 hover:text-primary-600 transition-colors">
-                  {t('jobs.applyNow', 'Apply Now')}
-                </button>
+                <Link 
+                  to={getJobRoute(job.id, job.status)} 
+                  className="w-full bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-primary-50 hover:text-primary-600 transition-colors block text-center"
+                >
+                  {t('jobs.viewJob', 'View Job')}
+                </Link>
               </div>
             ))}
           </div>

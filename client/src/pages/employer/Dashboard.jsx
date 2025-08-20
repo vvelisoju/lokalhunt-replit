@@ -5,6 +5,7 @@ import { PlusIcon, EyeIcon, ExclamationTriangleIcon, DocumentTextIcon } from '@h
 import KpiCards from '../../components/employer/KpiCards'
 import Button from '../../components/ui/Button'
 import Loader from '../../components/ui/Loader'
+import JobCard from '../../components/ui/JobCard'
 import { getAds } from '../../services/employer/ads'
 import { getMous } from '../../services/employer/mou'
 
@@ -125,34 +126,37 @@ const Dashboard = () => {
           </div>
           <div className="p-6">
             {recentAds.length > 0 ? (
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {recentAds.map((ad) => (
-                  <div key={ad.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                    <div className="flex-1">
-                      <Link 
-                        to={`/employer/ads/${ad.id}/edit`}
-                        className="text-sm font-medium text-gray-900 hover:text-blue-600"
-                      >
-                        {ad.title}
-                      </Link>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {ad.company?.name} • {ad.city} • Created {new Date(ad.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        ad.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' :
-                        ad.status === 'PENDING_APPROVAL' ? 'bg-yellow-100 text-yellow-800' :
-                        ad.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {ad.status.replace('_', ' ')}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {ad._count?.allocations || 0} candidates
-                      </span>
-                    </div>
-                  </div>
+                  <JobCard
+                    key={ad.id}
+                    job={{
+                      id: ad.id,
+                      title: ad.title,
+                      description: ad.description,
+                      company: ad.company || { name: ad.companyName || 'Company' },
+                      location: ad.city || ad.location || 'Location not specified',
+                      jobType: ad.employmentType || 'Full Time',
+                      salary: ad.salaryMin && ad.salaryMax ? {
+                        min: ad.salaryMin,
+                        max: ad.salaryMax
+                      } : null,
+                      skills: ad.skills ? (
+                        typeof ad.skills === 'string'
+                          ? ad.skills.split(',').map(s => s.trim())
+                          : Array.isArray(ad.skills)
+                            ? ad.skills
+                            : []
+                      ) : [],
+                      postedAt: ad.createdAt,
+                      candidatesCount: ad._count?.allocations || 0,
+                      applicationCount: ad._count?.allocations || 0,
+                      status: ad.status
+                    }}
+                    variant="employer"
+                    applicationStatus={ad.status}
+                    loading={{}}
+                  />
                 ))}
               </div>
             ) : (

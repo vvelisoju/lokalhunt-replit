@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'react-hot-toast'
+import CityDropdown from '../components/ui/CityDropdown'
 
 const Register = () => {
   const { t } = useTranslation()
@@ -67,52 +68,52 @@ const Register = () => {
 
   const validateForm = () => {
     const newErrors = {}
-    
+
     if (!formData.firstName.trim()) {
       newErrors.firstName = 'First name is required'
     }
-    
+
     if (!formData.lastName.trim()) {
       newErrors.lastName = 'Last name is required'
     }
-    
+
     if (!formData.email) {
       newErrors.email = 'Email is required'
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address'
     }
-    
+
     if (!formData.phone) {
       newErrors.phone = 'Phone number is required'
     } else if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) {
       newErrors.phone = 'Please enter a valid 10-digit phone number'
     }
-    
+
     if (!formData.city) {
       newErrors.city = 'City is required'
     }
-    
+
     if (!formData.password) {
       newErrors.password = 'Password is required'
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters'
     }
-    
+
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = 'Please confirm your password'
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match'
     }
-    
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
-    
+
     setIsLoading(true)
     try {
       const registrationData = {
@@ -126,7 +127,7 @@ const Register = () => {
       }
 
       const result = await register(registrationData)
-      
+
       if (result.success) {
         toast.success('Registration successful!')
         // Wait a moment for auth context to update, then redirect
@@ -317,14 +318,11 @@ const Register = () => {
               />
 
               {/* City */}
-              <Select
+              <CityDropdown
                 label="City"
                 name="city"
                 value={formData.city}
                 onChange={handleChange}
-                options={cities}
-                placeholder="Select your city"
-                required
                 error={errors.city}
               />
 

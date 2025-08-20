@@ -9,8 +9,9 @@ class BranchAdminController {
   async getStats(req, res, next) {
     try {
       // Get branch admin info to find assigned city
+      const userId = req.user.userId || req.user.id;
       const branchAdmin = await req.prisma.branchAdmin.findUnique({
-        where: { userId: req.user.userId },
+        where: { userId: userId },
         include: { assignedCity: true }
       });
 
@@ -126,8 +127,9 @@ class BranchAdminController {
   async getQuickActions(req, res, next) {
     try {
       // Get branch admin info
+      const userId = req.user.userId || req.user.id;
       const branchAdmin = await req.prisma.branchAdmin.findUnique({
-        where: { userId: req.user.userId }
+        where: { userId: userId }
       });
 
       if (!branchAdmin) {
@@ -345,8 +347,11 @@ class BranchAdminController {
   // Get branch admin profile (NEW)
   async getProfile(req, res, next) {
     try {
+      console.log('Branch Admin getProfile - User ID:', req.user.userId || req.user.id);
+      
+      const userId = req.user.userId || req.user.id;
       const branchAdmin = await req.prisma.branchAdmin.findUnique({
-        where: { userId: req.user.userId },
+        where: { userId: userId },
         include: {
           user: {
             select: {
@@ -452,9 +457,10 @@ class BranchAdminController {
   async updateProfile(req, res, next) {
     try {
       const { performanceMetrics } = req.body;
+      const userId = req.user.userId || req.user.id;
 
       const branchAdmin = await req.prisma.branchAdmin.findUnique({
-        where: { userId: req.user.userId }
+        where: { userId: userId }
       });
 
       if (!branchAdmin) {
@@ -464,7 +470,7 @@ class BranchAdminController {
       }
 
       const updatedBranchAdmin = await req.prisma.branchAdmin.update({
-        where: { userId: req.user.userId },
+        where: { userId: userId },
         data: {
           ...(performanceMetrics && { performanceMetrics })
         },

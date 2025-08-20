@@ -1,43 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import React from 'react'
 import { 
   Bars3Icon, 
-  BellIcon, 
-  UserCircleIcon,
-  ChevronDownIcon,
-  UserIcon,
-  Cog6ToothIcon,
-  ArrowRightOnRectangleIcon,
-  GlobeAltIcon,
-  ChartBarIcon
+  BellIcon
 } from '@heroicons/react/24/outline'
 import { useAuth } from '../../context/AuthContext'
 import { useTranslation } from 'react-i18next'
+import ProfileDropdown from '../ui/ProfileDropdown'
 
 const Header = ({ onMenuClick }) => {
   const { user, logout } = useAuth()
   const { t, i18n } = useTranslation()
-  const [showUserMenu, setShowUserMenu] = useState(false)
-  const dropdownRef = useRef(null)
 
   const changeLanguage = (lng) => {
     i18n.changeLanguage(lng)
-    setShowUserMenu(false)
   }
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowUserMenu(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [])
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
@@ -70,79 +46,11 @@ const Header = ({ onMenuClick }) => {
             </button>
 
             {/* User profile dropdown */}
-            <div className="relative" ref={dropdownRef}>
-              <button 
-                className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 hover:bg-gray-50 p-1 transition-colors"
-                onClick={() => setShowUserMenu(!showUserMenu)}
-              >
-                <img
-                  className="h-10 w-10 rounded-full object-cover ring-2 ring-blue-100"
-                  src={user?.profileImage || `https://ui-avatars.com/api/?name=${user?.name}&background=2563eb&color=fff`}
-                  alt={user?.name || 'Branch Admin'}
-                />
-                <div className="ml-3 hidden sm:block text-left">
-                  <p className="text-sm font-medium text-gray-700">
-                    {user?.name || 'Branch Admin'}
-                  </p>
-                  <p className="text-xs text-gray-500">{user?.email || 'admin@example.com'}</p>
-                </div>
-                <ChevronDownIcon className="ml-2 h-4 w-4 text-gray-400 hidden sm:block" />
-              </button>
-
-              {/* Dropdown Menu */}
-              {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
-                  <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="text-sm font-medium text-gray-700">
-                      {user?.name || 'Branch Admin'}
-                    </p>
-                    <p className="text-xs text-gray-500">{user?.email || 'admin@example.com'}</p>
-                    <p className="text-xs text-blue-600 mt-1">Branch Admin</p>
-                  </div>
-                  
-                  <div className="py-1">
-                    <Link 
-                      to="/branch-admin/dashboard" 
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      <ChartBarIcon className="h-4 w-4 mr-3" />
-                      Dashboard
-                    </Link>
-                    
-                    <Link 
-                      to="/branch-admin/reports" 
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      <UserIcon className="h-4 w-4 mr-3" />
-                      Admin Profile
-                    </Link>
-                    
-                    <button 
-                      className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                      onClick={() => changeLanguage(i18n.language === 'en' ? 'te' : 'en')}
-                    >
-                      <GlobeAltIcon className="h-4 w-4 mr-3" />
-                      Language: {i18n.language === 'en' ? 'తెలుగు' : 'English'}
-                    </button>
-                  </div>
-                  
-                  <div className="border-t border-gray-100 pt-1">
-                    <button 
-                      onClick={() => {
-                        setShowUserMenu(false)
-                        logout()
-                      }}
-                      className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
-                      Logout
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <ProfileDropdown 
+              user={{...user, role: 'BRANCH_ADMIN'}} 
+              logout={logout} 
+              onLanguageChange={changeLanguage}
+            />
           </div>
         </div>
       </div>

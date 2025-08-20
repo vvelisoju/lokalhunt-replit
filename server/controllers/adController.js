@@ -37,32 +37,29 @@ class AdController {
 
       // Category-specific filters for Jobs
       if (categoryName === 'Jobs') {
-        const jobFilters = {};
-        
         if (skills) {
           const skillsArray = skills.split(',').map(s => s.trim());
-          jobFilters['categorySpecificFields.skills'] = {
-            hasAll: skillsArray
+          where.skills = {
+            contains: skillsArray.join(' '),
+            mode: 'insensitive'
           };
         }
         
         if (experienceLevel) {
-          jobFilters['categorySpecificFields.experienceLevel'] = experienceLevel;
+          where.experienceLevel = experienceLevel;
         }
         
         if (employmentType) {
-          jobFilters['categorySpecificFields.employmentType'] = employmentType;
+          where.employmentType = employmentType;
         }
         
         if (salaryMin || salaryMax) {
-          const salaryFilter = {};
-          if (salaryMin) salaryFilter.gte = parseInt(salaryMin);
-          if (salaryMax) salaryFilter.lte = parseInt(salaryMax);
-          jobFilters['categorySpecificFields.salaryRange.min'] = salaryFilter;
-        }
-
-        if (Object.keys(jobFilters).length > 0) {
-          where = { ...where, ...jobFilters };
+          if (salaryMin) {
+            where.salaryMin = { gte: parseFloat(salaryMin) };
+          }
+          if (salaryMax) {
+            where.salaryMax = { lte: parseFloat(salaryMax) };
+          }
         }
       }
 
@@ -393,7 +390,9 @@ class AdController {
         select: {
           categoryName: true,
           locationId: true,
-          categorySpecificFields: true
+          skills: true,
+          experienceLevel: true,
+          employmentType: true
         }
       });
 

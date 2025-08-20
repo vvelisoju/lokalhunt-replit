@@ -26,24 +26,26 @@ export const getAd = async (adId) => {
 
 export const approveAd = async (adId) => {
   try {
-    const response = await api.patch(`/branch-admins/ads/${adId}/approve`);
+    const response = await api.post(`/branch-admins/ads/${adId}/approve`);
     return { success: true, data: response.data };
   } catch (error) {
+    console.error('Approve ad error:', error);
     return { 
       success: false, 
-      error: error.response?.data?.message || 'Failed to approve ad'
+      error: error.response?.data?.message || error.message || 'Failed to approve ad'
     };
   }
 };
 
 export const rejectAd = async (adId, notes) => {
   try {
-    const response = await api.patch(`/branch-admins/ads/${adId}/reject`, { notes });
+    const response = await api.post(`/branch-admins/ads/${adId}/reject`, { notes });
     return { success: true, data: response.data };
   } catch (error) {
+    console.error('Reject ad error:', error);
     return { 
       success: false, 
-      error: error.response?.data?.message || 'Failed to reject ad'
+      error: error.response?.data?.message || error.message || 'Failed to reject ad'
     };
   }
 };

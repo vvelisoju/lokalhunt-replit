@@ -46,7 +46,7 @@ router.get('/stats', async (req, res, next) => {
 router.get('/cities', async (req, res, next) => {
   try {
     const { stateId } = req.query;
-    
+
     const where = {
       isActive: true,
       ...(stateId && { stateId })
@@ -74,7 +74,7 @@ router.get('/cities', async (req, res, next) => {
 router.get('/jobs/featured', async (req, res, next) => {
   try {
     const { limit = 8 } = req.query;
-    
+
     const featuredJobs = await req.prisma.ad.findMany({
       where: {
         status: 'APPROVED',
@@ -110,23 +110,29 @@ router.get('/jobs/featured', async (req, res, next) => {
     });
 
     // Transform jobs for frontend
-    const transformedJobs = featuredJobs.map(job => ({
-      id: job.id,
-      title: job.title,
-      company: {
-        name: job.company.name,
-        logo: job.company.logo
-      },
-      location: job.location ? `${job.location.name}, ${job.location.state}` : 'Remote',
-      salary: job.categorySpecificFields?.salaryRange ? 
-        `₹${job.categorySpecificFields.salaryRange.min} - ₹${job.categorySpecificFields.salaryRange.max}` : 
-        'Negotiable',
-      vacancies: job.numberOfPositions || 1,
-      postedAt: job.createdAt,
-      jobType: job.categorySpecificFields?.employmentType || 'Full Time',
-      featured: true,
-      experienceLevel: job.categorySpecificFields?.experienceLevel
-    }));
+    const transformedJobs = featuredJobs.map(job => {
+      const salaryMin = job.salaryMin ? Number(job.salaryMin) : null;
+      const salaryMax = job.salaryMax ? Number(job.salaryMax) : null;
+      
+      return {
+        id: job.id,
+        title: job.title,
+        company: {
+          name: job.company.name,
+          logo: job.company.logo
+        },
+        location: job.location ? `${job.location.name}, ${job.location.state}` : 'Remote',
+        salary: (salaryMin && salaryMax) ?
+          `₹${salaryMin} - ₹${salaryMax}` :
+          salaryMin ? `₹${salaryMin}+` :
+          'Negotiable',
+        vacancies: job.numberOfPositions || 1,
+        postedAt: job.createdAt,
+        jobType: job.employmentType || 'Full Time',
+        featured: true,
+        experienceLevel: job.experienceLevel || 'Not specified'
+      };
+    });
 
     res.json(createResponse('Featured jobs retrieved successfully', transformedJobs));
   } catch (error) {
@@ -248,7 +254,7 @@ router.get('/jobs/search', optionalAuth, async (req, res, next) => {
       salaryRange,
       sortBy = 'newest'
     } = req.query;
-    
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     let where = {
@@ -277,29 +283,17 @@ router.get('/jobs/search', optionalAuth, async (req, res, next) => {
     // Job type filter
     if (jobType && jobType !== '') {
       const jobTypes = Array.isArray(jobType) ? jobType : [jobType];
-      where.OR = [
-        ...(where.OR || []),
-        ...jobTypes.map(type => ({
-          categorySpecificFields: {
-            path: ['employmentType'],
-            equals: type
-          }
-        }))
-      ];
+      where.employmentType = {
+        in: jobTypes
+      };
     }
 
     // Experience level filter  
     if (experience && experience !== '') {
       const experienceLevels = Array.isArray(experience) ? experience : [experience];
-      if (!where.OR) where.OR = [];
-      where.OR.push(
-        ...experienceLevels.map(level => ({
-          categorySpecificFields: {
-            path: ['experienceLevel'],
-            equals: level
-          }
-        }))
-      );
+      where.experienceLevel = {
+        in: experienceLevels
+      };
     }
 
     // Category filter
@@ -315,8 +309,7 @@ router.get('/jobs/search', optionalAuth, async (req, res, next) => {
         where.AND = [
           ...(where.AND || []),
           {
-            categorySpecificFields: {
-              path: ['salaryRange', 'min'],
+            salaryMin: {
               gte: minSalary
             }
           }
@@ -329,14 +322,12 @@ router.get('/jobs/search', optionalAuth, async (req, res, next) => {
           {
             AND: [
               {
-                categorySpecificFields: {
-                  path: ['salaryRange', 'min'],
+                salaryMin: {
                   gte: minSalary
                 }
               },
               {
-                categorySpecificFields: {
-                  path: ['salaryRange', 'max'],
+                salaryMax: {
                   lte: maxSalary
                 }
               }
@@ -353,10 +344,10 @@ router.get('/jobs/search', optionalAuth, async (req, res, next) => {
         orderBy = [{ createdAt: 'asc' }];
         break;
       case 'salary-high':
-        orderBy = [{ categorySpecificFields: { path: ['salaryRange', 'max'], sort: 'desc' } }];
+        orderBy = [{ salaryMax: 'desc' }];
         break;
       case 'salary-low':
-        orderBy = [{ categorySpecificFields: { path: ['salaryRange', 'min'], sort: 'asc' } }];
+        orderBy = [{ salaryMin: 'asc' }];
         break;
       case 'relevance':
         // For relevance, we'd need more complex scoring
@@ -397,28 +388,34 @@ router.get('/jobs/search', optionalAuth, async (req, res, next) => {
     ]);
 
     // Transform jobs for frontend with status checking if authenticated
-    let transformedJobs = jobs.map(job => ({
-      id: job.id,
-      title: job.title,
-      company: {
-        name: job.company.name,
-        logo: job.company.logo
-      },
-      location: job.location ? `${job.location.name}, ${job.location.state}` : 'Remote',
-      salary: job.categorySpecificFields?.salaryRange ? 
-        `₹${job.categorySpecificFields.salaryRange.min} - ₹${job.categorySpecificFields.salaryRange.max}` : 
-        'Negotiable',
-      vacancies: job.numberOfPositions || 1,
-      postedAt: job.createdAt,
-      jobType: job.categorySpecificFields?.employmentType?.toLowerCase()?.replace('_', '-') || 'full-time',
-      featured: false, // Public search doesn't show featured status
-      experienceLevel: job.categorySpecificFields?.experienceLevel,
-      description: job.description?.substring(0, 150) + '...' || '',
-      skills: job.categorySpecificFields?.skills || [],
-      applicationCount: job._count?.allocations || 0,
-      isBookmarked: false,
-      hasApplied: false
-    }));
+    let transformedJobs = jobs.map(job => {
+      const salaryMin = job.salaryMin ? Number(job.salaryMin) : null;
+      const salaryMax = job.salaryMax ? Number(job.salaryMax) : null;
+      
+      return {
+        id: job.id,
+        title: job.title,
+        company: {
+          name: job.company.name,
+          logo: job.company.logo
+        },
+        location: job.location ? `${job.location.name}, ${job.location.state}` : 'Remote',
+        salary: (salaryMin && salaryMax) ?
+          `₹${salaryMin} - ₹${salaryMax}` :
+          salaryMin ? `₹${salaryMin}+` :
+          'Negotiable',
+        vacancies: job.numberOfPositions || 1,
+        postedAt: job.createdAt,
+        jobType: job.employmentType?.toLowerCase()?.replace('_', '-') || 'full-time',
+        featured: false, // Public search doesn't show featured status
+        experienceLevel: job.experienceLevel || 'Not specified',
+        description: job.description?.substring(0, 150) + '...' || '',
+        skills: job.skills ? job.skills.split(',').map(skill => skill.trim()) : [],
+        applicationCount: job._count?.allocations || 0,
+        isBookmarked: false,
+        hasApplied: false
+      };
+    });
 
     // Add status information for authenticated candidates
     if (req.user && req.user.role === 'CANDIDATE') {
@@ -474,7 +471,7 @@ router.get('/jobs/search', optionalAuth, async (req, res, next) => {
 router.get('/jobs/:id', optionalAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     const job = await req.prisma.ad.findFirst({
       where: {
         id,
@@ -519,7 +516,10 @@ router.get('/jobs/:id', optionalAuth, async (req, res, next) => {
       );
     }
 
-    // Transform job for frontend
+    // Transform job for frontend with proper type conversion
+    const salaryMin = job.salaryMin ? Number(job.salaryMin) : null;
+    const salaryMax = job.salaryMax ? Number(job.salaryMax) : null;
+    
     let transformedJob = {
       id: job.id,
       title: job.title,
@@ -530,21 +530,36 @@ router.get('/jobs/:id', optionalAuth, async (req, res, next) => {
         logo: job.company?.logo,
         industry: job.company?.industry,
         description: job.company?.description,
-        website: job.company?.website
+        website: job.company?.website,
+        size: job.company?.size,
+        location: job.company?.location
       },
-      location: job.location ? `${job.location.name}, ${job.location.state}` : 'Remote',
-      salary: job.categorySpecificFields?.salaryRange ? 
-        `₹${job.categorySpecificFields.salaryRange.min} - ₹${job.categorySpecificFields.salaryRange.max}` : 
+      location: job.location ? {
+        id: job.location.id,
+        name: job.location.name,
+        state: job.location.state
+      } : null,
+      locationName: job.location?.name,
+      locationState: job.location?.state,
+      salary: (salaryMin && salaryMax) ?
+        `₹${salaryMin} - ₹${salaryMax}` :
+        salaryMin ? `₹${salaryMin}+` :
         'Negotiable',
-      categorySpecificFields: job.categorySpecificFields,
+      salaryMin: salaryMin,
+      salaryMax: salaryMax,
+      numberOfPositions: job.numberOfPositions,
       vacancies: job.numberOfPositions || 1,
       postedAt: job.createdAt,
-      jobType: job.categorySpecificFields?.employmentType || 'FULL_TIME',
-      experienceLevel: job.categorySpecificFields?.experienceLevel,
-      skills: job.categorySpecificFields?.skills || [],
+      jobType: job.employmentType || 'FULL_TIME',
+      employmentType: job.employmentType || 'FULL_TIME',
+      experienceLevel: job.experienceLevel || 'Not specified',
+      skills: job.skills ? job.skills.split(',').map(skill => skill.trim()) : [],
+      gender: job.gender,
+      educationQualification: job.educationQualification,
       applicationCount: 0, // Will be updated with real count
       isBookmarked: false,
-      hasApplied: false
+      hasApplied: false,
+      status: job.status
     };
 
     // Get application count for all users
@@ -563,7 +578,7 @@ router.get('/jobs/:id', optionalAuth, async (req, res, next) => {
 
       if (candidate) {
         console.log(`Checking status for candidate ${candidate.id} on job ${id}`);
-        
+
         const [bookmark, application] = await Promise.all([
           req.prisma.bookmark.findUnique({
             where: {
@@ -582,7 +597,7 @@ router.get('/jobs/:id', optionalAuth, async (req, res, next) => {
         ]);
 
         console.log(`Bookmark found: ${!!bookmark}, Application found: ${!!application}`);
-        
+
         transformedJob = {
           ...transformedJob,
           isBookmarked: !!bookmark,
@@ -593,6 +608,110 @@ router.get('/jobs/:id', optionalAuth, async (req, res, next) => {
     }
 
     res.json(createResponse('Job retrieved successfully', transformedJob));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get job preview by ID (for DRAFT and PENDING_APPROVAL jobs) - MUST be after /jobs/search
+router.get('/jobs/:id/preview', optionalAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const job = await req.prisma.ad.findFirst({
+      where: {
+        id,
+        status: {
+          in: ['DRAFT', 'PENDING_APPROVAL']
+        },
+        isActive: true
+      },
+      include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            industry: true,
+            description: true,
+            website: true,
+            size: true
+          }
+        },
+        location: {
+          select: {
+            id: true,
+            name: true,
+            state: true
+          }
+        },
+        employer: {
+          select: {
+            isVerified: true,
+            user: {
+              select: {
+                name: true
+              }
+            }
+          }
+        },
+        category: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        educationQualification: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    if (!job) {
+      return res.status(404).json(
+        createErrorResponse('Job not found or not available for preview', 404)
+      );
+    }
+
+    // Transform job for frontend (same structure as approved jobs)
+    let transformedJob = {
+      id: job.id,
+      title: job.title,
+      description: job.description,
+      status: job.status,
+      company: {
+        id: job.company?.id,
+        name: job.company?.name || 'Company Name',
+        logo: job.company?.logo,
+        industry: job.company?.industry,
+        description: job.company?.description,
+        website: job.company?.website,
+        size: job.company?.size,
+        location: job.company?.location
+      },
+      location: job.location ? `${job.location.name}, ${job.location.state}` : 'Remote',
+      salary: job.categorySpecificFields?.salaryRange ? 
+        `₹${job.categorySpecificFields.salaryRange.min} - ₹${job.categorySpecificFields.salaryRange.max}` : 
+        'Negotiable',
+      categorySpecificFields: job.categorySpecificFields,
+      vacancies: job.numberOfPositions || 1,
+      postedAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      jobType: job.categorySpecificFields?.employmentType || 'FULL_TIME',
+      experienceLevel: job.categorySpecificFields?.experienceLevel,
+      skills: job.categorySpecificFields?.skills || [],
+      category: job.category,
+      educationQualification: job.educationQualification,
+      gender: job.gender,
+      applicationCount: 0, // Preview jobs don't show application counts
+      isBookmarked: false, // Preview jobs can't be bookmarked
+      hasApplied: false // Preview jobs can't be applied to
+    };
+
+    res.json(createResponse('Job preview retrieved successfully', transformedJob));
   } catch (error) {
     next(error);
   }
@@ -649,7 +768,7 @@ router.get('/companies', async (req, res, next) => {
       size,
       location
     } = req.query;
-    
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     let where = {

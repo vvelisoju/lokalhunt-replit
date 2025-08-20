@@ -10,7 +10,7 @@ import {
 import FormInput from '../../components/ui/FormInput'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
-import Select from '../../components/ui/Select'
+import CityDropdown from '../../components/ui/CityDropdown'
 import { useCandidateAuth } from '../../hooks/useCandidateAuth'
 
 const Register = () => {
@@ -21,22 +21,14 @@ const Register = () => {
     phone: '',
     password: '',
     confirmPassword: '',
-    city: '',
+    cityId: '',
     agreeToTerms: false
   })
   const [errors, setErrors] = useState({})
   const { register, loading } = useCandidateAuth()
   const navigate = useNavigate()
 
-  const cities = [
-    { value: 'mumbai', label: 'Mumbai' },
-    { value: 'delhi', label: 'Delhi' },
-    { value: 'bangalore', label: 'Bangalore' },
-    { value: 'hyderabad', label: 'Hyderabad' },
-    { value: 'chennai', label: 'Chennai' },
-    { value: 'kolkata', label: 'Kolkata' },
-    { value: 'pune', label: 'Pune' }
-  ]
+  
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -85,8 +77,8 @@ const Register = () => {
       newErrors.confirmPassword = 'Passwords do not match'
     }
     
-    if (!formData.city) {
-      newErrors.city = 'Please select your city'
+    if (!formData.cityId) {
+      newErrors.cityId = 'Please select your city'
     }
     
     if (!formData.agreeToTerms) {
@@ -186,15 +178,14 @@ const Register = () => {
               error={errors.phone}
             />
 
-            <Select
+            <CityDropdown
               label="City"
-              name="city"
-              value={formData.city}
+              name="cityId"
+              value={formData.cityId}
               onChange={handleChange}
-              options={cities}
               placeholder="Select your city"
               required
-              error={errors.city}
+              error={errors.cityId}
             />
 
             <FormInput

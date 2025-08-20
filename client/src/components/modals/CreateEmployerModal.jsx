@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { XMarkIcon, UserIcon, PhoneIcon, EnvelopeIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, UserIcon, EnvelopeIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { authService } from '../../services/authService';
 import publicApi from '../../services/publicApi';
+import CityDropdown from '../ui/CityDropdown'; // Import the shared CityDropdown component
 
 const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [citiesLoading, setCitiesLoading] = useState(true);
-  const [cities, setCities] = useState([]);
+  // Removed cities and citiesLoading state as CityDropdown will manage its own state and fetching
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -18,54 +18,12 @@ const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
     phone: '',
     password: '',
     confirmPassword: '',
-    cityId: ''
+    cityId: '' // This will now be managed by CityDropdown's onCityChange
   });
 
   const [errors, setErrors] = useState({});
 
-  useEffect(() => {
-    if (isOpen) {
-      loadCities();
-    }
-  }, [isOpen]);
-
-  const loadCities = async () => {
-    setCitiesLoading(true);
-    try {
-      const response = await publicApi.getCities();
-      
-      if (response && response.data && Array.isArray(response.data)) {
-        setCities(response.data);
-      } else if (response && Array.isArray(response)) {
-        setCities(response);
-      } else {
-        // Fallback to default cities if API fails
-        const fallbackCities = [
-          { id: 'c66cc663-ec21-41bc-b58c-7f6a53c8ed70', name: 'Bangalore', state: 'Karnataka' },
-          { id: '4ae30f5b-d4d1-4d7a-a3c7-de3040eb94fa', name: 'Delhi', state: 'Delhi' },
-          { id: 'd505a6c5-8140-459b-8ff3-39565c65b74e', name: 'Hyderabad', state: 'Telangana' },
-          { id: '69f77c2d-aaaa-4c14-bf9c-61a1910a018a', name: 'Mumbai', state: 'Maharashtra' },
-          { id: 'aba48839-eb36-4d8a-8a40-963017304952', name: 'Pune', state: 'Maharashtra' }
-        ];
-        setCities(fallbackCities);
-        toast.error('Using fallback cities due to API error');
-      }
-    } catch (error) {
-      console.error('Error loading cities:', error);
-      // Fallback to default cities
-      const fallbackCities = [
-        { id: 'c66cc663-ec21-41bc-b58c-7f6a53c8ed70', name: 'Bangalore', state: 'Karnataka' },
-        { id: '4ae30f5b-d4d1-4d7a-a3c7-de3040eb94fa', name: 'Delhi', state: 'Delhi' },
-        { id: 'd505a6c5-8140-459b-8ff3-39565c65b74e', name: 'Hyderabad', state: 'Telangana' },
-        { id: '69f77c2d-aaaa-4c14-bf9c-61a1910a018a', name: 'Mumbai', state: 'Maharashtra' },
-        { id: 'aba48839-eb36-4d8a-8a40-963017304952', name: 'Pune', state: 'Maharashtra' }
-      ];
-      setCities(fallbackCities);
-      toast.error('Failed to load cities from server. Using default cities.');
-    } finally {
-      setCitiesLoading(false);
-    }
-  };
+  // Removed useEffect for loading cities, as CityDropdown will handle this.
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -73,7 +31,7 @@ const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
       ...prev,
       [name]: value
     }));
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
@@ -83,9 +41,24 @@ const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
     }
   };
 
+  // Handler for CityDropdown's selection change
+  const handleCityChange = (cityId) => {
+    setFormData(prev => ({
+      ...prev,
+      cityId: cityId
+    }));
+    // Clear city error if user selects a city
+    if (errors.cityId) {
+      setErrors(prev => ({
+        ...prev,
+        cityId: ''
+      }));
+    }
+  };
+
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
     if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
     if (!formData.email.trim()) newErrors.email = 'Email is required';
@@ -96,7 +69,7 @@ const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
-    if (!formData.cityId) newErrors.cityId = 'City is required';
+    if (!formData.cityId) newErrors.cityId = 'City is required'; // Validation remains for cityId
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -104,7 +77,7 @@ const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       toast.error('Please fix the errors below');
       return;
@@ -125,7 +98,7 @@ const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
       try {
         const response = await authService.register(submitData);
         console.log('Registration response:', response);
-        
+
         if (response.success || response.status === 'success') {
           toast.success('Employer created successfully!');
           // Reset form first
@@ -150,8 +123,8 @@ const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
           // Show user-friendly error messages
           const errorMessage = response.message || response.error || 'Failed to create employer';
           console.log('Error message:', errorMessage);
-          
-          if (errorMessage.toLowerCase().includes('email already exists') || 
+
+          if (errorMessage.toLowerCase().includes('email already exists') ||
               errorMessage.toLowerCase().includes('user with this email')) {
             toast.error('This email address is already registered. Please use a different email.');
           } else if (errorMessage.includes('passwordHash')) {
@@ -320,31 +293,20 @@ const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
             {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
           </div>
 
-          {/* City */}
+          {/* City - Replaced with CityDropdown */}
           <div>
             <label htmlFor="cityId" className="block text-sm font-medium text-gray-700 mb-2">
               City *
             </label>
-            <select
+            {/* Use the CityDropdown component */}
+            <CityDropdown
               id="cityId"
               name="cityId"
               value={formData.cityId}
-              onChange={handleInputChange}
-              disabled={citiesLoading}
-              className={`block w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.cityId ? 'border-red-300' : 'border-gray-300'
-              }`}
-            >
-              <option value="">
-                {citiesLoading ? 'Loading cities...' : 'Select a city'}
-              </option>
-              {cities.map((city) => (
-                <option key={city.id} value={city.id}>
-                  {city.name}, {city.state}
-                </option>
-              ))}
-            </select>
-            {errors.cityId && <p className="mt-1 text-sm text-red-600">{errors.cityId}</p>}
+              onChange={handleCityChange} // Use the new handler
+              error={errors.cityId}
+            />
+            {/* Error message display is handled within CityDropdown or can be added here if needed */}
           </div>
 
           {/* Password */}

@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
@@ -76,14 +77,18 @@ const employerRoutes = require('./routes/employerRoutes');
 const branchAdminRoutes = require('./routes/branchAdminRoutes');
 const adRoutes = require('./routes/adRoutes');
 const publicRoutes = require('./routes/publicRoutes');
+const aiRoutes = require('./routes/aiRoutes');
+const profileRoutes = require('./routes/profileRoutes');
 
 // Use routes - mounted under /api to match client expectations
 app.use('/api/auth', authRoutes);
+app.use('/api/profile', profileRoutes);
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/employers', employerRoutes);
 app.use('/api/branch-admins', branchAdminRoutes);
 app.use('/api/ads', adRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Object storage serving routes
 app.get("/objects/:objectPath(*)", async (req, res) => {

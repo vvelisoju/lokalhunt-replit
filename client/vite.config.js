@@ -8,7 +8,8 @@ export default defineConfig({
     port: 3000,
     host: "0.0.0.0",
     allowedHosts: [
-      "95abd48a-a6f6-4f32-8d02-9e30b2dd5abf-00-r21go023ry3g.worf.replit.dev"
+      "localhost:3000",
+      "8623772d-42f2-4847-92b4-3b6c3e49b220-00-1xro0juetxdg.riker.replit.dev",
     ],
     proxy: {
       "/api": {
@@ -17,14 +18,18 @@ export default defineConfig({
         secure: false,
         ws: true,
         configure: (proxy, _options) => {
-          proxy.on('error', (err, _req, _res) => {
-            console.log('proxy error', err);
+          proxy.on("error", (err, _req, _res) => {
+            console.log("proxy error", err);
           });
-          proxy.on('proxyReq', (proxyReq, req, _res) => {
-            console.log('Sending Request to the Target:', req.method, req.url);
+          proxy.on("proxyReq", (proxyReq, req, _res) => {
+            console.log("Sending Request to the Target:", req.method, req.url);
           });
-          proxy.on('proxyRes', (proxyRes, req, _res) => {
-            console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+          proxy.on("proxyRes", (proxyRes, req, _res) => {
+            console.log(
+              "Received Response from the Target:",
+              proxyRes.statusCode,
+              req.url,
+            );
           });
         },
       },

@@ -15,16 +15,12 @@ class EmployerController {
             select: {
               id: true,
               name: true,
+              firstName: true,
+              lastName: true,
               email: true,
               phone: true,
-              city: {
-                select: {
-                  id: true,
-                  name: true,
-                  state: true,
-                  country: true
-                }
-              },
+              cityId: true,
+              city: true,
               isActive: true,
               createdAt: true
             }
@@ -32,10 +28,7 @@ class EmployerController {
           companies: {
             where: { isActive: true },
             include: {
-              city: true,
-              _count: {
-                select: { ads: true }
-              }
+              city: true
             },
             orderBy: { createdAt: 'desc' }
           },
@@ -43,13 +36,6 @@ class EmployerController {
             where: { isActive: true },
             orderBy: { createdAt: 'desc' },
             take: 5
-          },
-          _count: {
-            select: {
-              companies: true,
-              ads: true,
-              mous: true
-            }
           }
         }
       });
@@ -60,20 +46,52 @@ class EmployerController {
         );
       }
 
+      // Get counts separately to avoid SelectionSetOnScalar error
+      const [companiesCount, adsCount, mousCount] = await Promise.all([
+        req.prisma.company.count({
+          where: { employerId: employer.id, isActive: true }
+        }),
+        req.prisma.ad.count({
+          where: { employerId: employer.id }
+        }),
+        req.prisma.mOU.count({
+          where: { employerId: employer.id, isActive: true }
+        })
+      ]);
+
+      // Get ads count for each company
+      const companiesWithAdCount = await Promise.all(
+        employer.companies.map(async (company) => {
+          const adCount = await req.prisma.ad.count({
+            where: { companyId: company.id }
+          });
+          return {
+            ...company,
+            adsCount: adCount
+          };
+        })
+      );
+
       // Calculate profile completeness
       const profileFields = [
         employer.contactDetails,
         employer.user.phone,
-        employer.companies.length > 0
+        companiesCount > 0
       ];
       const completedFields = profileFields.filter(field => field).length;
       const profileCompleteness = Math.round((completedFields / profileFields.length) * 100);
 
       const profileData = {
         ...employer,
+        companies: companiesWithAdCount,
+        _count: {
+          companies: companiesCount,
+          ads: adsCount,
+          mous: mousCount
+        },
         profileCompleteness,
-        hasActiveCompanies: employer.companies.length > 0,
-        hasActiveMOU: employer.mous.length > 0
+        hasActiveCompanies: companiesCount > 0,
+        hasActiveMOU: mousCount > 0
       };
 
       res.json(createResponse('Profile retrieved successfully', profileData));
@@ -280,12 +298,20 @@ class EmployerController {
       const {
         companyId,
         categoryName,
+        categoryId,
         title,
         description,
         locationId,
-        categorySpecificFields,
+        gender,
+        educationQualificationId,
+        skills,
+        salaryMin,
+        salaryMax,
+        experienceLevel,
+        employmentType,
         contactInfo,
-        validUntil
+        validUntil,
+        status = 'DRAFT'
       } = req.body;
 
       if (!companyId || !categoryName || !title || !description || !locationId) {
@@ -334,14 +360,23 @@ class EmployerController {
           title,
           description,
           locationId,
-          categorySpecificFields,
+          gender,
+          skills,
+          salaryMin: salaryMin ? parseFloat(salaryMin) : null,
+          salaryMax: salaryMax ? parseFloat(salaryMax) : null,
+          experienceLevel,
+          employmentType,
           contactInfo,
           validUntil: validUntil ? new Date(validUntil) : undefined,
-          status: 'DRAFT' // Start as DRAFT if no MOU, PENDING_APPROVAL if MOU exists
+          status: status, // Use status from request (DRAFT or PENDING_APPROVAL)
+          ...(categoryId && { categoryId }),
+          ...(educationQualificationId && { educationQualificationId })
         },
         include: {
           company: true,
-          location: true
+          location: true,
+          category: true,
+          educationQualification: true
         }
       });
 
@@ -367,6 +402,7 @@ class EmployerController {
         title, 
         description, 
         categoryName = 'Jobs',
+        categoryId,
         companyId,
         city,
         employmentType,
@@ -374,7 +410,9 @@ class EmployerController {
         salaryMin,
         salaryMax,
         skills,
-        validUntil
+        validUntil,
+        gender,
+        educationQualificationId
       } = req.body;
 
       // Validate required fields
@@ -419,15 +457,6 @@ class EmployerController {
         }
       }
 
-      // Build category-specific fields for Jobs
-      const categorySpecificFields = {
-        employmentType,
-        experienceLevel,
-        salaryMin: salaryMin ? parseInt(salaryMin) : null,
-        salaryMax: salaryMax ? parseInt(salaryMax) : null,
-        skills: skills ? skills.split(',').map(s => s.trim()).filter(s => s) : []
-      };
-
       // Update the ad
       const updatedAd = await req.prisma.ad.update({
         where: { id: adId },
@@ -435,7 +464,12 @@ class EmployerController {
           title,
           description,
           categoryName,
-          categorySpecificFields,
+          gender,
+          skills: skills ? skills.split(',').map(s => s.trim()).filter(s => s).join(', ') : null,
+          salaryMin: salaryMin ? parseFloat(salaryMin) : null,
+          salaryMax: salaryMax ? parseFloat(salaryMax) : null,
+          experienceLevel,
+          employmentType,
           validUntil: validUntil ? new Date(validUntil) : undefined,
           updatedAt: new Date(),
           ...(companyId && {
@@ -447,11 +481,23 @@ class EmployerController {
             location: {
               connect: { id: locationId }
             }
+          }),
+          ...(categoryId && {
+            category: {
+              connect: { id: categoryId }
+            }
+          }),
+          ...(educationQualificationId && {
+            educationQualification: {
+              connect: { id: educationQualificationId }
+            }
           })
         },
         include: {
           company: true,
-          location: true
+          location: true,
+          category: true,
+          educationQualification: true
         }
       });
 
@@ -790,6 +836,18 @@ class EmployerController {
               state: true,
               country: true
             }
+          },
+          category: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          educationQualification: {
+            select: {
+              id: true,
+              name: true
+            }
           }
         }
       });
@@ -800,7 +858,22 @@ class EmployerController {
         );
       }
 
-      res.json(createResponse('Ad details retrieved successfully', ad));
+      // Process category-specific fields for frontend compatibility
+      let processedAd = { ...ad };
+      if (ad.categorySpecificFields && ad.categoryName === 'Jobs') {
+        const categoryFields = ad.categorySpecificFields;
+        processedAd = {
+          ...ad,
+          jobType: categoryFields.employmentType || 'Full Time',
+          employmentType: categoryFields.employmentType,
+          experienceLevel: categoryFields.experienceLevel,
+          skills: Array.isArray(categoryFields.skills) ? categoryFields.skills.join(', ') : '',
+          salaryMin: categoryFields.salaryMin,
+          salaryMax: categoryFields.salaryMax
+        };
+      }
+
+      res.json(createResponse('Ad details retrieved successfully', processedAd));
     } catch (error) {
       next(error);
     }

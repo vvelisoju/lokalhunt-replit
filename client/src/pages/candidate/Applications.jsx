@@ -252,6 +252,11 @@ const Applications = () => {
     }
   };
 
+  const handleJobCardClick = (jobId) => {
+    // Applications are always for approved jobs, so use regular job view
+    navigate(`/jobs/${jobId}`);
+  };
+
   if (loading && (!applications || applications.length === 0)) {
     return <Loader.Page />;
   }
@@ -300,7 +305,7 @@ const Applications = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Status */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
@@ -316,7 +321,7 @@ const Applications = () => {
               ))}
             </select>
           </div>
-          
+
           {/* Date Range */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
@@ -439,7 +444,7 @@ const Applications = () => {
                 applicationStatus={application.status}
                 applicationDate={application.createdAt}
                 onWithdraw={(appId) => handleWithdrawApplication(application.id)}
-                onClick={() => navigate(`/job/${jobData.id}?from=applications`)}
+                onClick={() => handleJobCardClick(jobData.id)}
                 loading={{
                   apply: false,
                   bookmark: false,

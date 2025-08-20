@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PlusIcon, MagnifyingGlassIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
 
-import AdCard from '../../components/employer/AdCard'
+import JobCard from '../../components/ui/JobCard'
 import EmptyState from '../../components/employer/EmptyState'
 import Button from '../../components/ui/Button'
 import FormInput from '../../components/ui/FormInput'
@@ -34,12 +34,12 @@ const AdsList = () => {
   const [ads, setAds] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: '', adId: null })
-  
+
   // Filters
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '')
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '')
   const [page, setPage] = useState(parseInt(searchParams.get('page')) || 1)
-  
+
   // Debounce search term
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
 
@@ -80,14 +80,14 @@ const AdsList = () => {
         search: debouncedSearchTerm.trim(),
         status: typeof statusFilter === 'string' ? statusFilter.trim() : ''
       }
-      
+
       // Remove empty params
       Object.keys(params).forEach(key => {
         if (!params[key] || params[key] === '') {
           delete params[key]
         }
       })
-      
+
       const result = await getAds(params)
       if (result.success) {
         setAds({
@@ -213,25 +213,53 @@ const AdsList = () => {
         {/* Ads Grid */}
         {ads.data && ads.data.length > 0 ? (
           <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {ads.data.map((ad) => (
-                <AdCard
+                <JobCard
                   key={ad.id}
-                  ad={ad}
-                  onSubmit={(adId) => setConfirmModal({ 
-                    isOpen: true, 
-                    type: 'submit', 
-                    adId 
+                  job={{
+                    id: ad.id,
+                    title: ad.title,
+                    description: ad.description,
+                    company: ad.company || { name: ad.companyName || 'Company' },
+                    location: ad.city || ad.location || 'Location not specified',
+                    jobType: ad.employmentType || 'Full Time',
+                    salary: ad.salaryMin && ad.salaryMax ? {
+                      min: ad.salaryMin,
+                      max: ad.salaryMax
+                    } : null,
+                    skills: ad.skills ? (
+                      typeof ad.skills === 'string'
+                        ? ad.skills.split(',').map(s => s.trim())
+                        : Array.isArray(ad.skills)
+                          ? ad.skills
+                          : []
+                    ) : [],
+                    postedAt: ad.createdAt,
+                    candidatesCount: ad.candidatesCount || ad.applicationCount || 0,
+                    applicationCount: ad.candidatesCount || ad.applicationCount || 0
+                  }}
+                  variant="employer"
+                  onSubmit={() => setConfirmModal({
+                    isOpen: true,
+                    type: 'submit',
+                    adId: ad.id
                   })}
-                  onArchive={(adId) => setConfirmModal({ 
-                    isOpen: true, 
-                    type: 'archive', 
-                    adId 
+                  onArchive={() => setConfirmModal({
+                    isOpen: true,
+                    type: 'archive',
+                    adId: ad.id
                   })}
+                  applicationStatus={ad.status}
+                  showApplicationDate={false}
+                  loading={{
+                    submit: false,
+                    archive: false
+                  }}
                 />
               ))}
             </div>
-            
+
             {/* Pagination */}
             {ads.pagination && ads.pagination.pages > 1 && (
               <div className="flex justify-center items-center space-x-2 mt-8">
@@ -243,7 +271,7 @@ const AdsList = () => {
                 >
                   Previous
                 </Button>
-                
+
                 <div className="flex space-x-1">
                   {[...Array(ads.pagination.pages)].map((_, i) => {
                     const pageNum = i + 1
@@ -259,7 +287,7 @@ const AdsList = () => {
                     )
                   })}
                 </div>
-                
+
                 <Button
                   variant="secondary"
                   disabled={!ads.pagination.hasNext}
@@ -276,7 +304,7 @@ const AdsList = () => {
             icon={DocumentTextIcon}
             title="No job ads found"
             description={
-              debouncedSearchTerm || statusFilter 
+              debouncedSearchTerm || statusFilter
                 ? "Try adjusting your filters to find more ads."
                 : "Get started by creating your first job posting."
             }
@@ -289,13 +317,13 @@ const AdsList = () => {
         <Modal
           isOpen={confirmModal.isOpen}
           onClose={() => setConfirmModal({ isOpen: false, type: '', adId: null })}
-          title={confirmModal.type === 'submit' ? 'Submit for Approval' : 'Archive Ad'}
+          title={confirmModal.type === 'submit' ? 'Submit for Approval' : 'Close Job'}
         >
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              {confirmModal.type === 'submit' 
+              {confirmModal.type === 'submit'
                 ? 'Are you sure you want to submit this ad for approval? Once submitted, you won\'t be able to edit it until it\'s reviewed.'
-                : 'Are you sure you want to archive this ad? Archived ads won\'t be visible to candidates.'
+                : 'Are you sure you want to close this job? This will remove it from active listings.'
               }
             </p>
             <div className="flex justify-end space-x-3">
@@ -309,7 +337,7 @@ const AdsList = () => {
                 variant={confirmModal.type === 'archive' ? 'danger' : 'primary'}
                 onClick={handleConfirmAction}
               >
-                {confirmModal.type === 'submit' ? 'Submit' : 'Archive'}
+                {confirmModal.type === 'submit' ? 'Submit' : 'Close'}
               </Button>
             </div>
           </div>

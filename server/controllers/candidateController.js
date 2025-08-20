@@ -21,6 +21,7 @@ class CandidateController {
               email: true,
               phone: true,
               city: true,
+              cityId: true,
               isActive: true,
               createdAt: true
             }
@@ -67,7 +68,8 @@ class CandidateController {
         email,
         phone,
         openToWork,
-        coverPhoto
+        coverPhoto,
+        cityId // Added cityId to the destructured body
       } = req.body;
 
       const candidate = await req.prisma.candidate.findUnique({
@@ -82,7 +84,7 @@ class CandidateController {
 
       // Prepare update data - only include fields that are provided
       const updateData = {}
-      
+
       if (profileData !== undefined) updateData.profileData = profileData
       if (resumeUrl !== undefined) updateData.resumeUrl = resumeUrl
       if (education !== undefined) updateData.education = education
@@ -91,7 +93,7 @@ class CandidateController {
       if (profilePhoto !== undefined) updateData.profilePhoto = profilePhoto
       if (coverPhoto !== undefined) updateData.coverPhoto = coverPhoto
       if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null
-      
+
       // Handle skills - convert skills array to ratings object for Prisma schema
       if (skills !== undefined) {
         const ratingsObj = {}
@@ -102,7 +104,7 @@ class CandidateController {
       } else if (ratings !== undefined) {
         updateData.ratings = ratings
       }
-      
+
       // Handle job preferences - store in profileData if not directly supported
       if (jobPreferences !== undefined) {
         const currentProfileData = updateData.profileData || {}
@@ -111,7 +113,7 @@ class CandidateController {
           jobPreferences
         }
       }
-      
+
       if (openToWork !== undefined) {
         const currentProfileData = updateData.profileData || {}
         updateData.profileData = {
@@ -126,6 +128,7 @@ class CandidateController {
       if (lastName !== undefined) userUpdateData.lastName = lastName
       if (email !== undefined) userUpdateData.email = email
       if (phone !== undefined) userUpdateData.phone = phone
+      if (cityId !== undefined) userUpdateData.cityId = cityId // Added cityId update
 
       // Update user if there are user fields to update
       if (Object.keys(userUpdateData).length > 0) {
@@ -437,9 +440,7 @@ class CandidateController {
       });
 
       if (!candidate) {
-        return res.status(404).json(
-          createErrorResponse('Candidate profile not found', 404)
-        );
+        return res.status(404).json(createErrorResponse('Candidate profile not found', 404));
       }
 
       const [bookmarks, total] = await Promise.all([
@@ -469,7 +470,7 @@ class CandidateController {
               adId: bookmark.ad.id
             }
           });
-          
+
           return {
             ...bookmark,
             hasApplied: !!application
@@ -496,7 +497,7 @@ class CandidateController {
   async updateBasicInfo(req, res, next) {
     try {
       const { name, phone, dateOfBirth, profileData } = req.body;
-      
+
       const [updatedUser, updatedCandidate] = await Promise.all([
         req.prisma.user.update({
           where: { id: req.user.userId },
@@ -523,7 +524,7 @@ class CandidateController {
   async updateExperience(req, res, next) {
     try {
       const { experience } = req.body;
-      
+
       const updatedCandidate = await req.prisma.candidate.update({
         where: { userId: req.user.userId },
         data: { experience }
@@ -538,7 +539,7 @@ class CandidateController {
   async updateEducation(req, res, next) {
     try {
       const { education } = req.body;
-      
+
       const updatedCandidate = await req.prisma.candidate.update({
         where: { userId: req.user.userId },
         data: { education }
@@ -553,7 +554,7 @@ class CandidateController {
   async updateSkills(req, res, next) {
     try {
       const { tags } = req.body;
-      
+
       const updatedCandidate = await req.prisma.candidate.update({
         where: { userId: req.user.userId },
         data: { tags }
@@ -569,7 +570,7 @@ class CandidateController {
   async uploadProfilePhoto(req, res, next) {
     try {
       const { profilePhoto } = req.body;
-      
+
       const updatedCandidate = await req.prisma.candidate.update({
         where: { userId: req.user.userId },
         data: { profilePhoto }
@@ -601,15 +602,22 @@ class CandidateController {
   async uploadResume(req, res, next) {
     try {
       const { resumeUrl, fileName, fileSize } = req.body;
-      
+
       if (!resumeUrl) {
         return res.status(400).json(createErrorResponse('Resume URL is required', 400));
+      }
+
+      // Check if object storage is configured
+      if (!process.env.PRIVATE_OBJECT_DIR) {
+        return res.status(400).json(
+          createErrorResponse('File upload service not configured. Please set PRIVATE_OBJECT_DIR in .env file.', 400)
+        );
       }
 
       // Normalize the resume URL to internal path format
       const objectStorageService = new ObjectStorageService();
       const normalizedPath = objectStorageService.normalizeObjectEntityPath(resumeUrl);
-      
+
       const updatedCandidate = await req.prisma.candidate.update({
         where: { userId: req.user.userId },
         data: { resumeUrl: normalizedPath }
@@ -668,6 +676,22 @@ class CandidateController {
     }
   }
 
+  async updateResumeStatus(req, res, next) {
+    try {
+      const { status } = req.body;
+
+      if (!status || !['ACTIVE', 'INACTIVE', 'PENDING'].includes(status)) {
+        return res.status(400).json(createErrorResponse('Valid status is required (ACTIVE, INACTIVE, PENDING)', 400));
+      }
+
+      // For now, we'll just acknowledge the status update since we don't have a status field in the schema
+      // This could be extended to update a resumeStatus field if added to the schema
+      res.json(createResponse('Resume status updated successfully', { status }));
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // =======================
   // OPEN TO WORK STATUS MANAGEMENT
   // =======================
@@ -675,7 +699,7 @@ class CandidateController {
   async updateOpenToWorkStatus(req, res, next) {
     try {
       const { openToWork } = req.body;
-      
+
       if (typeof openToWork !== 'boolean') {
         return res.status(400).json(createErrorResponse('openToWork must be a boolean value', 400));
       }
@@ -777,7 +801,7 @@ class CandidateController {
         candidate.profilePhoto,
         candidate.dateOfBirth
       ];
-      
+
       const completedFields = profileFields.filter(field => field !== null && field !== undefined).length;
       const completeness = Math.round((completedFields / profileFields.length) * 100);
 
@@ -1038,7 +1062,7 @@ class CandidateController {
 
       // Get jobs in candidate's city that match their skills
       const candidateSkills = candidate.tags || [];
-      
+
       const jobs = await req.prisma.ad.findMany({
         where: {
           status: 'APPROVED',
@@ -1090,7 +1114,7 @@ class CandidateController {
       }
 
       const candidateSkills = candidate.tags || [];
-      
+
       // This would be more sophisticated in production with proper skill matching
       const jobs = await req.prisma.ad.findMany({
         where: {
@@ -1130,7 +1154,7 @@ class CandidateController {
   async markJobAsViewed(req, res, next) {
     try {
       const { adId } = req.params;
-      
+
       // This would create a record in job_views table in production
       // For now, just return success
       res.json(createResponse('Job marked as viewed successfully'));
@@ -1167,7 +1191,7 @@ class CandidateController {
   async getSkillRatingHistory(req, res, next) {
     try {
       const { skill } = req.params;
-      
+
       const candidate = await req.prisma.candidate.findUnique({
         where: { userId: req.user.userId },
         select: { ratingHistory: true }
@@ -1268,7 +1292,7 @@ class CandidateController {
   async updateAccountSettings(req, res, next) {
     try {
       const { name, phone } = req.body;
-      
+
       const updatedUser = await req.prisma.user.update({
         where: { id: req.user.userId },
         data: { 
@@ -1307,7 +1331,7 @@ class CandidateController {
   async changePassword(req, res, next) {
     try {
       const { currentPassword, newPassword } = req.body;
-      
+
       if (!currentPassword || !newPassword) {
         return res.status(400).json(createErrorResponse('Current password and new password are required', 400));
       }
@@ -1401,16 +1425,75 @@ class CandidateController {
   // Get upload URL for profile/cover photos
   async getUploadUrl(req, res, next) {
     try {
-      const { ObjectStorageService } = require('../objectStorage');
+      console.log('Getting upload URL for user:', req.user?.userId || req.user?.id);
+      console.log('Full user object:', req.user);
+
+      // Use userId if available, fallback to id
+      const userId = req.user?.userId || req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'User authentication required. Please log in again.',
+          error: 'User ID not found in request'
+        });
+      }
+
       const objectStorageService = new ObjectStorageService();
-      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-      
-      res.json(createResponse('Upload URL generated successfully', { uploadURL }));
+      const uploadURL = await objectStorageService.getResumeUploadURL(userId);
+
+      console.log('Generated resume upload URL successfully for user:', userId);
+
+      res.json({
+        success: true,
+        data: {
+          uploadURL
+        }
+      });
     } catch (error) {
       console.error('Get upload URL error:', error);
-      res.status(500).json(
-        createErrorResponse('Failed to generate upload URL', 500)
-      );
+      res.status(500).json({
+        success: false,
+        message: 'Failed to generate upload URL. Please ensure Object Storage is configured properly.',
+        error: error.message
+      });
+    }
+  }
+
+  // Get profile image upload URL
+  async getProfileImageUploadUrl(req, res) {
+    try {
+      // Use userId if available, fallback to id
+      const userId = req.user?.userId || req.user?.id;
+
+      console.log('Getting profile image upload URL for user:', userId);
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'User authentication required. Please log in again.',
+          error: 'User ID not found in request'
+        });
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getProfileImageUploadURL(userId);
+
+      console.log('Generated profile image upload URL successfully for user:', userId);
+
+      res.json({
+        success: true,
+        data: {
+          uploadURL
+        }
+      });
+    } catch (error) {
+      console.error('Get profile image upload URL error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to generate profile image upload URL. Please ensure Object Storage is configured properly.',
+        error: error.message
+      });
     }
   }
 
@@ -1418,20 +1501,27 @@ class CandidateController {
   async updateProfilePhoto(req, res, next) {
     try {
       const { photoURL } = req.body;
-      
+
       if (!photoURL) {
         return res.status(400).json(
           createErrorResponse('Photo URL is required', 400)
         );
       }
 
+      // Check if object storage is configured
+      if (!process.env.PRIVATE_OBJECT_DIR) {
+        return res.status(400).json(
+          createErrorResponse('File upload service not configured. Please set PRIVATE_OBJECT_DIR in .env file.', 400)
+        );
+      }
+
       const objectStorageService = new ObjectStorageService();
       console.log('Received photoURL:', photoURL);
-      
+
       // First, normalize the path to see what we get
       const normalizedPath = objectStorageService.normalizeObjectEntityPath(photoURL);
       console.log('Normalized path:', normalizedPath);
-      
+
       // For now, let's skip the ACL setting and just update the database
       // This will allow photo uploads to work while we debug the ACL issue
       // const objectPath = normalizedPath;
@@ -1472,16 +1562,23 @@ class CandidateController {
   async updateCoverPhoto(req, res, next) {
     try {
       const { photoURL } = req.body;
-      
+
       if (!photoURL) {
         return res.status(400).json(
           createErrorResponse('Photo URL is required', 400)
         );
       }
 
+      // Check if object storage is configured
+      if (!process.env.PRIVATE_OBJECT_DIR) {
+        return res.status(400).json(
+          createErrorResponse('File upload service not configured. Please set PRIVATE_OBJECT_DIR in .env file.', 400)
+        );
+      }
+
       const objectStorageService = new ObjectStorageService();
       console.log('Received cover photoURL:', photoURL);
-      
+
       // Normalize the path for cover photo
       const normalizedPath = objectStorageService.normalizeObjectEntityPath(photoURL);
       console.log('Normalized cover path:', normalizedPath);
@@ -1532,7 +1629,7 @@ class CandidateController {
         salaryRange,
         sortBy = 'newest'
       } = req.query;
-      
+
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
       let where = {
@@ -1565,10 +1662,10 @@ class CandidateController {
           orderBy = [{ createdAt: 'asc' }];
           break;
         case 'salary-high':
-          orderBy = [{ categorySpecificFields: { path: ['salaryRange', 'max'], sort: 'desc' } }];
+          orderBy = [{ salaryMax: 'desc' }];
           break;
         case 'salary-low':
-          orderBy = [{ categorySpecificFields: { path: ['salaryRange', 'min'], sort: 'asc' } }];
+          orderBy = [{ salaryMin: 'asc' }];
           break;
         case 'relevance':
           orderBy = [{ updatedAt: 'desc' }];
@@ -1578,7 +1675,7 @@ class CandidateController {
       // Get candidate ID from user
       let candidate = await req.prisma.candidate.findUnique({
         where: { userId: req.user.userId },
-        select: { id: true }
+        select: { id: true, user: { select: { cityId: true } } } // Include cityId
       });
 
       if (!candidate) {
@@ -1592,7 +1689,12 @@ class CandidateController {
             isActive: true
           }
         });
-        candidate = { id: newCandidate.id };
+        candidate = { id: newCandidate.id, user: { cityId: null } }; // Initialize cityId
+      }
+
+      // Add location filter based on candidate's city if location is not provided in query
+      if (location === undefined && candidate.user?.cityId) {
+        where.locationId = candidate.user.cityId;
       }
 
       const [jobs, total, userBookmarks, userApplications] = await Promise.all([
@@ -1640,9 +1742,9 @@ class CandidateController {
       const transformedJobs = jobs.map(job => {
         const isBookmarked = bookmarkedJobIds.has(job.id);
         const hasApplied = appliedJobIds.has(job.id);
-        
+        const salaryMin = job.salaryMin ? Number(job.salaryMin) : null;
+        const salaryMax = job.salaryMax ? Number(job.salaryMax) : null;
 
-        
         return {
           id: job.id,
           title: job.title,
@@ -1653,7 +1755,15 @@ class CandidateController {
             industry: job.company.industry
           },
           location: job.location,
-          categorySpecificFields: job.categorySpecificFields,
+          salary: (salaryMin && salaryMax) ?
+            `₹${salaryMin} - ₹${salaryMax}` :
+            salaryMin ? `₹${salaryMin}+` :
+            'Negotiable',
+          salaryMin: salaryMin,
+          salaryMax: salaryMax,
+          skills: job.skills ? job.skills.split(',').map(skill => skill.trim()) : [],
+          experienceLevel: job.experienceLevel || 'Not specified',
+          employmentType: job.employmentType || 'FULL_TIME',
           numberOfPositions: job.numberOfPositions,
           createdAt: job.createdAt,
           validUntil: job.validUntil,

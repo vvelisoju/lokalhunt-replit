@@ -32,10 +32,13 @@ router.get('/profile/open-to-work', candidateController.getOpenToWorkStatus);
 router.post('/profile/photo', candidateController.uploadProfilePhoto);
 router.delete('/profile/photo', candidateController.removeProfilePhoto);
 
-// File upload management
+// File upload routes
 router.get('/upload-url', candidateController.getUploadUrl);
-router.put('/profile-photo', candidateController.updateProfilePhoto);
-router.put('/cover-photo', candidateController.updateCoverPhoto);
+router.get('/profile-image-upload-url', candidateController.getProfileImageUploadUrl);
+router.post('/resume/upload', candidateController.uploadResume);
+router.get('/resume', candidateController.getResume);
+router.delete('/resume', candidateController.deleteResume);
+router.patch('/resume/status', candidateController.updateResumeStatus);
 
 // =======================
 // RESUME MANAGEMENT
@@ -180,7 +183,7 @@ router.get('/stats/profile-views', candidateController.getProfileViews);
 router.get('/insights/market', candidateController.getMarketInsights);
 
 // =======================
-// LEGACY ROUTES (keeping for backward compatibility)
+// LEGACYROUTES (keeping for backward compatibility)
 // =======================
 
 // Legacy apply route (deprecated - use POST /applications instead)

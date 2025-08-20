@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast'
 import Landing from './pages/Landing'
 import Jobs from './pages/Jobs'
 import JobDetail from './pages/JobDetail'
+import JobPreview from './pages/JobPreview'
 import Companies from './pages/Companies'
 
 // Auth Pages
@@ -19,7 +20,9 @@ import CandidateProfile from './pages/candidate/Profile'
 import CandidateApplications from './pages/candidate/Applications'
 import CandidateBookmarks from './pages/candidate/Bookmarks'
 import CandidateResume from './pages/candidate/Resume'
-import CandidateTestInterface from './pages/candidate/TestInterface'
+import CandidateLinkedInProfile from './pages/candidate/LinkedInProfile'
+import CandidateAccountSettings from './pages/candidate/AccountSettings'
+import TestInterface from './pages/candidate/TestInterface'
 
 // Employer Pages
 import EmployerDashboard from './pages/employer/Dashboard'
@@ -28,20 +31,21 @@ import EmployerAdForm from './pages/employer/AdForm'
 import EmployerAdCandidates from './pages/employer/AdCandidates'
 import EmployerCandidates from './pages/employer/Candidates'
 import EmployerCompanyProfile from './pages/employer/CompanyProfile'
+import EmployerAccountSettings from './pages/employer/AccountSettings'
 import EmployerMou from './pages/employer/Mou'
 
 // Branch Admin Pages
 import BranchAdminDashboard from './pages/branch-admin/Dashboard'
-import BranchAdminEmployers from './pages/branch-admin/Employers'
-import BranchAdminCreateEmployer from './pages/branch-admin/CreateEmployer'
-import BranchAdminEmployerDetail from './pages/branch-admin/EmployerDetail'
-import BranchAdminEmployerDetails from './pages/branch-admin/EmployerDetails'
-import BranchAdminAdminProfile from './pages/branch-admin/AdminProfile'
-import BranchAdminAdsApprovals from './pages/branch-admin/AdsApprovals'
-import BranchAdminScreening from './pages/branch-admin/Screening'
+import Employers from './pages/branch-admin/Employers'
+import CreateEmployer from './pages/branch-admin/CreateEmployer'
+import EmployerDetails from './pages/branch-admin/EmployerDetails'
+import AdsApprovals from './pages/branch-admin/AdsApprovals'
+import Screening from './pages/branch-admin/Screening'
+import Reports from './pages/branch-admin/Reports'
+import AdminProfile from './pages/branch-admin/AdminProfile'
+import BranchAdminAccountSettings from './pages/branch-admin/AccountSettings'
 import BranchAdminMou from './pages/branch-admin/Mou'
-import BranchAdminLogs from './pages/branch-admin/Logs'
-import BranchAdminReports from './pages/branch-admin/Reports'
+import Logs from './pages/branch-admin/Logs'
 
 // Layout Components
 import CandidateLayout from './components/candidate/Layout'
@@ -63,14 +67,15 @@ function App() {
             <Routes>
               {/* Landing Page */}
               <Route path="/" element={<Landing />} />
-              
+
               {/* Jobs Page */}
               <Route path="/jobs" element={<Jobs />} />
               <Route path="/jobs/:id" element={<JobDetail />} />
-              
+              <Route path="/jobs/:id/preview" element={<JobPreview />} />
+
               {/* Companies Page */}
               <Route path="/companies" element={<Companies />} />
-              
+
               {/* Dashboard redirect for logged in users */}
               <Route path="/dashboard" element={
                 <ProtectedRoute>
@@ -84,7 +89,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
-              
+
               {/* Legacy redirects */}
               <Route path="/candidate/login" element={<Login />} />
               <Route path="/candidate/register" element={<Register />} />
@@ -100,7 +105,9 @@ function App() {
                 <Route path="applications" element={<CandidateApplications />} />
                 <Route path="bookmarks" element={<CandidateBookmarks />} />
                 <Route path="resume" element={<CandidateResume />} />
-                <Route path="test" element={<CandidateTestInterface />} />
+                <Route path="linkedin-profile" element={<CandidateLinkedInProfile />} />
+                <Route path="account-settings" element={<CandidateAccountSettings />} />
+                <Route path="test" element={<TestInterface />} />
               </Route>
 
               {/* Protected Employer Routes (With Layout) */}
@@ -116,6 +123,7 @@ function App() {
                 <Route path="ads/:adId/candidates" element={<EmployerAdCandidates />} />
                 <Route path="candidates" element={<EmployerCandidates />} />
                 <Route path="company-profile" element={<EmployerCompanyProfile />} />
+                <Route path="account-settings" element={<EmployerAccountSettings />} />
                 <Route path="mou" element={<EmployerMou />} />
               </Route>
 
@@ -126,19 +134,21 @@ function App() {
                 </BranchAdminRoute>
               }>
                 <Route path="dashboard" element={<BranchAdminDashboard />} />
-                <Route path="employers" element={<BranchAdminEmployers />} />
-                <Route path="employers/create" element={<BranchAdminCreateEmployer />} />
-                <Route path="employers/:employerId" element={<BranchAdminEmployerDetails />} />
-                <Route path="profile" element={<BranchAdminAdminProfile />} />
-                <Route path="ads-approvals" element={<BranchAdminAdsApprovals />} />
-                <Route path="screening" element={<BranchAdminScreening />} />
+                <Route path="employers" element={<Employers />} />
+                <Route path="employers/new" element={<CreateEmployer />} />
+                <Route path="employers/:employerId" element={<EmployerDetails />} />
+                <Route path="employers/:employerId/:tab" element={<EmployerDetails />} />
+                <Route path="ads-approvals" element={<AdsApprovals />} />
+                <Route path="screening" element={<Screening />} />
+                <Route path="reports" element={<Reports />} />
+                <Route path="admin-profile" element={<AdminProfile />} />
+                <Route path="account-settings" element={<BranchAdminAccountSettings />} />
                 <Route path="mou" element={<BranchAdminMou />} />
-                <Route path="logs" element={<BranchAdminLogs />} />
-                <Route path="reports" element={<BranchAdminReports />} />
+                <Route path="logs" element={<Logs />} />
               </Route>
             </Routes>
         </div>
-        <Toaster 
+        <Toaster
           position="top-right"
           toastOptions={{
             duration: 4000,

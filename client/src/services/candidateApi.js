@@ -9,7 +9,7 @@ export const getImageUrl = (path) => {
     // In production, use the current domain but with port 5000 for server
     // In development, API calls go through Vite proxy, but direct image requests need the real server URL
     if (window.location.hostname.includes('replit.dev')) {
-      // Production: Use the Replit server URL 
+      // Production: Use the Replit server URL
       const serverUrl = window.location.origin.replace('3000', '5000')
       return `${serverUrl}${path}`
     } else {
@@ -42,14 +42,14 @@ export const candidateApi = {
   getBookmarks: (params = {}) => api.get('/candidates/bookmarks', { params }),
   addBookmark: (jobId) => api.post(`/candidates/bookmarks/${jobId}`),
   removeBookmark: (jobId) => api.delete(`/candidates/bookmarks/${jobId}`),
-  
+
   // Resume management (using object storage)
   uploadResume: async (file) => {
     try {
       // Step 1: Get upload URL
       const uploadResponse = await api.get('/candidates/upload-url')
       const uploadURL = uploadResponse.data.uploadURL
-      
+
       // Step 2: Upload file to object storage
       const fileUploadResponse = await fetch(uploadURL, {
         method: 'PUT',
@@ -58,18 +58,18 @@ export const candidateApi = {
           'Content-Type': file.type,
         },
       })
-      
+
       if (!fileUploadResponse.ok) {
         throw new Error('Failed to upload file to storage')
       }
-      
+
       // Step 3: Update resume URL in database
       const response = await api.post('/candidates/resume', {
         resumeUrl: uploadURL,
         fileName: file.name,
         fileSize: file.size
       })
-      
+
       return response.data
     } catch (error) {
       console.error('Resume upload failed:', error)
@@ -109,5 +109,23 @@ export const candidateApi = {
   getOpenToWorkStatus: () => api.get('/candidates/profile/open-to-work'),
 
   // Application management
-  withdrawApplication: (applicationId) => api.delete(`/candidates/applications/${applicationId}`)
+  withdrawApplication: (applicationId) => api.delete(`/candidates/applications/${applicationId}`),
+
+  // Get candidate applications
+  async getCandidateApplications() {
+    const response = await candidateApi.get('/applications')
+    return response.data
+  },
+
+  // Logout candidate
+  async logout() {
+    try {
+      const response = await candidateApi.post('/auth/logout')
+      return response.data
+    } catch (error) {
+      // Don't throw error on logout - proceed with client cleanup
+      console.log('Logout API call failed, proceeding with client-side cleanup')
+      return null
+    }
+  },
 }

@@ -30,7 +30,10 @@ export const useCandidateAuth = () => {
       // Verify token with backend - try candidate profile first, fallback to general auth
       try {
         const response = await candidateApi.getProfile()
-        setUser(response.data)
+        // Handle nested response structure
+        const userData = response.data?.data ? response.data.data : response.data
+        console.log('Candidate auth - user data:', userData)
+        setUser(userData)
         setIsAuthenticated(true)
       } catch (candidateError) {
         // If candidate profile fails, try general auth profile
@@ -44,7 +47,10 @@ export const useCandidateAuth = () => {
             const userData = await authResponse.json()
             // Only set authenticated if user is a candidate
             if (userData.data?.role === 'CANDIDATE') {
-              setUser(userData.data)
+              // Handle nested data structure
+              const user = userData.data?.data ? userData.data.data : userData.data
+              console.log('Candidate auth fallback - user data:', user)
+              setUser(user)
               setIsAuthenticated(true)
             } else {
               setLoading(false)
@@ -76,11 +82,14 @@ export const useCandidateAuth = () => {
       const { token, user: userData } = response.data
 
       localStorage.setItem('candidateToken', token)
-      setUser(userData)
+      // Handle nested user data structure
+      const user = userData?.data ? userData.data : userData
+      console.log('Candidate login - user data:', user)
+      setUser(user)
       setIsAuthenticated(true)
       showSuccess('Logged in successfully')
-      
-      return { success: true, user: userData }
+
+      return { success: true, user: user }
     } catch (error) {
       const message = error.response?.data?.message || 'Login failed'
       showError(message)
@@ -97,11 +106,14 @@ export const useCandidateAuth = () => {
       const { token, user: newUser } = response.data
 
       localStorage.setItem('candidateToken', token)
-      setUser(newUser)
+      // Handle nested user data structure
+      const user = newUser?.data ? newUser.data : newUser
+      console.log('Candidate register - user data:', user)
+      setUser(user)
       setIsAuthenticated(true)
       showSuccess('Account created successfully')
-      
-      return { success: true, user: newUser }
+
+      return { success: true, user: user }
     } catch (error) {
       const message = error.response?.data?.message || 'Registration failed'
       showError(message)
@@ -113,15 +125,28 @@ export const useCandidateAuth = () => {
 
   const logout = async () => {
     try {
-      await candidateApi.logout()
-    } catch (error) {
-      // Ignore logout errors
-    } finally {
+      // Clear all possible token storage locations
       localStorage.removeItem('candidateToken')
       localStorage.removeItem('token')
+      sessionStorage.removeItem('candidateToken')
+      sessionStorage.removeItem('token')
+
+      // Reset state
       setUser(null)
       setIsAuthenticated(false)
-      toast.info('You have been logged out')
+      setLoading(false)
+
+      // Clear candidate context data
+      if (window.candidateContext?.clearData) {
+        window.candidateContext.clearData()
+      }
+
+      // Redirect to login
+      window.location.href = '/login'
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Even if there's an error, still redirect to login
+      window.location.href = '/login'
     }
   }
 

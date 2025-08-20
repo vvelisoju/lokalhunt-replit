@@ -1,21 +1,30 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { EyeIcon, EyeSlashIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon, PencilIcon, UserIcon } from '@heroicons/react/24/outline';
 import Button from './Button';
 import FormInput from './FormInput';
-import Select from './Select';
 import Modal from './Modal';
+import { getCities } from '../../services/common/cities';
+import { profileService } from '../../services/profileService';
+import { useAuth } from '../../context/AuthContext';
 
-const Profile = ({ 
-  profileData, 
-  onUpdateProfile, 
+const Profile = ({
+  profileData,
+  onUpdateProfile,
   onUpdatePassword,
   userType = 'branchAdmin',
-  loading = false 
+  loading = false
 }) => {
+  const { updateUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    cityId: ''
+  });
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -26,35 +35,68 @@ const Profile = ({
     new: false,
     confirm: false
   });
+  const [cities, setCities] = useState([]);
+  const [citiesLoading, setCitiesLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  useEffect(() => {
+    loadCities();
+  }, []);
 
   useEffect(() => {
     if (profileData) {
+      // Handle both nested user object and direct profile data
+      const userData = profileData.user || profileData;
       setFormData({
-        name: profileData.user?.name || '',
-        email: profileData.user?.email || '',
-        phone: profileData.phone || '',
-        ...getTypeSpecificFields(profileData, userType)
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
+        email: userData.email || '',
+        phone: userData.phone || '',
+        cityId: userData.cityId || ''
       });
     }
-  }, [profileData, userType]);
+  }, [profileData]);
 
-  const getTypeSpecificFields = (data, type) => {
-    switch (type) {
-      case 'branchAdmin':
-        return {
-          branchName: data.branchName || '',
-          region: data.region || '',
-          designation: data.designation || '',
-          assignedCity: data.assignedCity?.name || ''
-        };
-      case 'employer':
-        return {
-          companyName: data.companyName || '',
-          jobTitle: data.jobTitle || '',
-          industry: data.industry || ''
-        };
-      default:
-        return {};
+  const loadCities = async () => {
+    setCitiesLoading(true);
+    try {
+      const response = await getCities();
+      console.log('Cities API response:', response);
+
+      if (response.success && response.data && Array.isArray(response.data)) {
+        setCities(response.data);
+        console.log('Cities loaded successfully:', response.data.length, 'cities');
+      } else if (response && Array.isArray(response)) {
+        // Handle direct array response
+        setCities(response);
+        console.log('Cities loaded (direct array):', response.length, 'cities');
+      } else {
+        console.error('Invalid cities response format:', response);
+        // Fallback cities from database schema
+        const fallbackCities = [
+          { id: 'c66cc663-ec21-41bc-b58c-7f6a53c8ed70', name: 'Bangalore', state: 'Karnataka' },
+          { id: '4ae30f5b-d4d1-4d7a-a3c7-de3040eb94fa', name: 'Delhi', state: 'Delhi' },
+          { id: 'd505a6c5-8140-459b-8ff3-39565c65b74e', name: 'Hyderabad', state: 'Telangana' },
+          { id: '69f77c2d-aaaa-4c14-bf9c-61a1910a018a', name: 'Mumbai', state: 'Maharashtra' },
+          { id: 'aba48839-eb36-4d8a-8a40-963017304952', name: 'Pune', state: 'Maharashtra' }
+        ];
+        setCities(fallbackCities);
+        toast.error('Using fallback cities due to API error');
+      }
+    } catch (error) {
+      console.error('Error loading cities:', error);
+      // Fallback cities
+      const fallbackCities = [
+        { id: 'c66cc663-ec21-41bc-b58c-7f6a53c8ed70', name: 'Bangalore', state: 'Karnataka' },
+        { id: '4ae30f5b-d4d1-4d7a-a3c7-de3040eb94fa', name: 'Delhi', state: 'Delhi' },
+        { id: 'd505a6c5-8140-459b-8ff3-39565c65b74e', name: 'Hyderabad', state: 'Telangana' },
+        { id: '69f77c2d-aaaa-4c14-bf9c-61a1910a018a', name: 'Mumbai', state: 'Maharashtra' },
+        { id: 'aba48839-eb36-4d8a-8a40-963017304952', name: 'Pune', state: 'Maharashtra' }
+      ];
+      setCities(fallbackCities);
+      toast.error('Failed to load cities from server. Using default cities.');
+    } finally {
+      setCitiesLoading(false);
     }
   };
 
@@ -72,15 +114,50 @@ const Profile = ({
 
   const handleSave = async () => {
     try {
-      await onUpdateProfile(formData);
+      // Validate required fields
+      if (!formData.firstName || !formData.lastName) {
+        toast.error('First name and last name are required');
+        return;
+      }
+
+      if (!formData.cityId) {
+        toast.error('Please select a city');
+        return;
+      }
+
+      const updateData = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email, // Email is read-only, but include for consistency
+        phone: formData.phone?.trim() || '',
+        cityId: formData.cityId
+      };
+
+      console.log('Updating profile with data:', updateData);
+      const result = await onUpdateProfile(updateData);
       setIsEditing(false);
       toast.success('Profile updated successfully');
+
+      // Update AuthContext with new user data
+      const userData = profileData?.user || profileData;
+      const updatedUserData = {
+        ...userData,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        phone: formData.phone,
+        cityId: formData.cityId
+      };
+      updateUser(updatedUserData);
     } catch (error) {
-      toast.error('Failed to update profile');
+      console.error('Profile update error:', error);
+      toast.error(error.message || 'Failed to update profile');
     }
   };
 
-  const handlePasswordUpdate = async () => {
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast.error('New passwords do not match');
       return;
@@ -89,94 +166,73 @@ const Profile = ({
       toast.error('Password must be at least 6 characters long');
       return;
     }
-    
+
     try {
-      await onUpdatePassword(passwordData);
-      setShowPasswordModal(false);
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      toast.success('Password updated successfully');
+      const result = await profileService.updatePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+      if (result.success) {
+        setShowPasswordModal(false);
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        toast.success('Password updated successfully');
+      } else {
+        toast.error(result.error);
+      }
     } catch (error) {
-      toast.error('Failed to update password');
+      toast.error(error.message || 'Failed to update password');
     }
   };
 
-  const renderTypeSpecificFields = () => {
-    switch (userType) {
-      case 'branchAdmin':
-        return (
-          <>
-            <FormInput
-              label="Branch Name"
-              type="text"
-              value={formData.branchName || ''}
-              onChange={(e) => handleInputChange('branchName', e.target.value)}
-              disabled={!isEditing}
-              required
-            />
-            <FormInput
-              label="Region"
-              type="text"
-              value={formData.region || ''}
-              onChange={(e) => handleInputChange('region', e.target.value)}
-              disabled={!isEditing}
-            />
-            <FormInput
-              label="Designation"
-              type="text"
-              value={formData.designation || ''}
-              onChange={(e) => handleInputChange('designation', e.target.value)}
-              disabled={!isEditing}
-            />
-            <FormInput
-              label="Assigned City"
-              type="text"
-              value={formData.assignedCity || ''}
-              disabled={true}
-              readOnly
-            />
-          </>
-        );
-      case 'employer':
-        return (
-          <>
-            <FormInput
-              label="Company Name"
-              type="text"
-              value={formData.companyName || ''}
-              onChange={(e) => handleInputChange('companyName', e.target.value)}
-              disabled={!isEditing}
-              required
-            />
-            <FormInput
-              label="Job Title"
-              type="text"
-              value={formData.jobTitle || ''}
-              onChange={(e) => handleInputChange('jobTitle', e.target.value)}
-              disabled={!isEditing}
-            />
-            <FormInput
-              label="Industry"
-              type="text"
-              value={formData.industry || ''}
-              onChange={(e) => handleInputChange('industry', e.target.value)}
-              disabled={!isEditing}
-            />
-          </>
-        );
-      default:
-        return null;
+  // Function to get city name from cityId
+  const getCityName = (userData) => {
+    // Check for cityName first (from new profile API)
+    if (userData.cityName) {
+      return userData.cityName;
     }
+    // Fallback to cityRef format
+    if (userData.cityRef) {
+      return `${userData.cityRef.name}, ${userData.cityRef.state}`;
+    }
+    return userData.city || 'Not specified';
   };
 
-  if (loading) {
+  // Get current city name for display
+  const getCurrentCityName = () => {
+    // Handle both nested user object and direct profile data
+    const userData = profileData?.user || profileData;
+
+    if (!userData?.cityId) return 'Not specified';
+
+    // Check if cityName is already provided (from API response)
+    if (userData.cityName) {
+      return userData.cityName;
+    }
+
+    // If cityRef is available (populated city data)
+    if (userData.cityRef) {
+      return `${userData.cityRef.name}, ${userData.cityRef.state}`;
+    }
+
+    // Find city in cities list
+    const city = cities.find(c => c.id === userData.cityId);
+    return city ? `${city.name}, ${city.state}` : 'Unknown city';
+  };
+
+  const formatRole = (role) => {
+    const roleMap = {
+      'CANDIDATE': 'Candidate',
+      'EMPLOYER': 'Employer',
+      'BRANCH_ADMIN': 'Branch Admin',
+      'SUPER_ADMIN': 'Super Admin'
+    };
+    return roleMap[role] || role;
+  };
+
+  if (loading || profileLoading) {
     return (
-      <div className="animate-pulse">
-        <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-        <div className="space-y-4">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-12 bg-gray-200 rounded"></div>
-          ))}
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -187,13 +243,16 @@ const Profile = ({
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Profile Information</h2>
         <div className="flex space-x-3">
-          <Button
-            onClick={() => setShowPasswordModal(true)}
-            variant="outline"
-            size="sm"
-          >
-            Change Password
-          </Button>
+          {/* Hide change password button in edit mode */}
+          {!isEditing && (
+            <Button
+              onClick={() => setShowPasswordModal(true)}
+              variant="outline"
+              size="sm"
+            >
+              Change Password
+            </Button>
+          )}
           {isEditing ? (
             <div className="flex space-x-2">
               <Button
@@ -226,33 +285,94 @@ const Profile = ({
       {/* Profile Form */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Basic Information */}
-          <FormInput
-            label="Full Name"
-            type="text"
-            value={formData.name || ''}
-            onChange={(e) => handleInputChange('name', e.target.value)}
-            disabled={!isEditing}
-            required
-          />
-          <FormInput
-            label="Email Address"
-            type="email"
-            value={formData.email || ''}
-            disabled={true}
-            readOnly
-            help="Email cannot be changed"
-          />
-          <FormInput
-            label="Phone Number"
-            type="tel"
-            value={formData.phone || ''}
-            onChange={(e) => handleInputChange('phone', e.target.value)}
-            disabled={!isEditing}
-          />
-          
-          {/* Type-specific fields */}
-          {renderTypeSpecificFields()}
+          {/* First Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              First Name
+            </label>
+            <input
+              type="text"
+              value={formData.firstName || ''}
+              onChange={(e) => handleInputChange('firstName', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={!isEditing}
+            />
+          </div>
+
+          {/* Last Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Last Name
+            </label>
+            <input
+              type="text"
+              value={formData.lastName || ''}
+              onChange={(e) => handleInputChange('lastName', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={!isEditing}
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={formData.email || ''}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+              disabled
+              readOnly
+            />
+            <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number
+            </label>
+            <input
+              type="tel"
+              value={formData.phone || ''}
+              onChange={(e) => handleInputChange('phone', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={!isEditing}
+            />
+          </div>
+
+          {/* City Dropdown */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              City
+            </label>
+            {isEditing ? (
+              <select
+                value={formData.cityId || ''}
+                onChange={(e) => handleInputChange('cityId', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={citiesLoading}
+              >
+                <option value="">
+                  {citiesLoading ? 'Loading cities...' : 'Select a city'}
+                </option>
+                {cities.map((city) => (
+                  <option key={city.id} value={city.id}>
+                    {city.name}, {city.state}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={getCurrentCityName()}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                disabled
+                readOnly
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -284,7 +404,7 @@ const Profile = ({
               )}
             </button>
           </div>
-          
+
           <div className="relative">
             <FormInput
               label="New Password"
@@ -306,7 +426,7 @@ const Profile = ({
               )}
             </button>
           </div>
-          
+
           <div className="relative">
             <FormInput
               label="Confirm New Password"

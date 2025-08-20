@@ -13,6 +13,7 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
+import JobCard from '../../components/ui/JobCard';
 import { getEmployer, approveEmployer, rejectEmployer, blockEmployer } from '../../services/branch-admin/employers';
 
 const EmployerDetail = () => {
@@ -299,24 +300,29 @@ const EmployerDetail = () => {
               ) : (
                 <div className="space-y-4">
                   {employer.ads.slice(0, 5).map((ad) => (
-                    <div key={ad.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">{ad.title}</h4>
-                          <p className="text-sm text-gray-600 mt-1">{ad.company?.name}</p>
-                          <div className="flex items-center space-x-4 text-xs text-gray-500 mt-2">
-                            <span>Category: {ad.categoryName}</span>
-                            <span>Location: {ad.location?.name}</span>
-                            <span>Posted: {new Date(ad.createdAt).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                        <Badge 
-                          color={ad.status === 'APPROVED' ? 'green' : 
-                               ad.status === 'PENDING_APPROVAL' ? 'yellow' : 'red'} 
-                          text={ad.status} 
-                        />
-                      </div>
-                    </div>
+                    <JobCard
+                      key={ad.id}
+                      job={{
+                        id: ad.id,
+                        title: ad.title,
+                        company: ad.company,
+                        companyName: ad.company?.name,
+                        location: ad.location,
+                        locationName: ad.location?.name,
+                        description: ad.description,
+                        jobType: ad.jobType,
+                        salary: ad.salary,
+                        skills: ad.skills || [],
+                        createdAt: ad.createdAt,
+                        postedAt: ad.createdAt,
+                        candidatesCount: ad.candidatesCount || 0,
+                        status: ad.status
+                      }}
+                      variant="employer"
+                      applicationStatus={ad.status}
+                      onClick={() => navigate(`/jobs/${ad.id}?from=branch-admin`)}
+                      className="border-0 bg-gray-50 hover:bg-gray-100"
+                    />
                   ))}
                   
                   {employer.ads.length > 5 && (

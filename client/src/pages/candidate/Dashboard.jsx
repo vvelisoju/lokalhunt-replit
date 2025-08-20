@@ -1,19 +1,16 @@
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   BriefcaseIcon,
   BookmarkIcon,
   UserIcon,
   DocumentIcon,
-  EyeIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ClockIcon
+  EyeIcon
 } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
-import Table from '../../components/ui/Table'
+import JobCard from '../../components/ui/JobCard'
 import Loader from '../../components/ui/Loader'
 import { useCandidate } from '../../context/CandidateContext'
 import { useCandidateAuth } from '../../hooks/useCandidateAuth'
@@ -22,6 +19,7 @@ const Dashboard = () => {
   const { user } = useCandidateAuth()
   const { applications, fetchApplications, loading } = useCandidate()
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [stats, setStats] = useState({
     totalApplications: 0,
     pendingApplications: 0,
@@ -31,13 +29,21 @@ const Dashboard = () => {
     profileCompletion: 75,
     bookmarks: 0
   })
+  const [dataLoaded, setDataLoaded] = useState(false)
 
   useEffect(() => {
+    let isMounted = true
+    
     const loadDashboardData = async () => {
+      // Only load if user exists and data hasn't been loaded yet
+      if (!user || dataLoaded) return
+
       try {
         // Fetch applications if fetchApplications is available
         if (fetchApplications && typeof fetchApplications === 'function') {
+          console.log('Fetching applications...')
           await fetchApplications()
+          console.log('Applications fetched, current applications:', applications)
         }
         
         // Fetch dashboard stats - handle missing endpoint gracefully
@@ -50,7 +56,7 @@ const Dashboard = () => {
           
           if (response.ok) {
             const result = await response.json()
-            if (result.success && result.data) {
+            if (result.success && result.data && isMounted) {
               setStats(result.data)
             }
           } else if (response.status === 404) {
@@ -61,15 +67,24 @@ const Dashboard = () => {
           console.warn('Failed to load dashboard stats:', statsError)
           // Continue with default stats
         }
+        
+        if (isMounted) {
+          setDataLoaded(true)
+        }
       } catch (error) {
         console.error('Error loading dashboard data:', error)
+        if (isMounted) {
+          setDataLoaded(true) // Set loaded even on error to prevent retries
+        }
       }
     }
     
-    if (user) {
-      loadDashboardData()
+    loadDashboardData()
+
+    return () => {
+      isMounted = false
     }
-  }, [user, fetchApplications])
+  }, [user, dataLoaded]) // Include dataLoaded to prevent re-runs
 
   const quickStats = [
     {
@@ -102,37 +117,10 @@ const Dashboard = () => {
     }
   ]
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'pending':
-        return <ClockIcon className="h-4 w-4 text-yellow-500" />
-      case 'approved':
-        return <CheckCircleIcon className="h-4 w-4 text-green-500" />
-      case 'rejected':
-        return <XCircleIcon className="h-4 w-4 text-red-500" />
-      default:
-        return <ClockIcon className="h-4 w-4 text-gray-500" />
-    }
-  }
+  
 
-  const getStatusBadge = (status) => {
-    const baseClasses = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-    
-    switch (status) {
-      case 'pending':
-        return `${baseClasses} bg-yellow-100 text-yellow-800`
-      case 'approved':
-        return `${baseClasses} bg-green-100 text-green-800`
-      case 'rejected':
-        return `${baseClasses} bg-red-100 text-red-800`
-      case 'interview':
-        return `${baseClasses} bg-blue-100 text-blue-800`
-      default:
-        return `${baseClasses} bg-gray-100 text-gray-800`
-    }
-  }
-
-  if (loading) {
+  // Show loading until data is loaded and not in loading state
+  if (!dataLoaded || loading) {
     return <Loader.Page />
   }
 
@@ -251,88 +239,109 @@ const Dashboard = () => {
               </Link>
             </div>
           ) : (
-            <>
-              {/* Desktop table view */}
-              <div className="hidden md:block">
-                <Table>
-                  <Table.Header>
-                <Table.Row>
-                  <Table.Head>Job Title</Table.Head>
-                  <Table.Head>Company</Table.Head>
-                  <Table.Head>Applied Date</Table.Head>
-                  <Table.Head>Status</Table.Head>
-                  <Table.Head>Actions</Table.Head>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {(applications && Array.isArray(applications) ? applications : []).slice(0, 5).map((application) => (
-                  <Table.Row key={application.id}>
-                    <Table.Cell>
-                      <div className="font-medium text-gray-900">
-                        {application.job?.title}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {application.job?.location}
-                      </div>
-                    </Table.Cell>
-                    <Table.Cell>
-                      {application.job?.company?.name}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {new Date(application.createdAt).toLocaleDateString()}
-                    </Table.Cell>
-                    <Table.Cell>
-                      <span className={getStatusBadge(application.status)}>
-                        {getStatusIcon(application.status)}
-                        <span className="ml-1 capitalize">
-                          {t(`applications.status.${application.status}`, application.status)}
-                        </span>
-                      </span>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Link to={`/candidate/applications/${application.id}`}>
-                        <Button variant="outline" size="sm">
-                          View
-                        </Button>
-                      </Link>
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
-                  </Table.Body>
-                </Table>
-              </div>
+            <div className="space-y-4">
+              {(applications && Array.isArray(applications) ? applications : []).slice(0, 5).map((application) => {
+                // Ensure we have a valid job ID
+                const jobId = application.adId || application.job?.id || application.jobId
+                
+                if (!jobId) {
+                  console.warn('Missing job ID for application:', application)
+                  return null
+                }
 
-              {/* Mobile card view */}
-              <div className="md:hidden space-y-4">
-                {(applications && Array.isArray(applications) ? applications : []).slice(0, 5).map((application) => (
-                  <div key={application.id} className="bg-gray-50 rounded-lg p-4 border">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 text-sm">
-                          {application.job?.title}
-                        </h4>
-                        <p className="text-sm text-gray-600">{application.job?.company?.name}</p>
-                        <p className="text-xs text-gray-500">{application.job?.location}</p>
-                      </div>
-                      <span className={getStatusBadge(application.status)}>
-                        {getStatusIcon(application.status)}
-                        <span className="ml-1 capitalize text-xs">
-                          {t(`applications.status.${application.status}`, application.status)}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500">
-                        Applied: {new Date(application.createdAt).toLocaleDateString()}
-                      </span>
-                      <Button variant="outline" size="sm">
-                        View
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
+                // Transform application data to match shared JobCard expectations
+                // Handle the actual API response structure for applications
+                console.log('Processing application:', application) // Debug log
+                
+                const jobData = {
+                  id: jobId,
+                  title: application.title || 
+                         application.ad?.title || 
+                         application.job?.title || 
+                         application.adTitle || 
+                         'Job Title',
+                  description: application.description || 
+                              application.ad?.description || 
+                              application.job?.description || 
+                              application.adDescription,
+                  location: application.location || 
+                           application.city || 
+                           application.ad?.city || 
+                           application.job?.location || 
+                           application.job?.city?.name || 
+                           'Location not specified',
+                  locationName: application.city || 
+                               application.location || 
+                               application.ad?.city || 
+                               application.job?.city?.name,
+                  locationState: application.state || 
+                                application.job?.city?.state,
+                  salary: application.salary || 
+                         application.salaryRange || 
+                         application.ad?.salary || 
+                         application.job?.salary,
+                  salaryRange: application.salaryRange || 
+                              application.ad?.salaryRange || 
+                              application.job?.salaryRange,
+                  jobType: application.employmentType || 
+                          application.jobType || 
+                          application.ad?.employmentType || 
+                          application.job?.jobType || 
+                          application.job?.employmentType || 
+                          'Full Time',
+                  skills: application.skills || 
+                         application.requirements ||
+                         application.ad?.skills || 
+                         application.job?.skills || 
+                         application.job?.requirements || 
+                         [],
+                  postedAt: application.postedAt || 
+                           application.createdAt ||
+                           application.ad?.createdAt || 
+                           application.job?.createdAt,
+                  candidatesCount: application.applicationCount ||
+                                  application.ad?.applicationCount || 
+                                  application.job?.applicationCount,
+                  company: {
+                    name: application.companyName || 
+                          application.employerName ||
+                          application.company?.name ||
+                          application.ad?.company?.name || 
+                          application.job?.company?.name || 
+                          application.ad?.employerName || 
+                          application.job?.employerName || 
+                          'Company',
+                    industry: application.company?.industry ||
+                             application.ad?.company?.industry || 
+                             application.job?.company?.industry
+                  },
+                  hasApplied: true // Since these are applications, user has already applied
+                }
+
+                return (
+                  <JobCard
+                    key={application.id}
+                    job={jobData}
+                    variant="application"
+                    applicationStatus={application.status}
+                    applicationDate={application.createdAt}
+                    showApplicationDate={true}
+                    onClick={() => {
+                      // Navigate to job details with 'from' parameter for proper back navigation
+                      navigate(`/jobs/${jobId}?from=dashboard`)
+                    }}
+                    onWithdraw={() => {
+                      console.log('Withdraw application:', application.id)
+                    }}
+                    loading={{
+                      apply: false,
+                      bookmark: false,
+                      withdraw: false,
+                    }}
+                  />
+                )
+              }).filter(Boolean)}
+            </div>
           )}
         </Card.Content>
       </Card>

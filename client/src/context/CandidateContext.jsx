@@ -120,10 +120,15 @@ export const CandidateProvider = ({ children }) => {
   const fetchApplications = useCallback(async () => {
     try {
       setLoading(true)
+      console.log('Starting to fetch applications...')
       const response = await candidateApi.getApplications()
+      console.log('Raw applications API response:', response)
+      
       // Handle API response structure: { success: true, data: [...], message: "..." }
       const applications = response?.data?.data || response?.data || []
-      console.log('Applications API response:', response, 'extracted applications:', applications)
+      console.log('Extracted applications:', applications)
+      console.log('First application sample:', applications[0])
+      
       dispatch({ type: 'SET_APPLICATIONS', payload: Array.isArray(applications) ? applications : [] })
     } catch (error) {
       console.error('Fetch applications error:', error)
@@ -227,6 +232,14 @@ export const CandidateProvider = ({ children }) => {
   const clearData = () => {
     dispatch({ type: 'CLEAR_DATA' })
   }
+
+  // Make clearData globally accessible for logout
+  useEffect(() => {
+    window.candidateContext = { clearData }
+    return () => {
+      delete window.candidateContext
+    }
+  }, [])
 
   const value = {
     ...state,

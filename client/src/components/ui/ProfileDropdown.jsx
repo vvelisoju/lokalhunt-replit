@@ -1,13 +1,12 @@
+
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ChevronDownIcon,
-  UserIcon,
+  ChartBarIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
-  GlobeAltIcon,
-  ChartBarIcon,
-  BriefcaseIcon
+  GlobeAltIcon
 } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 
@@ -41,7 +40,7 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
     logout()
   }
 
-  // Role-based styling and menu items
+  // Role-based styling and dashboard links
   const getRoleConfig = (role) => {
     switch (role) {
       case 'CANDIDATE':
@@ -49,47 +48,83 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
           ringColor: 'ring-primary-100',
           hoverColor: 'hover:bg-primary-50 hover:text-primary-700',
           roleColor: 'text-blue-600',
-          menuItems: [
-            { to: '/candidate/dashboard', icon: ChartBarIcon, label: 'Dashboard' },
-            { to: '/candidate/profile', icon: UserIcon, label: 'My Profile' },
-            { to: '/candidate/applications', icon: BriefcaseIcon, label: 'Applications' }
-          ]
+          dashboardLink: '/candidate/dashboard',
+          accountSettingsLink: '/candidate/account-settings'
         }
       case 'EMPLOYER':
         return {
           ringColor: 'ring-green-100',
           hoverColor: 'hover:bg-green-50 hover:text-green-700',
           roleColor: 'text-green-600',
-          menuItems: [
-            { to: '/employer/dashboard', icon: ChartBarIcon, label: 'Dashboard' },
-            { to: '/employer/company-profile', icon: UserIcon, label: 'Company Profile' },
-            { to: '/employer/job-ads', icon: BriefcaseIcon, label: 'Job Ads' }
-          ]
+          dashboardLink: '/employer/dashboard',
+          accountSettingsLink: '/employer/account-settings'
         }
       case 'BRANCH_ADMIN':
         return {
           ringColor: 'ring-blue-100',
           hoverColor: 'hover:bg-blue-50 hover:text-blue-700',
           roleColor: 'text-blue-600',
-          menuItems: [
-            { to: '/branch-admin/dashboard', icon: ChartBarIcon, label: 'Dashboard' },
-            { to: '/branch-admin/reports', icon: UserIcon, label: 'Admin Profile' },
-            { to: '/branch-admin/employers', icon: BriefcaseIcon, label: 'Employers' }
-          ]
+          dashboardLink: '/branch-admin/dashboard',
+          accountSettingsLink: '/branch-admin/account-settings'
+        }
+      case 'SUPER_ADMIN':
+        return {
+          ringColor: 'ring-purple-100',
+          hoverColor: 'hover:bg-purple-50 hover:text-purple-700',
+          roleColor: 'text-purple-600',
+          dashboardLink: '/super-admin/dashboard',
+          accountSettingsLink: '/super-admin/account-settings'
         }
       default:
         return {
           ringColor: 'ring-gray-100',
           hoverColor: 'hover:bg-gray-50 hover:text-gray-700',
           roleColor: 'text-gray-600',
-          menuItems: []
+          dashboardLink: '/dashboard',
+          accountSettingsLink: '/account-settings'
         }
     }
   }
 
   const roleConfig = getRoleConfig(user?.role)
-  const displayName = user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User'
-  const avatarUrl = user?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=059669&color=fff`
+  
+  // Better name extraction logic
+  let displayName = 'User'
+  
+  // Check for firstName and lastName first (most common case)
+  if (user?.firstName || user?.lastName) {
+    displayName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim()
+  } 
+  // Check for full name
+  else if (user?.name) {
+    displayName = user.name
+  } 
+  else if (user?.fullName) {
+    displayName = user.fullName
+  }
+  // Fallback to email username
+  else if (user?.email) {
+    displayName = user.email.split('@')[0]
+  }
+  
+  // Ensure we don't have empty displayName
+  if (!displayName || displayName.trim() === '') {
+    displayName = 'User'
+  }
+  
+  const avatarUrl = user?.profileImage || user?.profilePhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=059669&color=fff`
+
+  // Format role display name
+  const formatRoleName = (role) => {
+    switch (role) {
+      case 'BRANCH_ADMIN':
+        return 'Branch Admin'
+      case 'SUPER_ADMIN':
+        return 'Super Admin'
+      default:
+        return role?.charAt(0) + role?.slice(1).toLowerCase()
+    }
+  }
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -120,23 +155,32 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
             </p>
             <p className="text-xs text-gray-500">{user?.email}</p>
             <p className={`text-xs mt-1 ${roleConfig.roleColor}`}>
-              {user?.role === 'BRANCH_ADMIN' ? 'Branch Admin' : user?.role?.charAt(0) + user?.role?.slice(1).toLowerCase()}
+              {formatRoleName(user?.role)}
             </p>
           </div>
           
           <div className="py-1">
-            {roleConfig.menuItems.map((item, index) => (
-              <Link 
-                key={index}
-                to={item.to} 
-                className={`flex items-center px-4 py-2 text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
-                onClick={() => setShowUserMenu(false)}
-              >
-                <item.icon className="h-4 w-4 mr-3" />
-                {item.label}
-              </Link>
-            ))}
+            {/* Dashboard Link */}
+            <Link 
+              to={roleConfig.dashboardLink} 
+              className={`flex items-center px-4 py-2 text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
+              onClick={() => setShowUserMenu(false)}
+            >
+              <ChartBarIcon className="h-4 w-4 mr-3" />
+              Dashboard
+            </Link>
+
+            {/* Account Settings Link */}
+            <Link 
+              to={roleConfig.accountSettingsLink} 
+              className={`flex items-center px-4 py-2 text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
+              onClick={() => setShowUserMenu(false)}
+            >
+              <Cog6ToothIcon className="h-4 w-4 mr-3" />
+              Account Settings
+            </Link>
             
+            {/* Language Toggle */}
             <button 
               className={`w-full flex items-center px-4 py-2 text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
               onClick={() => changeLanguage(i18n.language === 'en' ? 'te' : 'en')}
@@ -147,8 +191,12 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
           </div>
           
           <div className="border-t border-gray-100 pt-1">
+            {/* Sign Out */}
             <button 
-              onClick={handleLogout}
+              onClick={async () => {
+                await handleLogout()
+                window.location.href = '/login'
+              }}
               className={`w-full flex items-center px-4 py-2 text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
             >
               <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />

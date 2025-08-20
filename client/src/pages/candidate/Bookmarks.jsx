@@ -165,7 +165,8 @@ const Bookmarks = () => {
   };
 
   const handleJobCardClick = (jobId) => {
-    navigate(`/job/${jobId}?from=bookmarks`);
+    // Bookmarked jobs are always approved jobs, so use regular job view
+    navigate(`/jobs/${jobId}`);
   };
 
   const formatSalary = (salary) => {

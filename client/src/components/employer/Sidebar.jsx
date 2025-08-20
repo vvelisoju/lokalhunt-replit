@@ -19,7 +19,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: t('employer.sidebar.dashboard', 'Dashboard'), href: "/employer/dashboard", icon: HomeIcon },
     { name: t('employer.sidebar.myAds', 'My Ads'), href: "/employer/ads", icon: MegaphoneIcon },
     { name: t('employer.sidebar.candidates', 'Candidates'), href: "/employer/candidates", icon: UsersIcon },
-    { name: t('employer.sidebar.companyProfile', 'Company Profile'), href: "/employer/company-profile", icon: BuildingOfficeIcon },
+    { name: t('employer.sidebar.companies', 'Companies'), href: "/employer/company-profile", icon: BuildingOfficeIcon },
     { name: t('employer.sidebar.mou', 'MOU Management'), href: "/employer/mou", icon: DocumentTextIcon },
   ];
 
