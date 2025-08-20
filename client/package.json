@@ -20,8 +20,7 @@
   "license": "ISC",
   "dependencies": {
     "@heroicons/react": "^2.2.0",
-    "@tailwindcss/forms": "^0.5.10",
-    "@tailwindcss/typography": "^0.5.16",
+    "@tailwindcss/vite": "^4.1.12",
     "@uiw/react-md-editor": "^4.0.8",
     "@uppy/aws-s3": "^4.3.2",
     "@uppy/core": "^4.5.2",
@@ -43,7 +42,6 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^5.0.0",
     "eslint": "^9.33.0",
-    "tailwindcss": "^4.1.11",
     "vite": "^7.1.2"
   }
 }
