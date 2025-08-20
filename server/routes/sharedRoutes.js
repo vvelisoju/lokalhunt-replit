@@ -1,3 +1,7 @@
+const express = require('express');
+const router = express.Router();
+const { optionalAuth } = require('../middleware/auth'); // Assuming optionalAuth is here
+
 // Get job preview by ID (works for all user roles, includes draft/pending for authorized users)
 router.get('/jobs/:id/preview', optionalAuth, async (req, res, next) => {
   try {
@@ -167,7 +171,7 @@ router.get('/jobs/:id', async (req, res, next) => {
         id: job.company?.id,
         name: job.company?.name || 'Company Name',
         logo: job.company?.logo,
-        industry: job.company?.industry,
+        industry: job.job?.industry,
         description: job.company?.description,
         website: job.company?.website,
         size: job.company?.size
@@ -203,3 +207,5 @@ router.get('/jobs/:id', async (req, res, next) => {
     next(error);
   }
 });
+
+module.exports = router;
