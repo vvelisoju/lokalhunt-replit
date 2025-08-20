@@ -13,7 +13,9 @@ export default defineConfig({
       "localhost",
       "127.0.0.1",
       "8623772d-42f2-4847-92b4-3b6c3e49b220-00-1xro0juetxdg.riker.replit.dev",
-      "https://lokalhunt.up.railway.app"
+      "https://lokalhunt.up.railway.app",
+      "https://www.lokalhunt.com/",
+      "https://lokalhunt.com/"
     ],
     proxy: {
       "/api": {
@@ -21,7 +23,6 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         ws: true,
-        rewrite: (path) => path.replace(/^\/api/, "/api"),
         configure: (proxy, _options) => {
           proxy.on("error", (err, _req, _res) => {
             console.log("proxy error", err);
