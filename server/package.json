@@ -4,7 +4,7 @@
   "description": "Lokalhunt API Server - Express.js backend with PostgreSQL and Prisma ORM",
   "main": "server-production.js",
   "scripts": {
-    "dev": "nodemon server-with-db.js",
+"dev": "nodemon server-with-db.js",
     "start": "node server-production.js",
     "start:dev": "node server-with-db.js",
     "build": "npx prisma generate",
@@ -15,10 +15,9 @@
     "db:migrate": "npx prisma migrate dev",
     "db:reset": "npx prisma migrate reset",
     "db:seed:categories": "node seeds/categories.js",
-    "db:seed:categories:reset": "node seeds/reset-and-seed-categories.js",
     "db:seed:education": "node seeds/education-qualifications.js",
-    "db:seed:education:reset": "node seeds/reset-and-seed-education-qualifications.js",
-    "db:seed:all": "node seeds/categories.js",
+    "db:seed:cities": "node seeds/cities.js",
+    "db:seed:all": "node seeds/seed-all.js",
     "health": "curl -f http://localhost:5000/health || exit 1"
   },
   "dependencies": {
