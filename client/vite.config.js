@@ -12,10 +12,11 @@ export default defineConfig({
     allowedHosts: [
       "localhost:3000",
       "8623772d-42f2-4847-92b4-3b6c3e49b220-00-1xro0juetxdg.riker.replit.dev",
+      "https://lokalhunt.up.railway.app/"
     ],
     proxy: {
       "/api": {
-        target: "http://localhost:5000",
+        target: "https://lokalhunt.up.railway.app/",
         changeOrigin: true,
         secure: false,
         ws: true,
