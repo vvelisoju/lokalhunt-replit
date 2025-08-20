@@ -4,8 +4,8 @@
   "description": "Lokalhunt API Server - Express.js backend with PostgreSQL and Prisma ORM",
   "main": "server-production.js",
   "scripts": {
-"dev": "nodemon server-with-db.js",
-    "start": "node server-production.js",
+    "dev": "nodemon server-with-db.js",
+    "start": "node server-with-db.js",
     "start:dev": "node server-with-db.js",
     "build": "npx prisma generate",
     "migrate:deploy": "npx prisma migrate deploy",
