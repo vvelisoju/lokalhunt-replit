@@ -25,6 +25,8 @@ import {
 } from "../../services/employer/ads";
 import { getCompanies } from "../../services/employer/companies";
 import { generateJobDescription } from "../../services/aiService";
+import { getCities } from "../../services/common/cities";
+import { publicApi } from "../../services/publicApi";
 import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-hot-toast";
 
@@ -241,76 +243,61 @@ const AdForm = () => {
       setLoadingCategories(true);
       setLoadingEducation(true);
 
-      const [citiesResponse, categoriesResponse, educationResponse] = await Promise.all([
-        fetch("/api/public/cities").catch(err => ({ ok: false, error: err })),
-        fetch("/api/public/categories").catch(err => ({ ok: false, error: err })),
-        fetch("/api/public/education-qualifications").catch(err => ({ ok: false, error: err }))
+      const [citiesResult, categoriesResult, educationResult] = await Promise.all([
+        getCities().catch(err => ({ success: false, error: err.message })),
+        publicApi.getCategories().catch(err => ({ success: false, error: err.message })),
+        publicApi.getEducationQualifications().catch(err => ({ success: false, error: err.message }))
       ]);
 
       // Process cities
       let defaultCityId = "";
       let citiesOptions = [];
       
-      if (citiesResponse.ok) {
-        try {
-          const citiesData = await citiesResponse.json();
-          if (citiesData.status === "success") {
-            citiesOptions = citiesData.data.map((city) => ({
-              value: city.id,
-              label: `${city.name}, ${city.state}`,
-            }));
-            setCities(citiesOptions);
-            
-            // Set first city as default for new ads
-            if (!isEditing && citiesOptions.length > 0) {
-              defaultCityId = citiesOptions[0].value;
-            }
-          }
-        } catch (err) {
-          console.error("Error parsing cities data:", err);
+      if (citiesResult.success) {
+        console.log("Cities loaded successfully:", citiesResult.data);
+        citiesOptions = citiesResult.data.map((city) => ({
+          value: city.id,
+          label: `${city.name}, ${city.state}`,
+        }));
+        setCities(citiesOptions);
+        
+        // Set first city as default for new ads
+        if (!isEditing && citiesOptions.length > 0) {
+          defaultCityId = citiesOptions[0].value;
         }
       } else {
-        console.error("Failed to fetch cities");
+        console.error("Failed to load cities:", citiesResult.error);
+        toast.error("Failed to load cities");
       }
       setLoadingCities(false);
 
       // Process categories
-      if (categoriesResponse.ok) {
-        try {
-          const categoriesData = await categoriesResponse.json();
-          if (categoriesData.status === "success") {
-            setCategories(
-              categoriesData.data.map((category) => ({
-                value: category.id,
-                label: category.name,
-              })),
-            );
-          }
-        } catch (err) {
-          console.error("Error parsing categories data:", err);
-        }
+      if (categoriesResult.status === "success") {
+        console.log("Categories loaded successfully:", categoriesResult.data);
+        setCategories(
+          categoriesResult.data.map((category) => ({
+            value: category.id,
+            label: category.name,
+          })),
+        );
       } else {
-        console.error("Failed to fetch categories");
+        console.error("Failed to load categories:", categoriesResult.error || "Unknown error");
+        toast.error("Failed to load categories");
       }
       setLoadingCategories(false);
 
       // Process education qualifications
-      if (educationResponse.ok) {
-        try {
-          const educationData = await educationResponse.json();
-          if (educationData.status === "success") {
-            setEducationQualifications(
-              educationData.data.map((qualification) => ({
-                value: qualification.id,
-                label: qualification.name,
-              })),
-            );
-          }
-        } catch (err) {
-          console.error("Error parsing education data:", err);
-        }
+      if (educationResult.status === "success") {
+        console.log("Education qualifications loaded successfully:", educationResult.data);
+        setEducationQualifications(
+          educationResult.data.map((qualification) => ({
+            value: qualification.id,
+            label: qualification.name,
+          })),
+        );
       } else {
-        console.error("Failed to fetch education qualifications");
+        console.error("Failed to load education qualifications:", educationResult.error || "Unknown error");
+        toast.error("Failed to load education qualifications");
       }
       setLoadingEducation(false);
 
