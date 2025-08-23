@@ -39,38 +39,63 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      console.log('AuthContext: Starting login process')
+      console.log('AuthContext: Starting login process with:', { email: credentials.email })
 
       const response = await authService.login(credentials)
-      console.log('AuthContext: Login response received:', response)
+      console.log('AuthContext: Raw login response:', response)
 
-      if (response.success || response.data) {
-        const { user, token } = response.data || response
+      // Check for successful response structure
+      if (response && (response.success || response.data)) {
+        const responseData = response.data || response
+        const { user, token } = responseData
+        
+        console.log('AuthContext: Extracted data:', { user, token: token ? 'present' : 'missing' })
+        
         if (token && user) {
           localStorage.setItem('token', token)
           setUser(user)
           setIsAuthenticated(true)
           console.log('AuthContext: Login successful, user set:', user)
           return { success: true, user }
+        } else {
+          console.error('AuthContext: Missing token or user data:', { token: !!token, user: !!user })
+          return { success: false, error: 'Invalid response from server' }
         }
       }
 
-      console.log('AuthContext: Login failed:', response.error || 'No user data received')
-      // Don't clear authentication state immediately on failure
-      return { success: false, error: response.error || 'Login failed' }
+      console.log('AuthContext: Login failed - invalid response structure')
+      return { success: false, error: response.error || response.message || 'Login failed' }
     } catch (error) {
       console.error('AuthContext: Login error:', error)
 
       let errorMessage = 'Login failed'
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message
-      } else if (error.response?.status === 401) {
-        errorMessage = 'Invalid credentials'
-      } else if (error.message) {
-        errorMessage = error.message
+      
+      if (error.response) {
+        // Server responded with error
+        const { status, data } = error.response
+        console.log('AuthContext: Server error response:', { status, data })
+        
+        if (data?.message) {
+          errorMessage = data.message
+        } else if (status === 401) {
+          errorMessage = 'Invalid email or password'
+        } else if (status === 403) {
+          errorMessage = 'Account is deactivated'
+        } else if (status >= 500) {
+          errorMessage = 'Server error. Please try again later.'
+        } else {
+          errorMessage = `Server error (${status})`
+        }
+      } else if (error.request) {
+        // Network error
+        console.log('AuthContext: Network error:', error.request)
+        errorMessage = 'Unable to connect to server. Please check your connection.'
+      } else {
+        // Other error
+        console.log('AuthContext: Other error:', error.message)
+        errorMessage = error.message || 'Unexpected error occurred'
       }
 
-      // Don't modify authentication state on error - let component handle it
       return { success: false, error: errorMessage }
     }
   }
@@ -104,14 +129,44 @@ export const AuthProvider = ({ children }) => {
 
     // Always clear client-side state regardless of API response
     localStorage.removeItem('token')
+    localStorage.removeItem('candidateToken') // Also clear candidate token
     sessionStorage.removeItem('token') // Also clear sessionStorage just in case
     setUser(null)
     setIsAuthenticated(false)
+    
+    // Don't reload the page - let the component handle navigation
+    console.log('Logout completed - user state cleared')
   }
 
   const updateUser = (userData) => {
     setUser(userData);
   };
+
+  // Role-aware navigation helper
+  const getDefaultDashboard = (role) => {
+    switch (role) {
+      case 'CANDIDATE':
+        return '/candidate/dashboard'
+      case 'EMPLOYER':
+        return '/employer/dashboard'
+      case 'BRANCH_ADMIN':
+        return '/branch-admin/dashboard'
+      case 'SUPER_ADMIN':
+        return '/super-admin/dashboard'
+      default:
+        return '/candidate/dashboard'
+    }
+  }
+
+  // Check if user has specific role
+  const hasRole = (role) => {
+    return user?.role === role
+  }
+
+  // Check if user can access employer features (either as employer or admin)
+  const canAccessEmployerFeatures = () => {
+    return user?.role === 'EMPLOYER' || user?.role === 'BRANCH_ADMIN' || user?.role === 'SUPER_ADMIN'
+  }
 
   const value = {
     user,
@@ -121,7 +176,10 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     checkAuthStatus,
-    updateUser
+    updateUser,
+    getDefaultDashboard,
+    hasRole,
+    canAccessEmployerFeatures
   }
 
   return (

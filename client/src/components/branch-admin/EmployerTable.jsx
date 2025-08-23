@@ -23,122 +23,62 @@ const EmployerTable = ({
   const [notes, setNotes] = useState('');
   const [processing, setProcessing] = useState(false);
 
-  const handleAction = async (type, employer) => {
-    if (type === 'view') {
-      onView(employer.id);
-      return;
+  const handleAction = (action, employer) => {
+    switch (action) {
+      case 'view':
+        onView(employer.id);
+        break;
+      case 'approve':
+        onApprove(employer.id);
+        break;
+      case 'reject':
+        setActionModal({
+          isOpen: true,
+          type: action,
+          employer
+        });
+        break;
+      default:
+        console.warn('Unknown action:', action);
     }
-    
-    if (type === 'approve' || type === 'unblock') {
-      setProcessing(true);
-      try {
-        if (type === 'approve') await onApprove(employer.id);
-        if (type === 'unblock') await onUnblock(employer.id);
-      } finally {
-        setProcessing(false);
-      }
-      return;
-    }
-
-    setActionModal({ isOpen: true, type, employer });
   };
 
-  const confirmAction = async () => {
+  const handleConfirmAction = () => {
     if (!actionModal.employer) return;
 
     setProcessing(true);
-    try {
-      const { type, employer } = actionModal;
-      if (type === 'reject') await onReject(employer.id, notes);
-      if (type === 'block') await onBlock(employer.id, notes);
-    } finally {
-      setProcessing(false);
-      setActionModal({ isOpen: false, type: '', employer: null });
-      setNotes('');
-    }
+
+    onReject(actionModal.employer.id, notes)
+      .finally(() => {
+        setProcessing(false);
+        setActionModal({ isOpen: false, type: '', employer: null });
+        setNotes('');
+      });
   };
 
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      ACTIVE: { color: 'green', text: 'Active' },
-      PENDING_APPROVAL: { color: 'yellow', text: 'Pending' },
-      BLOCKED: { color: 'red', text: 'Blocked' },
-      REJECTED: { color: 'gray', text: 'Rejected' }
-    };
-    
-    const config = statusConfig[status] || statusConfig.PENDING_APPROVAL;
-    return <Badge color={config.color} text={config.text} />;
+  const getStatusBadge = (employer) => {
+    if (!employer.user.isActive) {
+      return <Badge variant="danger">Blocked</Badge>;
+    }
+
+    return <Badge variant="success">Active</Badge>;
   };
 
-  const getActionButtons = (employer) => {
-    const buttons = [
-      <Button
-        key="view"
-        size="sm"
-        variant="outline"
-        icon={EyeIcon}
-        onClick={() => handleAction('view', employer)}
-      >
-        View
-      </Button>
-    ];
-
-    if (employer.status === 'PENDING_APPROVAL') {
-      buttons.push(
-        <Button
-          key="approve"
-          size="sm"
-          variant="success"
-          icon={CheckIcon}
-          onClick={() => handleAction('approve', employer)}
-          disabled={processing}
-        >
-          Approve
-        </Button>,
-        <Button
-          key="reject"
-          size="sm"
-          variant="danger"
-          icon={XMarkIcon}
-          onClick={() => handleAction('reject', employer)}
-          disabled={processing}
-        >
-          Reject
-        </Button>
-      );
+  const getSubscriptionBadge = (subscriptionDetails) => {
+    if (!subscriptionDetails.hasActiveSubscription) {
+      return <Badge variant="warning">No Subscription</Badge>;
     }
 
-    if (employer.status === 'ACTIVE') {
-      buttons.push(
-        <Button
-          key="block"
-          size="sm"
-          variant="danger"
-          icon={NoSymbolIcon}
-          onClick={() => handleAction('block', employer)}
-          disabled={processing}
-        >
-          Block
-        </Button>
-      );
+    switch (subscriptionDetails.subscriptionStatus) {
+      case 'ACTIVE':
+        return <Badge variant="success">Active</Badge>;
+      case 'EXPIRED':
+        return <Badge variant="danger">Expired</Badge>;
+      case 'CANCELLED':
+        return <Badge variant="secondary">Cancelled</Badge>;
+      default:
+        return <Badge variant="warning">Unknown</Badge>;
     }
-
-    if (employer.status === 'BLOCKED') {
-      buttons.push(
-        <Button
-          key="unblock"
-          size="sm"
-          variant="success"
-          icon={PlayIcon}
-          onClick={() => handleAction('unblock', employer)}
-          disabled={processing}
-        >
-          Unblock
-        </Button>
-      );
-    }
-
-    return buttons;
   };
 
   if (loading) {
@@ -173,40 +113,95 @@ const EmployerTable = ({
         <div className="px-6 py-4 border-b">
           <h3 className="text-lg font-medium text-gray-900">Employers</h3>
         </div>
-        
+
         {employers.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <p className="text-gray-500">No employers found</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
-            {employers.map((employer) => (
-              <div key={employer.id} className="px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3">
-                      <h4 className="text-sm font-medium text-gray-900">
-                        {employer.user?.name || 'N/A'}
-                      </h4>
-                      {getStatusBadge(employer.status)}
+          <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">Employer</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">Companies</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">Subscription</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">Active Jobs</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {employers.map((employer) => (
+                <tr key={employer.id} className="hover:bg-gray-50">
+                  <td className="py-4 px-4">
+                    <div>
+                      <p className="font-medium text-gray-900">{employer.user.name}</p>
+                      <p className="text-sm text-gray-600">{employer.user.email}</p>
+                      <p className="text-xs text-gray-500">
+                        {employer.user.city?.name}, {employer.user.city?.state}
+                      </p>
                     </div>
-                    <div className="mt-1 flex items-center space-x-4 text-sm text-gray-500">
-                      <span>{employer.user?.email}</span>
-                      <span>•</span>
-                      <span>{employer.companies?.length || 0} companies</span>
-                      <span>•</span>
-                      <span>
-                        Joined {new Date(employer.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="text-sm">
+                      {employer.companies.length > 0 ? (
+                        <>
+                          <p className="font-medium text-gray-900">
+                            {employer.companies.length}
+                          </p>
+                          <p className="text-gray-600">Companies</p>
+                        </>
+                      ) : (
+                        <p className="text-gray-500 italic">No companies</p>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex flex-col gap-1">
+                      {getSubscriptionBadge(employer.subscriptionDetails)}
+                      {employer.subscriptionDetails.hasActiveSubscription && (
+                        <p className="text-xs text-gray-600">
+                          {employer.subscriptionDetails.currentPlan?.name}
+                        </p>
+                      )}
+                      {employer.hasActiveMOU && (
+                        <div className="flex items-center gap-1 text-xs text-green-600">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          MOU Active
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="text-center">
+                      <span className="text-lg font-semibold text-gray-900">
+                        {employer.subscriptionDetails.activeJobsCount}
                       </span>
+                      <p className="text-xs text-gray-500">jobs</p>
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {getActionButtons(employer)}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    {getStatusBadge(employer)}
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onView(employer.id)}
+                      >
+                        View
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         )}
       </div>
 
@@ -219,7 +214,7 @@ const EmployerTable = ({
           <p className="text-gray-600">
             Are you sure you want to {actionModal.type} employer "{actionModal.employer?.user?.name}"?
           </p>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {actionModal.type === 'reject' ? 'Rejection' : 'Blocking'} Notes
@@ -243,10 +238,10 @@ const EmployerTable = ({
             </Button>
             <Button
               variant="danger"
-              onClick={confirmAction}
+              onClick={handleConfirmAction}
               disabled={processing || !notes.trim()}
             >
-              {processing ? 'Processing...' : `${actionModal.type === 'reject' ? 'Reject' : 'Block'} Employer`}
+              Reject
             </Button>
           </div>
         </div>

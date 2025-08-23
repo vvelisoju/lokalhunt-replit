@@ -14,7 +14,8 @@ const CompanyForm = ({ company, onSubmit, onCancel, isLoading = false }) => {
     website: '',
     logo: '',
     industry: '',
-    size: ''
+    size: '',
+    isDefault: false
   })
   const [errors, setErrors] = useState({})
   const [cities, setCities] = useState([])
@@ -59,7 +60,8 @@ const CompanyForm = ({ company, onSubmit, onCancel, isLoading = false }) => {
         website: company.website || '',
         logo: company.logo || '',
         industry: company.industry || '',
-        size: company.size || ''
+        size: company.size || '',
+        isDefault: company.isDefault || false
       })
     }
   }, [company])
@@ -207,6 +209,20 @@ const CompanyForm = ({ company, onSubmit, onCancel, isLoading = false }) => {
         type="url"
         error={errors.logo}
       />
+
+      <div className="flex items-center">
+        <input
+          id="isDefault"
+          name="isDefault"
+          type="checkbox"
+          checked={formData.isDefault}
+          onChange={(e) => setFormData(prev => ({ ...prev, isDefault: e.target.checked }))}
+          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+        />
+        <label htmlFor="isDefault" className="ml-2 block text-sm text-gray-700">
+          Set as default company
+        </label>
+      </div>
 
       <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-6 border-t border-gray-200">
         <Button

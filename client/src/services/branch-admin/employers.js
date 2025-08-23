@@ -1,4 +1,4 @@
-import api from '../api'
+import api, { makeRoleAwareRequest } from '../api'
 
 export const getEmployerDetails = async (employerId) => {
   try {
@@ -101,10 +101,24 @@ export const getEmployers = async (params = {}) => {
     const response = await api.get('/branch-admins/employers', { params })
     return { success: true, data: response.data }
   } catch (error) {
-    console.error('Error getting employers:', error)
+    console.error('Get employers error:', error)
     return { 
       success: false, 
       error: error.response?.data?.error || 'Failed to get employers' 
+    }
+  }
+}
+
+// Get subscription plans for filtering
+export const getSubscriptionPlans = async () => {
+  try {
+    const response = await api.get('/branch-admins/subscription-plans')
+    return { success: true, data: response.data }
+  } catch (error) {
+    console.error('Error getting subscription plans:', error)
+    return { 
+      success: false, 
+      error: error.response?.data?.error || 'Failed to get subscription plans' 
     }
   }
 }

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import Button from "./Button";
 import Modal from "./Modal";
 import TextArea from "./TextArea";
@@ -17,6 +17,8 @@ import {
   PencilIcon,
   CheckBadgeIcon,
   XMarkIcon,
+  UserGroupIcon, // Added for candidate count
+  BookmarkIcon, // Added for bookmarked count
 } from "@heroicons/react/24/outline";
 import {
   BookmarkIcon as BookmarkSolidIcon,
@@ -34,10 +36,13 @@ const JobCard = ({
   onArchive,
   onApprove, // Optional external approve handler
   onReject, // Optional external reject handler
+  onViewCandidates, // Added prop to handle viewing candidates
   onClick, // Added onClick prop
   className = "",
   showApplicationDate = false,
   showBookmarkDate = false,
+  showCandidatesCount = false, // New prop to control candidate count visibility
+  showBookmarkedCount = false, // New prop to control bookmarked count visibility
   applicationStatus = null,
   applicationDate = null,
   bookmarkDate = null,
@@ -46,8 +51,9 @@ const JobCard = ({
   onRefresh, // Optional callback to refresh data after approve/reject
 }) => {
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
-  
+  const location = useLocation();
+  const { user } = useAuth();
+
   // Internal state for loading and modals
   const [internalLoading, setInternalLoading] = useState({
     approve: false,
@@ -312,7 +318,29 @@ const JobCard = ({
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/employer/ads/${job.id}/edit`);
+                // Updated the edit link for Branch Admin
+                if (user?.role === "BRANCH_ADMIN" || userRole === "BRANCH_ADMIN") {
+                  // Get employerId from job object, with fallback checks
+                  const employerId = job.employerId || job.employer?.id || job.company?.employerId;
+
+                  if (employerId) {
+                    console.log('Navigating to Branch Admin edit route:', `/branch-admin/employers/${employerId}/ads/${job.id}/edit`);
+                    // Determine the from parameter based on current location
+                    const currentPath = location.pathname;
+                    let fromParam = 'approval'; // default for ads approval page
+
+                    if (currentPath.includes('/branch-admin/employers/')) {
+                      fromParam = 'employer';
+                    }
+
+                    navigate(`/branch-admin/employers/${employerId}/ads/${job.id}/edit?from=${fromParam}`);
+                  } else {
+                    console.error('No employerId found in job object:', job);
+                    toast.error('Cannot edit this job - employer information missing');
+                  }
+                } else {
+                  navigate(`/employer/ads/${job.id}/edit`);
+                }
               }}
               className="flex items-center"
             >
@@ -413,7 +441,7 @@ const JobCard = ({
               {(loading?.approve || internalLoading.approve) ? "Approving..." : "Approve"}
             </Button>,
           );
-          
+
           actions.push(
             <Button
               key="reject"
@@ -739,8 +767,8 @@ const JobCard = ({
           ) : (
             <div className="flex flex-col">
               <span>Posted {getTimeAgo(job.postedAt || job.createdAt)}</span>
-              {(job.candidatesCount !== undefined ||
-                job.applicationCount !== undefined) && (
+              {/* Candidates count display for non-employer variants */}
+              {(job.candidatesCount !== undefined || job.applicationCount !== undefined) && (
                 <span className="text-blue-600 font-medium">
                   {job.candidatesCount || job.applicationCount || 0}{" "}
                   {(job.candidatesCount || job.applicationCount) === 1
@@ -751,7 +779,43 @@ const JobCard = ({
             </div>
           )}
         </div>
-        <div className="flex space-x-1.5 ml-3">{renderActions()}</div>
+        {/* Conditionally render employer stats or actions */}
+        {variant === "employer" ? (
+          <div className="flex flex-col items-end">
+            {/* Candidates count and stats for employer variant */}
+            <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
+              {/* Candidates count with click handler */}
+              {(showCandidatesCount || job.candidatesCount !== undefined || job.applicationCount !== undefined) && (
+                <button
+                  onClick={() => {
+                    if (onViewCandidates) onViewCandidates(job.id);
+                  }}
+                  className="flex items-center text-blue-600 hover:text-blue-700 font-medium transition-colors cursor-pointer"
+                  title="View candidates for this job"
+                >
+                  <UserGroupIcon className="h-4 w-4 mr-1.5" />
+                  {job.candidatesCount || job.applicationCount || 0}{" "}
+                  {(job.candidatesCount || job.applicationCount) === 1
+                    ? "candidate"
+                    : "candidates"}
+                </button>
+              )}
+
+              {/* Bookmarked count */}
+              {(showBookmarkedCount || job.bookmarkedCount !== undefined) && (
+                <div className="flex items-center text-gray-600">
+                  <BookmarkIcon className="h-4 w-4 mr-1.5 text-gray-400" />
+                  <span>
+                    {job.bookmarkedCount || 0} bookmarked
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex space-x-1.5">{renderActions()}</div>
+          </div>
+        ) : (
+          <div className="flex space-x-1.5 ml-3">{renderActions()}</div>
+        )}
       </div>
     </div>
     </>

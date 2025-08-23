@@ -3,8 +3,15 @@ import api from './api'
 export const authService = {
   // Login user
   async login(credentials) {
-    const response = await api.post('/auth/login', credentials)
-    return response.data
+    console.log('AuthService: Making login request to /auth/login')
+    try {
+      const response = await api.post('/auth/login', credentials)
+      console.log('AuthService: Login response:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('AuthService: Login request failed:', error)
+      throw error
+    }
   },
 
   // Register user

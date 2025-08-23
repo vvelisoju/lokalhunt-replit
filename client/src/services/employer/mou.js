@@ -1,9 +1,9 @@
-import api from '../api'
+import { makeRoleAwareRequest } from '../api'
 
 export const getMous = async () => {
   try {
-    const response = await api.get('/employers/mous')
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest('/employers/mous')
+    return { success: true, data: response }
   } catch (error) {
     return { 
       success: false, 
@@ -14,8 +14,11 @@ export const getMous = async () => {
 
 export const createMou = async (mouData) => {
   try {
-    const response = await api.post('/employers/mous', mouData)
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest('/employers/mous', {
+      method: 'POST',
+      data: mouData
+    })
+    return { success: true, data: response }
   } catch (error) {
     return { 
       success: false, 

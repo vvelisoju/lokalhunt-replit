@@ -16,14 +16,15 @@ const Login = () => {
   const location = useLocation()
   const from = location.state?.from?.pathname || '/'
 
-  // Redirect authenticated users appropriately
+  // Redirect authenticated users appropriately - only when on login page
   useEffect(() => {
-    if (isAuthenticated && user?.role) {
-      console.log('User already authenticated, checking redirect:', user.role)
-      
+    // Only redirect if user is authenticated AND currently on the login page
+    if (isAuthenticated && user?.role && location.pathname === '/login') {
+      console.log('User already authenticated on login page, checking redirect:', user.role)
+
       // Check if they came from a protected route
       const returnUrl = location.state?.from?.pathname
-      
+
       if (returnUrl && returnUrl !== '/' && returnUrl !== '/login') {
         console.log('Redirecting authenticated user to:', returnUrl)
         navigate(returnUrl, { replace: true })
@@ -32,20 +33,24 @@ const Login = () => {
         console.log('No return URL, redirecting based on role:', user.role)
         switch (user.role) {
           case 'CANDIDATE':
+            console.log('Redirecting to candidate dashboard')
             navigate('/candidate/dashboard', { replace: true })
             break
           case 'EMPLOYER':
+            console.log('Redirecting to employer dashboard')
             navigate('/employer/dashboard', { replace: true })
             break
           case 'BRANCH_ADMIN':
+            console.log('Redirecting to branch admin dashboard')
             navigate('/branch-admin/dashboard', { replace: true })
             break
           default:
+            console.log('Unknown role, redirecting to candidate dashboard as default')
             navigate('/candidate/dashboard', { replace: true })
         }
       }
     }
-  }, [isAuthenticated, user, navigate, location.state])
+  }, [isAuthenticated, user, navigate, location.state, location.pathname])
 
 
   const [formData, setFormData] = useState({
@@ -66,19 +71,19 @@ const Login = () => {
 
   const validateForm = () => {
     const newErrors = {}
-    
+
     if (!formData.email) {
       newErrors.email = 'Email is required'
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address'
     }
-    
+
     if (!formData.password) {
       newErrors.password = 'Password is required'
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters'
     }
-    
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -86,90 +91,97 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     if (!validateForm()) {
       return
     }
-    
+
     setIsLoading(true)
-    setErrors({}) // Clear any existing errors
-    
+    setErrors({})
+
+    console.log('Starting login process with:', { email: formData.email })
+
     try {
-      // Try general auth first to determine user role
       const result = await login({
-        email: formData.email,
+        email: formData.email.trim(),
         password: formData.password
       })
-      
+
+      console.log('Login result:', result)
+
       if (result.success && result.user) {
         const user = result.user
         console.log('Login successful, user:', user, 'role:', user?.role)
-        
+
         toast.success('Login successful!')
-        
+
         // Check if user came from a protected route and redirect appropriately
         const returnUrl = location.state?.from?.pathname
         console.log('Login successful, return URL:', returnUrl, 'user role:', user?.role)
-        
+
         if (returnUrl && returnUrl !== '/' && returnUrl !== '/login') {
-          // If they came from a specific route, try to redirect there
           navigate(returnUrl, { replace: true })
-        } else if (user?.role === 'EMPLOYER') {
-          console.log('Redirecting to employer dashboard')
-          navigate('/employer/dashboard', { replace: true })
         } else if (user?.role === 'BRANCH_ADMIN') {
-          console.log('Redirecting to branch admin dashboard') 
           navigate('/branch-admin/dashboard', { replace: true })
+        } else if (user?.role === 'EMPLOYER') {
+          navigate('/employer/dashboard', { replace: true })
         } else if (user?.role === 'CANDIDATE') {
-          console.log('Candidate login - setting up candidate auth')
-          // For candidates, we need to also set up the candidate auth system
-          // Copy the token to candidateToken for candidate-specific routes
+          // For candidates, also set up candidate auth
           const token = localStorage.getItem('token')
           if (token) {
             localStorage.setItem('candidateToken', token)
           }
-          console.log('Redirecting to candidate dashboard')
           navigate('/candidate/dashboard', { replace: true })
         } else {
-          console.log('Unknown role, redirecting to candidate dashboard as default')
-          // Default to candidate dashboard for unknown roles
+          // Default to candidate dashboard
           const token = localStorage.getItem('token')
           if (token) {
             localStorage.setItem('candidateToken', token)
           }
           navigate('/candidate/dashboard', { replace: true })
         }
-        // Early return to prevent error handling for successful login
         return
       }
+
+      // Handle login failure
+      const errorMessage = result.error || 'Invalid email or password. Please try again.'
+      console.error('Login failed:', errorMessage)
+      toast.error(errorMessage)
       
-      // Only handle errors if login was not successful
-      if (!result.success) {
-        // Handle login failure - show error but don't reload page
-        let errorMessage = result.error || 'Login failed'
-        if (errorMessage.includes('Invalid credentials') || errorMessage.includes('password') || errorMessage.includes('Unauthorized')) {
-          errorMessage = 'Invalid email or password. Please check your credentials and try again.'
-        } else if (errorMessage.includes('not found') || errorMessage.includes('does not exist')) {
-          errorMessage = 'No account found with this email. Please check your email or create a new account.'
-        } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
-          errorMessage = 'Connection error. Please check your internet and try again.'
-        }
-        toast.error(errorMessage)
-        // Keep form data intact so user can try again
-      }
+      // Clear password field for security but keep email
+      setFormData(prev => ({ ...prev, password: '' }))
+
     } catch (error) {
       console.error('Login error:', error)
+
+      let errorMessage = 'Unable to connect to server. Please check your connection and try again.'
       
-      let errorMessage = 'Login failed. Please try again.'
-      if (error.message && error.message.includes('network')) {
-        errorMessage = 'Network error. Please check your connection and try again.'
-      } else if (error.response?.status === 401) {
-        errorMessage = 'Invalid email or password. Please check your credentials and try again.'
-      } else if (error.response?.status >= 500) {
-        errorMessage = 'Server error. Please try again later.'
+      if (error.response) {
+        // Server responded with error status
+        const status = error.response.status
+        const serverMessage = error.response.data?.message
+        
+        if (status === 401) {
+          errorMessage = 'Invalid email or password. Please check your credentials.'
+        } else if (status === 403) {
+          errorMessage = 'Account is deactivated. Please contact support.'
+        } else if (status >= 500) {
+          errorMessage = 'Server error. Please try again later.'
+        } else if (serverMessage) {
+          errorMessage = serverMessage
+        }
+      } else if (error.request) {
+        // Network error - request was made but no response received
+        errorMessage = 'Unable to connect to server. Please check your internet connection.'
+      } else if (error.message) {
+        // Something else happened
+        errorMessage = `Login failed: ${error.message}`
       }
+      
       toast.error(errorMessage)
-      // Keep form data intact so user can try again
+      
+      // Clear password field for security but keep email
+      setFormData(prev => ({ ...prev, password: '' }))
     } finally {
       setIsLoading(false)
     }

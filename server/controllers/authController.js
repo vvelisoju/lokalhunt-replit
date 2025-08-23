@@ -1,6 +1,8 @@
 const { createResponse, createErrorResponse } = require('../utils/response');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 class AuthController {
   // Register new user
@@ -14,7 +16,14 @@ class AuthController {
         phone, 
         password, 
         role = 'CANDIDATE',
-        cityId 
+        city,
+        cityId,
+        companyName,
+        companyDescription,
+        industry,
+        companySize,
+        website,
+        contactDetails
       } = req.body;
 
       // Build full name from firstName/lastName if name not provided
@@ -32,7 +41,7 @@ class AuthController {
       }
 
       // Check if user already exists
-      const existingUser = await req.prisma.user.findUnique({
+      const existingUser = await prisma.user.findUnique({
         where: { email }
       });
 
@@ -45,8 +54,11 @@ class AuthController {
       // Hash password
       const passwordHash = await bcrypt.hash(password, 12);
 
+      // Use cityId from request, fallback to city if provided as UUID
+      const userCityId = cityId || city;
+
       // Create user
-      const user = await req.prisma.user.create({
+      const user = await prisma.user.create({
         data: {
           name: fullName,
           firstName,
@@ -55,7 +67,7 @@ class AuthController {
           phone,
           passwordHash,
           role,
-          cityId
+          cityId: userCityId
         },
         select: {
           id: true,
@@ -72,15 +84,56 @@ class AuthController {
 
       // Create role-specific profile
       if (role === 'CANDIDATE') {
-        await req.prisma.candidate.create({
+        await prisma.candidate.create({
           data: { userId: user.id }
         });
       } else if (role === 'EMPLOYER') {
-        await req.prisma.employer.create({
-          data: { userId: user.id }
+        // Create employer profile
+        const employer = await prisma.employer.create({
+          data: {
+            userId: user.id,
+            contactDetails: contactDetails || null,
+            isVerified: false,
+          },
         });
+
+        // Create company if provided
+        let company = null;
+        if (companyName) {
+          company = await prisma.company.create({
+            data: {
+              employerId: employer.id,
+              name: companyName,
+              description: companyDescription || null,
+              cityId: userCityId,
+              industry: industry || null,
+              size: companySize || null,
+              website: website || null,
+              isDefault: true, // Set as default since this is the first company during registration
+            },
+            include: {
+              city: true,
+            },
+          });
+        }
+
+        // Assign basic subscription (Self-Service plan)
+        const basicPlan = await prisma.plan.findFirst({
+          where: { name: 'Self-Service' }
+        });
+
+        if (basicPlan) {
+          await prisma.subscription.create({
+            data: {
+              employerId: employer.id,
+              planId: basicPlan.id,
+              status: 'ACTIVE',
+              startDate: new Date()
+            }
+          });
+        }
       } else if (role === 'BRANCH_ADMIN') {
-        await req.prisma.branchAdmin.create({
+        await prisma.branchAdmin.create({
           data: { 
             userId: user.id,
             assignedCityId: cityId
@@ -117,7 +170,7 @@ class AuthController {
       }
 
       // Find user
-      const user = await req.prisma.user.findUnique({
+      const user = await prisma.user.findUnique({
         where: { email },
         include: {
           candidate: true,
@@ -170,7 +223,7 @@ class AuthController {
   // Get current user profile
   async getProfile(req, res, next) {
     try {
-      const user = await req.prisma.user.findUnique({
+      const user = await prisma.user.findUnique({
         where: { id: req.user.userId },
         select: {
           id: true,

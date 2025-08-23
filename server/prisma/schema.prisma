@@ -27,13 +27,12 @@ enum AdStatus {
 
 enum AllocationStatus {
   APPLIED
-  SCREENED
-  RATED
-  ALLOCATED
   SHORTLISTED
+  INTERVIEW_SCHEDULED
+  INTERVIEW_COMPLETED
   HIRED
+  HOLD
   REJECTED
-  WITHDRAWN
 }
 
 enum FeeType {
@@ -72,7 +71,7 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
-  cityRef   City?      @relation("CityToUser", fields: [cityId], references: [id])
+  city      City?        @relation("CityToUser", fields: [cityId], references: [id])
   candidate Candidate?
   employer  Employer?
   branchAdmin BranchAdmin?
@@ -139,12 +138,13 @@ model Employer {
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   // Relations
-  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  companies   Company[]
-  ads         Ad[]
-  allocations Allocation[]
-  mous        MOU[]
-  bookmarks   EmployerBookmark[]
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companies     Company[]
+  ads           Ad[]
+  allocations   Allocation[]
+  mous          MOU[]
+  bookmarks     EmployerBookmark[]
+  subscriptions Subscription[]
 
   @@map("employers")
 }
@@ -161,6 +161,7 @@ model Company {
   industry    String?
   size        String?  // e.g., "1-10", "11-50", "51-200"
   isActive    Boolean  @default(true) @map("is_active")
+  isDefault   Boolean  @default(false) @map("is_default")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -349,4 +350,67 @@ model EducationQualification {
   ads         Ad[]
 
   @@map("education_qualifications")
+}
+
+// Subscription Status Enum
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PAST_DUE
+  PENDING_APPROVAL
+}
+
+// Subscription Plans
+model Plan {
+  id                String   @id @default(cuid())
+  name              String   // e.g., "Self-Service", "HR-Assist"
+  description       String?
+  features          String[] // Array of plan features
+
+  // Optional fixed pricing
+  priceMonthly      Int?     @map("price_monthly") // monthly subscription
+  priceYearly       Int?     @map("price_yearly") // yearly subscription
+  pricePerCandidate Int?     @map("price_per_candidate") // optional default per candidate price
+
+  maxJobPosts       Int?     @map("max_job_posts") // optional
+  maxShortlists     Int?     @map("max_shortlists") // optional
+
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_date")
+
+  // Relations
+  subscriptions     Subscription[]
+
+  @@map("plans")
+}
+
+// Employer Subscriptions
+model Subscription {
+  id                   String             @id @default(cuid())
+  employerId           String             @map("employer_id")
+  planId               String             @map("plan_id")
+
+  status               SubscriptionStatus @default(ACTIVE)
+  startDate            DateTime           @default(now()) @map("start_date")
+  endDate              DateTime?          @map("end_date")
+
+  // Candidate-based pricing per employer
+  pricePerCandidate    Int?               @map("price_per_candidate") // custom per employer
+  priceMonthly         Int?               @map("price_monthly") // optional override per employer
+  priceYearly          Int?               @map("price_yearly") // optional override per employer
+
+  totalCandidatesHired Int                @default(0) @map("total_candidates_hired")
+  totalAmountDue       Int                @default(0) @map("total_amount_due")
+
+  isAutoRenew          Boolean            @default(true) @map("is_auto_renew")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  employer             Employer           @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  plan                 Plan               @relation(fields: [planId], references: [id])
+
+  @@map("subscriptions")
 }

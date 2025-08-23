@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -35,9 +34,17 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
     }
   }, [])
 
-  const handleLogout = () => {
-    setShowUserMenu(false)
-    logout()
+  const handleLogout = async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    try {
+      await logout()
+      // Don't manually navigate here - let the AuthContext and route protection handle it
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Even on error, the logout function should clear the auth state
+    }
   }
 
   // Role-based styling and dashboard links
@@ -87,10 +94,10 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
   }
 
   const roleConfig = getRoleConfig(user?.role)
-  
+
   // Better name extraction logic
   let displayName = 'User'
-  
+
   // Check for firstName and lastName first (most common case)
   if (user?.firstName || user?.lastName) {
     displayName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim()
@@ -106,12 +113,12 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
   else if (user?.email) {
     displayName = user.email.split('@')[0]
   }
-  
+
   // Ensure we don't have empty displayName
   if (!displayName || displayName.trim() === '') {
     displayName = 'User'
   }
-  
+
   const avatarUrl = user?.profileImage || user?.profilePhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=059669&color=fff`
 
   // Format role display name
@@ -158,7 +165,7 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
               {formatRoleName(user?.role)}
             </p>
           </div>
-          
+
           <div className="py-1">
             {/* Dashboard Link */}
             <Link 
@@ -179,7 +186,7 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
               <Cog6ToothIcon className="h-4 w-4 mr-3" />
               Account Settings
             </Link>
-            
+
             {/* Language Toggle */}
             <button 
               className={`w-full flex items-center px-4 py-2 text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
@@ -189,14 +196,11 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
               Language: {i18n.language === 'en' ? 'తెలుగు' : 'English'}
             </button>
           </div>
-          
+
           <div className="border-t border-gray-100 pt-1">
             {/* Sign Out */}
             <button 
-              onClick={async () => {
-                await handleLogout()
-                window.location.href = '/login'
-              }}
+              onClick={handleLogout}
               className={`w-full flex items-center px-4 py-2 text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
             >
               <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />

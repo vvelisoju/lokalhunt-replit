@@ -1,11 +1,15 @@
 const { createResponse, createErrorResponse } = require('../utils/response');
 const bcrypt = require('bcryptjs');
 
+// Initialize Prisma Client globally
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
+
 class ProfileController {
   // Get profile for any user role
   async getProfile(req, res, next) {
     try {
-      const user = await req.prisma.user.findUnique({
+      const user = await prisma.user.findUnique({
         where: { id: req.user.userId },
         select: {
           id: true,
@@ -62,7 +66,7 @@ class ProfileController {
 
       // Update name if firstName or lastName changed
       if (firstName !== undefined || lastName !== undefined) {
-        const currentUser = await req.prisma.user.findUnique({
+        const currentUser = await prisma.user.findUnique({
           where: { id: req.user.userId },
           select: { firstName: true, lastName: true }
         });
@@ -73,7 +77,7 @@ class ProfileController {
         updateData.name = `${newFirstName || ''} ${newLastName || ''}`.trim() || newFirstName || newLastName;
       }
 
-      const updatedUser = await req.prisma.user.update({
+      const updatedUser = await prisma.user.update({
         where: { id: req.user.userId },
         data: updateData,
         select: {
@@ -122,7 +126,7 @@ class ProfileController {
       }
 
       // Get current user with password
-      const user = await req.prisma.user.findUnique({
+      const user = await prisma.user.findUnique({
         where: { id: req.user.userId },
         select: { passwordHash: true }
       });
@@ -145,7 +149,7 @@ class ProfileController {
       const newPasswordHash = await bcrypt.hash(newPassword, 12);
 
       // Update password
-      await req.prisma.user.update({
+      await prisma.user.update({
         where: { id: req.user.userId },
         data: { passwordHash: newPasswordHash }
       });
@@ -159,7 +163,7 @@ class ProfileController {
   // Delete profile (soft delete by deactivating)
   async deleteProfile(req, res, next) {
     try {
-      await req.prisma.user.update({
+      await prisma.user.update({
         where: { id: req.user.userId },
         data: { isActive: false }
       });

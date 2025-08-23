@@ -32,14 +32,17 @@ import EmployerAdCandidates from './pages/employer/AdCandidates'
 import EmployerCandidates from './pages/employer/Candidates'
 import EmployerCompanyProfile from './pages/employer/CompanyProfile'
 import EmployerAccountSettings from './pages/employer/AccountSettings'
-import EmployerMou from './pages/employer/Mou'
+import EmployerSubscription from './pages/employer/Subscription';
+import EmployerMou from './pages/employer/Mou';
 
 // Branch Admin Pages
 import BranchAdminDashboard from './pages/branch-admin/Dashboard'
 import Employers from './pages/branch-admin/Employers'
 import CreateEmployer from './pages/branch-admin/CreateEmployer'
-import EmployerDetails from './pages/branch-admin/EmployerDetails'
 import AdsApprovals from './pages/branch-admin/AdsApprovals'
+// import Subscriptions from './pages/branch-admin/Subscriptions'
+
+
 import Screening from './pages/branch-admin/Screening'
 import Reports from './pages/branch-admin/Reports'
 import AdminProfile from './pages/branch-admin/AdminProfile'
@@ -58,6 +61,8 @@ import BranchAdminRoute from './routes/BranchAdminRoute'
 // Context Providers
 import { ToastProvider } from './components/ui/Toast'
 import { CandidateProvider } from './context/CandidateContext'
+import { RoleProvider } from './context/RoleContext'
+import RoleAwareRoute from './routes/RoleAwareRoute'
 
 function App() {
   return (
@@ -113,7 +118,9 @@ function App() {
               {/* Protected Employer Routes (With Layout) */}
               <Route path="/employer" element={
                 <EmployerRoute>
-                  <EmployerLayout />
+                  <RoleProvider>
+                    <EmployerLayout />
+                  </RoleProvider>
                 </EmployerRoute>
               }>
                 <Route path="dashboard" element={<EmployerDashboard />} />
@@ -124,27 +131,47 @@ function App() {
                 <Route path="candidates" element={<EmployerCandidates />} />
                 <Route path="company-profile" element={<EmployerCompanyProfile />} />
                 <Route path="account-settings" element={<EmployerAccountSettings />} />
+                <Route path="subscription" element={<EmployerSubscription />} />
                 <Route path="mou" element={<EmployerMou />} />
               </Route>
 
               {/* Protected Branch Admin Routes (With Layout) */}
               <Route path="/branch-admin" element={
                 <BranchAdminRoute>
-                  <BranchAdminLayout />
+                  <RoleProvider>
+                    <BranchAdminLayout />
+                  </RoleProvider>
                 </BranchAdminRoute>
               }>
                 <Route path="dashboard" element={<BranchAdminDashboard />} />
                 <Route path="employers" element={<Employers />} />
                 <Route path="employers/new" element={<CreateEmployer />} />
-                <Route path="employers/:employerId" element={<EmployerDetails />} />
-                <Route path="employers/:employerId/:tab" element={<EmployerDetails />} />
-                <Route path="ads-approvals" element={<AdsApprovals />} />
+                <Route path="ads" element={<AdsApprovals />} />
+                {/* <Route path="subscriptions" element={<Subscriptions />} /> */}
+                <Route path="employers/:employerId/dashboard" element={<EmployerDashboard />} />
+                <Route path="employers/:employerId/ads" element={<EmployerAdsList />} />
+                <Route path="employers/:employerId/ads/new" element={<EmployerAdForm />} />
+                <Route path="employers/:employerId/ads/:adId/edit" element={<EmployerAdForm />} />
+                <Route path="employers/:employerId/ads/:adId/candidates" element={<EmployerAdCandidates />} />
+                <Route path="employers/:employerId/companies" element={<EmployerCompanyProfile />} />
+                <Route path="employers/:employerId/subscription" element={<EmployerSubscription />} />
+                
                 <Route path="screening" element={<Screening />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="admin-profile" element={<AdminProfile />} />
                 <Route path="account-settings" element={<BranchAdminAccountSettings />} />
                 <Route path="mou" element={<BranchAdminMou />} />
                 <Route path="logs" element={<Logs />} />
+
+                {/* Branch Admin viewing Employer pages (Employer components within Branch Admin Layout) */}
+                <Route path="employers/:employerId/dashboard" element={<EmployerDashboard />} />
+                <Route path="employers/:employerId/ads" element={<EmployerAdsList />} />
+                <Route path="employers/:employerId/ads/new" element={<EmployerAdForm />} />
+                <Route path="employers/:employerId/ads/:adId/edit" element={<EmployerAdForm />} />
+                <Route path="employers/:employerId/ads/:adId/candidates" element={<EmployerAdCandidates />} />
+                <Route path="employers/:employerId/candidates" element={<EmployerCandidates />} />
+                <Route path="employers/:employerId/companies" element={<EmployerCompanyProfile />} />
+                <Route path="employers/:employerId/subscription" element={<EmployerSubscription />} />
               </Route>
             </Routes>
         </div>

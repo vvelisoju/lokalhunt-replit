@@ -1,22 +1,26 @@
 const { createResponse, createErrorResponse } = require('../utils/response');
 
+// Initialize Prisma client globally
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
+
 class AdController {
   // Get all approved ads (public endpoint)
   async getAds(req, res, next) {
     try {
-      const { 
-        page = 1, 
-        limit = 10, 
-        cityId, 
-        categoryName = 'Jobs', 
-        search, 
+      const {
+        page = 1,
+        limit = 10,
+        cityId,
+        categoryName = 'Jobs',
+        search,
         skills,
         experienceLevel,
         employmentType,
         salaryMin,
         salaryMax
       } = req.query;
-      
+
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
       let where = {
@@ -44,15 +48,15 @@ class AdController {
             mode: 'insensitive'
           };
         }
-        
+
         if (experienceLevel) {
           where.experienceLevel = experienceLevel;
         }
-        
+
         if (employmentType) {
           where.employmentType = employmentType;
         }
-        
+
         if (salaryMin || salaryMax) {
           if (salaryMin) {
             where.salaryMin = { gte: parseFloat(salaryMin) };
@@ -64,7 +68,7 @@ class AdController {
       }
 
       const [ads, total] = await Promise.all([
-        req.prisma.ad.findMany({
+        prisma.ad.findMany({
           where,
           skip,
           take: parseInt(limit),
@@ -98,18 +102,18 @@ class AdController {
           },
           orderBy: { createdAt: 'desc' }
         }),
-        req.prisma.ad.count({ where })
+        prisma.ad.count({ where })
       ]);
 
       // Add bookmark status if user is authenticated
       let adsWithBookmarks = ads;
       if (req.user && req.user.role === 'CANDIDATE') {
-        const candidate = await req.prisma.candidate.findUnique({
+        const candidate = await prisma.candidate.findUnique({
           where: { userId: req.user.userId }
         });
 
         if (candidate) {
-          const bookmarks = await req.prisma.bookmark.findMany({
+          const bookmarks = await prisma.bookmark.findMany({
             where: {
               candidateId: candidate.id,
               adId: { in: ads.map(ad => ad.id) }
@@ -144,7 +148,7 @@ class AdController {
     try {
       const { adId } = req.params;
 
-      const ad = await req.prisma.ad.findFirst({
+      const ad = await prisma.ad.findFirst({
         where: {
           id: adId,
           status: 'APPROVED',
@@ -197,13 +201,13 @@ class AdController {
       // Add bookmark status and application status if user is authenticated
       let adWithUserStatus = ad;
       if (req.user && req.user.role === 'CANDIDATE') {
-        const candidate = await req.prisma.candidate.findUnique({
+        const candidate = await prisma.candidate.findUnique({
           where: { userId: req.user.userId }
         });
 
         if (candidate) {
           const [bookmark, application] = await Promise.all([
-            req.prisma.bookmark.findUnique({
+            prisma.bookmark.findUnique({
               where: {
                 candidateId_adId: {
                   candidateId: candidate.id,
@@ -211,7 +215,7 @@ class AdController {
                 }
               }
             }),
-            req.prisma.allocation.findFirst({
+            prisma.allocation.findFirst({
               where: {
                 candidateId: candidate.id,
                 adId: adId
@@ -274,7 +278,7 @@ class AdController {
   // Get cities with active ads
   async getCities(req, res, next) {
     try {
-      const cities = await req.prisma.city.findMany({
+      const cities = await prisma.city.findMany({
         where: {
           isActive: true,
           ads: {
@@ -319,7 +323,7 @@ class AdController {
       // Job titles and company names
       if (type === 'all' || type === 'jobs') {
         const [jobTitles, companies] = await Promise.all([
-          req.prisma.ad.findMany({
+          prisma.ad.findMany({
             where: {
               status: 'APPROVED',
               isActive: true,
@@ -331,7 +335,7 @@ class AdController {
             distinct: ['title'],
             take: 5
           }),
-          req.prisma.company.findMany({
+          prisma.company.findMany({
             where: {
               name: { contains: query, mode: 'insensitive' },
               isActive: true
@@ -343,20 +347,20 @@ class AdController {
         ]);
 
         suggestions.push(
-          ...jobTitles.map(job => ({ 
-            type: 'job_title', 
-            value: job.title 
+          ...jobTitles.map(job => ({
+            type: 'job_title',
+            value: job.title
           })),
-          ...companies.map(company => ({ 
-            type: 'company', 
-            value: company.name 
+          ...companies.map(company => ({
+            type: 'company',
+            value: company.name
           }))
         );
       }
 
       // Skills (from master data)
       if (type === 'all' || type === 'skills') {
-        const skills = await req.prisma.skill.findMany({
+        const skills = await prisma.skill.findMany({
           where: {
             name: { contains: query, mode: 'insensitive' },
             isActive: true
@@ -366,9 +370,9 @@ class AdController {
         });
 
         suggestions.push(
-          ...skills.map(skill => ({ 
-            type: 'skill', 
-            value: skill.name 
+          ...skills.map(skill => ({
+            type: 'skill',
+            value: skill.name
           }))
         );
       }
@@ -385,7 +389,7 @@ class AdController {
       const { adId } = req.params;
       const { limit = 5 } = req.query;
 
-      const originalAd = await req.prisma.ad.findUnique({
+      const originalAd = await prisma.ad.findUnique({
         where: { id: adId },
         select: {
           categoryName: true,
@@ -403,7 +407,7 @@ class AdController {
       }
 
       // Find similar ads based on category, location, and category-specific fields
-      const similarAds = await req.prisma.ad.findMany({
+      const similarAds = await prisma.ad.findMany({
         where: {
           id: { not: adId },
           status: 'APPROVED',

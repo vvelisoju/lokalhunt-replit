@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { PlusIcon, EyeIcon, ExclamationTriangleIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, EyeIcon, ExclamationTriangleIcon, DocumentTextIcon, ArrowLeftIcon } from '@heroicons/react/24/outline'
 
 import KpiCards from '../../components/employer/KpiCards'
 import Button from '../../components/ui/Button'
@@ -8,12 +8,26 @@ import Loader from '../../components/ui/Loader'
 import JobCard from '../../components/ui/JobCard'
 import { getAds } from '../../services/employer/ads'
 import { getMous } from '../../services/employer/mou'
+import { useRole } from '../../context/RoleContext'
 
 const Dashboard = () => {
   const [stats, setStats] = useState(null)
   const [recentAds, setRecentAds] = useState([])
   const [activeMou, setActiveMou] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Role context for Branch Admin functionality  
+  const roleContext = useRole()
+  const { 
+    isAdminView = () => false, 
+    isBranchAdmin = () => false, 
+    can = () => false, 
+    targetEmployer = null, 
+    getCurrentEmployerId = () => null 
+  } = roleContext || {}
+
+  const isBranchAdminView = isAdminView(); // Use isAdminView from context
+
 
   useEffect(() => {
     loadDashboardData()
@@ -27,7 +41,7 @@ const Dashboard = () => {
       if (adsResult.success) {
         const ads = adsResult.data.data || []
         setRecentAds(ads)
-        
+
         // Calculate stats
         const stats = {
           totalAds: ads.length,
@@ -43,7 +57,7 @@ const Dashboard = () => {
       // Load MOU info
       const mouResult = await getMous()
       if (mouResult.success) {
-        const mous = mouResult.data.data || []
+        const mous = mouResult.data || []
         const active = mous.find(mou => mou.status === 'ACTIVE')
         setActiveMou(active)
       }
@@ -68,51 +82,36 @@ const Dashboard = () => {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600 mt-1">Manage your job postings and candidates</p>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {isBranchAdminView ? 'Employer Dashboard' : 'Dashboard'}
+            </h1>
+            <p className="text-gray-600 mt-1">
+              {isBranchAdminView
+                ? 'Employer dashboard - Admin view'
+                : 'Manage your job postings and candidates'
+              }
+            </p>
           </div>
           <div className="flex space-x-4">
-            <Link to="/employer/ads">
+            <Link to={isBranchAdminView ? `/branch-admin/employers/${getCurrentEmployerId()}/ads` : '/employer/ads'}>
               <Button variant="secondary">
                 <EyeIcon className="h-4 w-4 mr-2" />
                 View All Ads
               </Button>
             </Link>
-            <Link to="/employer/ads/new">
-              <Button>
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Create New Ad
-              </Button>
-            </Link>
+            {can('manage-own-ads') && (
+              <Link to={isBranchAdminView ? `/branch-admin/employers/${getCurrentEmployerId()}/ads/new` : '/employer/ads/new'}>
+                <Button>
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Create New Ad
+                </Button>
+              </Link>
+            )}
+            {/* Branch Admin specific actions - Removed for employer view */}
           </div>
         </div>
 
-        {/* MOU Status Alert */}
-        {!activeMou && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-8">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" />
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-yellow-800">
-                  MOU Required
-                </h3>
-                <div className="mt-2 text-sm text-yellow-700">
-                  <p>
-                    You need an active MOU to submit job postings for approval.{' '}
-                    <Link 
-                      to="/employer/mou" 
-                      className="font-medium underline hover:text-yellow-600"
-                    >
-                      Contact Branch Admin to set up your MOU
-                    </Link>
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* KPI Cards */}
         <div className="mb-8">
@@ -167,7 +166,7 @@ const Dashboard = () => {
                   Get started by creating your first job posting.
                 </p>
                 <div className="mt-6">
-                  <Link to="/employer/ads/new">
+                  <Link to={isBranchAdminView ? `/branch-admin/employers/${getCurrentEmployerId()}/ads/new` : '/employer/ads/new'}>
                     <Button>
                       <PlusIcon className="h-4 w-4 mr-2" />
                       Create Your First Ad

@@ -1,6 +1,45 @@
-const { createResponse, createErrorResponse } = require('../utils/response');
+const { createResponse, createErrorResponse } = require("../utils/response");
 
 class EmployerController {
+  // Helper method to get employer - supports both regular access and admin view
+  async getEmployer(req) {
+    let employer;
+
+    console.log(
+      `[CONTROLLER DEBUG] getEmployer called - UserRole: ${req.user.role}, TargetEmployerId: ${req.targetEmployerId}, IsAdminAccess: ${req.isAdminAccess}`,
+    );
+
+    // For admin access (Branch Admin viewing employer data)
+    if (req.isAdminAccess && req.targetEmployerId) {
+      console.log(
+        `[CONTROLLER DEBUG] Getting employer by ID: ${req.targetEmployerId}`,
+      );
+      employer = await req.prisma.employer.findUnique({
+        where: { id: req.targetEmployerId },
+      });
+    } else if (req.user.role === "EMPLOYER") {
+      // Regular employer access
+      console.log(
+        `[CONTROLLER DEBUG] Getting employer by userId: ${req.user.userId}`,
+      );
+      employer = await req.prisma.employer.findUnique({
+        where: { userId: req.user.userId },
+      });
+    } else if (req.user.role === "BRANCH_ADMIN" && req.targetEmployerId) {
+      // Branch Admin with employerId in request
+      console.log(
+        `[CONTROLLER DEBUG] Branch Admin getting employer by ID: ${req.targetEmployerId}`,
+      );
+      employer = await req.prisma.employer.findUnique({
+        where: { id: req.targetEmployerId },
+      });
+    }
+
+    console.log(
+      `[CONTROLLER DEBUG] Found employer: ${employer ? employer.id : "null"}`,
+    );
+    return employer;
+  }
   // =======================
   // PROFILE MANAGEMENT
   // =======================
@@ -8,8 +47,16 @@ class EmployerController {
   // Get employer profile (NEW)
   async getProfile(req, res, next) {
     try {
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId },
+      const employer = await this.getEmployer(req);
+
+      if (!employer) {
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
+      }
+
+      const employerWithUser = await req.prisma.employer.findUnique({
+        where: { id: employer.id },
         include: {
           user: {
             select: {
@@ -20,81 +67,76 @@ class EmployerController {
               email: true,
               phone: true,
               cityId: true,
-              city: true,
               isActive: true,
-              createdAt: true
-            }
+              createdAt: true,
+            },
           },
           companies: {
             where: { isActive: true },
             include: {
-              city: true
+              city: true,
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: "desc" },
           },
           mous: {
             where: { isActive: true },
-            orderBy: { createdAt: 'desc' },
-            take: 5
-          }
-        }
+            orderBy: { createdAt: "desc" },
+            take: 5,
+          },
+        },
       });
-
-      if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
-      }
 
       // Get counts separately to avoid SelectionSetOnScalar error
       const [companiesCount, adsCount, mousCount] = await Promise.all([
         req.prisma.company.count({
-          where: { employerId: employer.id, isActive: true }
+          where: { employerId: employerWithUser.id, isActive: true },
         }),
         req.prisma.ad.count({
-          where: { employerId: employer.id }
+          where: { employerId: employerWithUser.id },
         }),
         req.prisma.mOU.count({
-          where: { employerId: employer.id, isActive: true }
-        })
+          where: { employerId: employerWithUser.id, isActive: true },
+        }),
       ]);
 
       // Get ads count for each company
       const companiesWithAdCount = await Promise.all(
-        employer.companies.map(async (company) => {
+        employerWithUser.companies.map(async (company) => {
           const adCount = await req.prisma.ad.count({
-            where: { companyId: company.id }
+            where: { companyId: company.id },
           });
           return {
             ...company,
-            adsCount: adCount
+            adsCount: adCount,
           };
-        })
+        }),
       );
 
       // Calculate profile completeness
       const profileFields = [
-        employer.contactDetails,
-        employer.user.phone,
-        companiesCount > 0
+        employerWithUser.contactDetails,
+        employerWithUser.user.phone,
+        companiesCount > 0,
       ];
-      const completedFields = profileFields.filter(field => field).length;
-      const profileCompleteness = Math.round((completedFields / profileFields.length) * 100);
+      const completedFields = profileFields.filter((field) => field).length;
+      const profileCompleteness = Math.round(
+        (completedFields / profileFields.length) * 100,
+      );
 
       const profileData = {
-        ...employer,
+        ...employerWithUser,
         companies: companiesWithAdCount,
         _count: {
           companies: companiesCount,
           ads: adsCount,
-          mous: mousCount
+          mous: mousCount,
         },
         profileCompleteness,
         hasActiveCompanies: companiesCount > 0,
-        hasActiveMOU: mousCount > 0
+        hasActiveMOU: mousCount > 0,
       };
 
-      res.json(createResponse('Profile retrieved successfully', profileData));
+      res.json(createResponse("Profile retrieved successfully", profileData));
     } catch (error) {
       next(error);
     }
@@ -106,13 +148,13 @@ class EmployerController {
       const { contactDetails } = req.body;
 
       const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
+        where: { userId: req.user.userId },
       });
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       const updatedEmployer = await req.prisma.employer.update({
@@ -125,18 +167,18 @@ class EmployerController {
               name: true,
               email: true,
               phone: true,
-              city: true
-            }
+              cityId: true,
+            },
           },
           companies: true,
           mous: {
             where: { isActive: true },
-            orderBy: { createdAt: 'desc' }
-          }
-        }
+            orderBy: { createdAt: "desc" },
+          },
+        },
       });
 
-      res.json(createResponse('Profile updated successfully', updatedEmployer));
+      res.json(createResponse("Profile updated successfully", updatedEmployer));
     } catch (error) {
       next(error);
     }
@@ -145,22 +187,30 @@ class EmployerController {
   // Create company
   async createCompany(req, res, next) {
     try {
-      const { name, description, city, cityId, logo, website, industry, size } = req.body;
+      const {
+        name,
+        description,
+        city,
+        cityId,
+        logo,
+        website,
+        industry,
+        size,
+        isDefault = false,
+      } = req.body;
 
       if (!name || (!cityId && !city)) {
-        return res.status(400).json(
-          createErrorResponse('Company name and city are required', 400)
-        );
+        return res
+          .status(400)
+          .json(createErrorResponse("Company name and city are required", 400));
       }
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       // If city name is provided instead of cityId, find the city
@@ -168,16 +218,45 @@ class EmployerController {
       if (!cityId && city) {
         const foundCity = await req.prisma.city.findFirst({
           where: {
-            name: { contains: city, mode: 'insensitive' }
-          }
+            name: { contains: city, mode: "insensitive" },
+          },
         });
-        
+
         if (!foundCity) {
-          return res.status(400).json(
-            createErrorResponse('City not found. Please select a valid city.', 400)
-          );
+          return res
+            .status(400)
+            .json(
+              createErrorResponse(
+                "City not found. Please select a valid city.",
+                400,
+              ),
+            );
         }
         resolvedCityId = foundCity.id;
+      }
+
+      // Check if this is the first company for the employer
+      const existingCompaniesCount = await req.prisma.company.count({
+        where: {
+          employerId: employer.id,
+          isActive: true,
+        },
+      });
+
+      // If this is the first company, make it default automatically
+      const shouldBeDefault = existingCompaniesCount === 0 || isDefault;
+
+      // If setting as default, update other companies to not be default
+      if (shouldBeDefault) {
+        await req.prisma.company.updateMany({
+          where: {
+            employerId: employer.id,
+            isDefault: true,
+          },
+          data: {
+            isDefault: false,
+          },
+        });
       }
 
       const company = await req.prisma.company.create({
@@ -189,14 +268,17 @@ class EmployerController {
           logo,
           website,
           industry,
-          size
+          size,
+          isDefault: shouldBeDefault,
         },
         include: {
-          city: true
-        }
+          city: true,
+        },
       });
 
-      res.status(201).json(createResponse('Company created successfully', company));
+      res
+        .status(201)
+        .json(createResponse("Company created successfully", company));
     } catch (error) {
       next(error);
     }
@@ -205,20 +287,18 @@ class EmployerController {
   // Get companies
   async getCompanies(req, res, next) {
     try {
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       const companies = await req.prisma.company.findMany({
-        where: { 
+        where: {
           employerId: employer.id,
-          isActive: true
+          isActive: true,
         },
         include: {
           city: true,
@@ -227,14 +307,14 @@ class EmployerController {
               id: true,
               title: true,
               status: true,
-              createdAt: true
-            }
-          }
+              createdAt: true,
+            },
+          },
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: "desc" },
       });
 
-      res.json(createResponse('Companies retrieved successfully', companies));
+      res.json(createResponse("Companies retrieved successfully", companies));
     } catch (error) {
       next(error);
     }
@@ -244,30 +324,71 @@ class EmployerController {
   async updateCompany(req, res, next) {
     try {
       const { companyId } = req.params;
-      const { name, description, cityId, logo, website, industry, size } = req.body;
+      const {
+        name,
+        description,
+        cityId,
+        logo,
+        website,
+        industry,
+        size,
+        isDefault,
+      } = req.body;
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       // Verify company ownership
       const company = await req.prisma.company.findFirst({
         where: {
           id: companyId,
-          employerId: employer.id
-        }
+          employerId: employer.id,
+        },
       });
 
       if (!company) {
-        return res.status(404).json(
-          createErrorResponse('Company not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Company not found", 404));
+      }
+
+      // If setting as default, update other companies to not be default
+      if (isDefault === true) {
+        await req.prisma.company.updateMany({
+          where: {
+            employerId: employer.id,
+            id: { not: companyId },
+            isDefault: true,
+          },
+          data: {
+            isDefault: false,
+          },
+        });
+      }
+
+      // Ensure at least one company is default
+      if (isDefault === false && company.isDefault) {
+        const otherCompanies = await req.prisma.company.findMany({
+          where: {
+            employerId: employer.id,
+            id: { not: companyId },
+            isActive: true,
+          },
+          orderBy: { createdAt: "asc" },
+          take: 1,
+        });
+
+        if (otherCompanies.length > 0) {
+          await req.prisma.company.update({
+            where: { id: otherCompanies[0].id },
+            data: { isDefault: true },
+          });
+        }
       }
 
       const updatedCompany = await req.prisma.company.update({
@@ -279,14 +400,15 @@ class EmployerController {
           logo,
           website,
           industry,
-          size
+          size,
+          ...(isDefault !== undefined && { isDefault }),
         },
         include: {
-          city: true
-        }
+          city: true,
+        },
       });
 
-      res.json(createResponse('Company updated successfully', updatedCompany));
+      res.json(createResponse("Company updated successfully", updatedCompany));
     } catch (error) {
       next(error);
     }
@@ -296,6 +418,7 @@ class EmployerController {
   async createAd(req, res, next) {
     try {
       const {
+        employerId, // For Branch Admin usage
         companyId,
         categoryName,
         categoryId,
@@ -311,45 +434,66 @@ class EmployerController {
         employmentType,
         contactInfo,
         validUntil,
-        status = 'DRAFT'
+        status = "DRAFT",
       } = req.body;
 
-      if (!companyId || !categoryName || !title || !description || !locationId) {
-        return res.status(400).json(
-          createErrorResponse('Company, category, title, description and location are required', 400)
-        );
+      if (
+        !companyId ||
+        !categoryName ||
+        !title ||
+        !description ||
+        !locationId
+      ) {
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              "Company, category, title, description and location are required",
+              400,
+            ),
+          );
       }
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
-      });
+      // Get employer - either from user context or from employerId parameter (for Branch Admin)
+      let employer;
+      if (employerId && req.isAdminAccess) {
+        // Branch Admin creating ad for specific employer
+        employer = await req.prisma.employer.findUnique({
+          where: { id: employerId },
+        });
+      } else {
+        // Regular employer creating their own ad
+        employer = await req.prisma.employer.findUnique({
+          where: { userId: req.user.userId },
+        });
+      }
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       // Verify company ownership
       const company = await req.prisma.company.findFirst({
         where: {
           id: companyId,
-          employerId: employer.id
-        }
+          employerId: employer.id,
+        },
       });
 
       if (!company) {
-        return res.status(404).json(
-          createErrorResponse('Company not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Company not found", 404));
       }
 
       // Check if employer has active MOU (allow creation but warn)
       const activeMOU = await req.prisma.mOU.findFirst({
         where: {
           employerId: employer.id,
-          isActive: true
-        }
+          isActive: true,
+        },
       });
 
       const ad = await req.prisma.ad.create({
@@ -370,24 +514,32 @@ class EmployerController {
           validUntil: validUntil ? new Date(validUntil) : undefined,
           status: status, // Use status from request (DRAFT or PENDING_APPROVAL)
           ...(categoryId && { categoryId }),
-          ...(educationQualificationId && { educationQualificationId })
+          ...(educationQualificationId && { educationQualificationId }),
         },
         include: {
           company: true,
           location: true,
           category: true,
-          educationQualification: true
-        }
+          educationQualification: true,
+        },
       });
 
       // Return different messages based on MOU status
       if (!activeMOU) {
-        res.status(201).json(createResponse(
-          'Ad created successfully as draft. Note: Active MOU required for final approval by Branch Admin.', 
-          { ...ad, mouWarning: true }
-        ));
+        res
+          .status(201)
+          .json(
+            createResponse(
+              "Ad created successfully as draft. Note: Active MOU required for final approval by Branch Admin.",
+              { ...ad, mouWarning: true },
+            ),
+          );
       } else {
-        res.status(201).json(createResponse('Ad created successfully and sent for approval', ad));
+        res
+          .status(201)
+          .json(
+            createResponse("Ad created successfully and sent for approval", ad),
+          );
       }
     } catch (error) {
       next(error);
@@ -398,10 +550,11 @@ class EmployerController {
   async updateAd(req, res, next) {
     try {
       const { adId } = req.params;
-      const { 
-        title, 
-        description, 
-        categoryName = 'Jobs',
+      const {
+        employerId, // For Branch Admin usage
+        title,
+        description,
+        categoryName = "Jobs",
         categoryId,
         companyId,
         city,
@@ -412,45 +565,57 @@ class EmployerController {
         skills,
         validUntil,
         gender,
-        educationQualificationId
+        educationQualificationId,
       } = req.body;
 
       // Validate required fields
       if (!title || !description || !companyId) {
-        return res.status(400).json(
-          createErrorResponse('Title, description, and company are required', 400)
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              "Title, description, and company are required",
+              400,
+            ),
+          );
       }
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
-      });
+      let employer;
+      if (employerId && req.isAdminAccess) {
+        // Branch Admin creating ad for specific employer
+        employer = await req.prisma.employer.findUnique({
+          where: { id: employerId },
+        });
+      } else {
+        // Regular employer creating their own ad
+        employer = await req.prisma.employer.findUnique({
+          where: { userId: req.user.userId },
+        });
+      }
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       // Check if ad exists and belongs to employer
       const existingAd = await req.prisma.ad.findFirst({
         where: {
           id: adId,
-          employerId: employer.id
-        }
+          employerId: employer.id,
+        },
       });
 
       if (!existingAd) {
-        return res.status(404).json(
-          createErrorResponse('Ad not found', 404)
-        );
+        return res.status(404).json(createErrorResponse("Ad not found", 404));
       }
 
       // Get location ID if city is provided
       let locationId = null;
       if (city) {
         const location = await req.prisma.city.findUnique({
-          where: { id: city }
+          where: { id: city },
         });
         if (location) {
           locationId = location.id;
@@ -465,7 +630,13 @@ class EmployerController {
           description,
           categoryName,
           gender,
-          skills: skills ? skills.split(',').map(s => s.trim()).filter(s => s).join(', ') : null,
+          skills: skills
+            ? skills
+                .split(",")
+                .map((s) => s.trim())
+                .filter((s) => s)
+                .join(", ")
+            : null,
           salaryMin: salaryMin ? parseFloat(salaryMin) : null,
           salaryMax: salaryMax ? parseFloat(salaryMax) : null,
           experienceLevel,
@@ -474,34 +645,34 @@ class EmployerController {
           updatedAt: new Date(),
           ...(companyId && {
             company: {
-              connect: { id: companyId }
-            }
+              connect: { id: companyId },
+            },
           }),
           ...(locationId && {
             location: {
-              connect: { id: locationId }
-            }
+              connect: { id: locationId },
+            },
           }),
           ...(categoryId && {
             category: {
-              connect: { id: categoryId }
-            }
+              connect: { id: categoryId },
+            },
           }),
           ...(educationQualificationId && {
             educationQualification: {
-              connect: { id: educationQualificationId }
-            }
-          })
+              connect: { id: educationQualificationId },
+            },
+          }),
         },
         include: {
           company: true,
           location: true,
           category: true,
-          educationQualification: true
-        }
+          educationQualification: true,
+        },
       });
 
-      res.json(createResponse('Ad updated successfully', updatedAd));
+      res.json(createResponse("Ad updated successfully", updatedAd));
     } catch (error) {
       next(error);
     }
@@ -513,30 +684,56 @@ class EmployerController {
       const { page = 1, limit = 10, status, categoryName, search } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
-      });
+      let where = {};
+
+      // Get employer for the request
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
-      // Build where condition with proper status filtering
-      const where = {
+      // Build where condition based on employer
+      where = {
         employerId: employer.id,
-        ...(status && status.trim() && status !== 'ALL' && typeof status === 'string' && { status: status.trim() }),
         ...(categoryName && { categoryName }),
-        ...(search && search.trim() && {
-          OR: [
-            { title: { contains: search.trim(), mode: 'insensitive' } },
-            { description: { contains: search.trim(), mode: 'insensitive' } },
-            { company: { name: { contains: search.trim(), mode: 'insensitive' } } },
-            { location: { name: { contains: search.trim(), mode: 'insensitive' } } }
-          ]
-        })
+        ...(search &&
+          search.trim() && {
+            OR: [
+              { title: { contains: search.trim(), mode: "insensitive" } },
+              { description: { contains: search.trim(), mode: "insensitive" } },
+              {
+                company: {
+                  name: { contains: search.trim(), mode: "insensitive" },
+                },
+              },
+              {
+                location: {
+                  name: { contains: search.trim(), mode: "insensitive" },
+                },
+              },
+            ],
+          }),
       };
+
+      // Add status filter only if a specific status is provided and it's not "ALL" or empty
+      // Handle both string and potential object cases
+      let statusValue = status;
+      if (typeof status === "object" && status !== null) {
+        statusValue = status.value || status.toString();
+      }
+
+      if (
+        statusValue &&
+        typeof statusValue === "string" &&
+        statusValue.trim() &&
+        statusValue !== "ALL" &&
+        statusValue !== "[object Object]"
+      ) {
+        where.status = statusValue.trim();
+      }
 
       const [ads, total] = await Promise.all([
         req.prisma.ad.findMany({
@@ -544,32 +741,31 @@ class EmployerController {
           skip,
           take: parseInt(limit),
           include: {
-            company: true,
-            location: true,
-            allocations: {
+            company: {
               select: {
                 id: true,
-                status: true,
-                candidate: {
-                  select: {
-                    id: true,
-                    tags: true,
-                    ratings: true,
-                    overallRating: true,
-                    user: {
-                      select: {
-                        name: true,
-                        email: true
-                      }
-                    }
-                  }
-                }
-              }
-            }
+                name: true,
+                logo: true,
+                industry: true,
+              },
+            },
+            location: {
+              select: {
+                id: true,
+                name: true,
+                state: true,
+              },
+            },
+            _count: {
+              select: {
+                allocations: true,
+                bookmarks: true,
+              },
+            },
           },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: "desc" },
         }),
-        req.prisma.ad.count({ where })
+        req.prisma.ad.count({ where }),
       ]);
 
       const pagination = {
@@ -578,10 +774,10 @@ class EmployerController {
         total,
         pages: Math.ceil(total / parseInt(limit)),
         hasNext: skip + parseInt(limit) < total,
-        hasPrev: parseInt(page) > 1
+        hasPrev: parseInt(page) > 1,
       };
 
-      res.json(createResponse('Ads retrieved successfully', ads, pagination));
+      res.json(createResponse("Ads retrieved successfully", ads, pagination));
     } catch (error) {
       next(error);
     }
@@ -594,35 +790,31 @@ class EmployerController {
       const { page = 1, limit = 10 } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       // Verify ad ownership
       const ad = await req.prisma.ad.findFirst({
         where: {
           id: adId,
-          employerId: employer.id
-        }
+          employerId: employer.id,
+        },
       });
 
       if (!ad) {
-        return res.status(404).json(
-          createErrorResponse('Ad not found', 404)
-        );
+        return res.status(404).json(createErrorResponse("Ad not found", 404));
       }
 
       const [allocations, total] = await Promise.all([
         req.prisma.allocation.findMany({
           where: {
             adId: adId,
-            status: { in: ['ALLOCATED', 'SHORTLISTED', 'HIRED', 'REJECTED'] }
+            status: { in: ["ALLOCATED", "SHORTLISTED", "HIRED", "REJECTED"] },
           },
           skip,
           take: parseInt(limit),
@@ -634,20 +826,20 @@ class EmployerController {
                     name: true,
                     email: true,
                     phone: true,
-                    city: true
-                  }
-                }
-              }
-            }
+                    cityId: true,
+                  },
+                },
+              },
+            },
           },
-          orderBy: { allocatedAt: 'desc' }
+          orderBy: { allocatedAt: "desc" },
         }),
         req.prisma.allocation.count({
           where: {
             adId: adId,
-            status: { in: ['ALLOCATED', 'SHORTLISTED', 'HIRED', 'REJECTED'] }
-          }
-        })
+            status: { in: ["ALLOCATED", "SHORTLISTED", "HIRED", "REJECTED"] },
+          },
+        }),
       ]);
 
       const pagination = {
@@ -656,10 +848,16 @@ class EmployerController {
         total,
         pages: Math.ceil(total / parseInt(limit)),
         hasNext: skip + parseInt(limit) < total,
-        hasPrev: parseInt(page) > 1
+        hasPrev: parseInt(page) > 1,
       };
 
-      res.json(createResponse('Allocated candidates retrieved successfully', allocations, pagination));
+      res.json(
+        createResponse(
+          "Allocated candidates retrieved successfully",
+          allocations,
+          pagination,
+        ),
+      );
     } catch (error) {
       next(error);
     }
@@ -671,42 +869,32 @@ class EmployerController {
       const { allocationId } = req.params;
       const { status, notes } = req.body;
 
-      if (!status || !['SHORTLISTED', 'HIRED', 'REJECTED'].includes(status)) {
-        return res.status(400).json(
-          createErrorResponse('Valid status is required (SHORTLISTED, HIRED, REJECTED)', 400)
-        );
+      const validStatuses = ["APPLIED", "SHORTLISTED", "INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED", "HIRED", "HOLD", "REJECTED"];
+      
+      if (!status || !validStatuses.includes(status)) {
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              `Valid status is required. Allowed values: ${validStatuses.join(', ')}`,
+              400,
+            ),
+          );
       }
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
-      // Verify allocation ownership
+      // Verify allocation ownership - allow updating from various states
       const allocation = await req.prisma.allocation.findFirst({
         where: {
           id: allocationId,
           employerId: employer.id,
-          status: { in: ['ALLOCATED', 'SHORTLISTED'] }
-        }
-      });
-
-      if (!allocation) {
-        return res.status(404).json(
-          createErrorResponse('Allocation not found or cannot be updated', 404)
-        );
-      }
-
-      const updatedAllocation = await req.prisma.allocation.update({
-        where: { id: allocationId },
-        data: {
-          status,
-          notes
         },
         include: {
           candidate: {
@@ -714,24 +902,97 @@ class EmployerController {
               user: {
                 select: {
                   name: true,
-                  email: true
-                }
-              }
-            }
+                  email: true,
+                },
+              },
+            },
           },
           ad: {
             select: {
               title: true,
               company: {
-                select: { name: true }
-              }
-            }
-          }
-        }
+                select: { name: true },
+              },
+            },
+          },
+        },
       });
 
-      res.json(createResponse('Candidate status updated successfully', updatedAllocation));
+      if (!allocation) {
+        return res
+          .status(404)
+          .json(
+            createErrorResponse(
+              `Allocation with ID ${allocationId} not found or you don't have permission to update it`,
+              404,
+            ),
+          );
+      }
+
+      // Check if status transition is valid
+      const validTransitions = {
+        'APPLIED': ['SHORTLISTED', 'REJECTED'],
+        'SHORTLISTED': ['INTERVIEW_SCHEDULED', 'HIRED', 'HOLD', 'REJECTED'],
+        'INTERVIEW_SCHEDULED': ['INTERVIEW_COMPLETED', 'HIRED', 'HOLD', 'REJECTED'],
+        'INTERVIEW_COMPLETED': ['HIRED', 'HOLD', 'REJECTED'],
+        'HOLD': ['HIRED', 'REJECTED', 'INTERVIEW_SCHEDULED'],
+        'HIRED': [], // Final state
+        'REJECTED': [] // Final state
+      };
+
+      const currentStatus = allocation.status;
+      const allowedNextStatuses = validTransitions[currentStatus] || [];
+
+      if (currentStatus !== status && !allowedNextStatuses.includes(status)) {
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              `Cannot transition from ${currentStatus} to ${status}. Allowed transitions: ${allowedNextStatuses.join(', ') || 'None'}`,
+              400,
+            ),
+          );
+      }
+
+      console.log(`[STATUS UPDATE] Updating allocation ${allocationId} from ${currentStatus} to ${status}`);
+
+      const updatedAllocation = await req.prisma.allocation.update({
+        where: { id: allocationId },
+        data: {
+          status,
+          notes: notes || allocation.notes, // Keep existing notes if new ones not provided
+          updatedAt: new Date(),
+        },
+        include: {
+          candidate: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          ad: {
+            select: {
+              title: true,
+              company: {
+                select: { name: true },
+              },
+            },
+          },
+        },
+      });
+
+      res.json(
+        createResponse(
+          `Candidate status updated successfully from ${currentStatus} to ${status}`,
+          updatedAllocation,
+        ),
+      );
     } catch (error) {
+      console.error('Error updating candidate status:', error);
       next(error);
     }
   }
@@ -745,21 +1006,19 @@ class EmployerController {
     try {
       const { companyId } = req.params;
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       const company = await req.prisma.company.findFirst({
         where: {
           id: companyId,
           employerId: employer.id,
-          isActive: true
+          isActive: true,
         },
         include: {
           city: true,
@@ -770,26 +1029,28 @@ class EmployerController {
               status: true,
               createdAt: true,
               _count: {
-                select: { allocations: true }
-              }
+                select: { allocations: true },
+              },
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: "desc" },
           },
           _count: {
             select: {
-              ads: true
-            }
-          }
-        }
+              ads: true,
+            },
+          },
+        },
       });
 
       if (!company) {
-        return res.status(404).json(
-          createErrorResponse('Company not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Company not found", 404));
       }
 
-      res.json(createResponse('Company details retrieved successfully', company));
+      res.json(
+        createResponse("Company details retrieved successfully", company),
+      );
     } catch (error) {
       next(error);
     }
@@ -804,20 +1065,18 @@ class EmployerController {
     try {
       const { adId } = req.params;
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       const ad = await req.prisma.ad.findFirst({
         where: {
           id: adId,
-          employerId: employer.id
+          employerId: employer.id,
         },
         include: {
           company: {
@@ -826,54 +1085,56 @@ class EmployerController {
               name: true,
               logo: true,
               industry: true,
-              size: true
-            }
+              size: true,
+            },
           },
           location: {
             select: {
               id: true,
               name: true,
               state: true,
-              country: true
-            }
+              country: true,
+            },
           },
           category: {
             select: {
               id: true,
-              name: true
-            }
+              name: true,
+            },
           },
           educationQualification: {
             select: {
               id: true,
-              name: true
-            }
-          }
-        }
+              name: true,
+            },
+          },
+        },
       });
 
       if (!ad) {
-        return res.status(404).json(
-          createErrorResponse('Ad not found', 404)
-        );
+        return res.status(404).json(createErrorResponse("Ad not found", 404));
       }
 
       // Process category-specific fields for frontend compatibility
       let processedAd = { ...ad };
-      if (ad.categorySpecificFields && ad.categoryName === 'Jobs') {
+      if (ad.categorySpecificFields && ad.categoryName === "Jobs") {
         const categoryFields = ad.categorySpecificFields;
         processedAd = {
           ...ad,
-          jobType: categoryFields.employmentType || 'Full Time',
+          jobType: categoryFields.employmentType || "Full Time",
           employmentType: categoryFields.employmentType,
           experienceLevel: categoryFields.experienceLevel,
-          skills: Array.isArray(categoryFields.skills) ? categoryFields.skills.join(', ') : '',
+          skills: Array.isArray(categoryFields.skills)
+            ? categoryFields.skills.join(", ")
+            : "",
           salaryMin: categoryFields.salaryMin,
-          salaryMax: categoryFields.salaryMax
+          salaryMax: categoryFields.salaryMax,
         };
       }
 
-      res.json(createResponse('Ad details retrieved successfully', processedAd));
+      res.json(
+        createResponse("Ad details retrieved successfully", processedAd),
+      );
     } catch (error) {
       next(error);
     }
@@ -885,43 +1146,43 @@ class EmployerController {
       const { adId } = req.params;
 
       const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
+        where: { userId: req.user.userId },
       });
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       // Check if ad exists and belongs to employer
       const existingAd = await req.prisma.ad.findFirst({
         where: {
           id: adId,
-          employerId: employer.id
-        }
+          employerId: employer.id,
+        },
       });
 
       if (!existingAd) {
-        return res.status(404).json(
-          createErrorResponse('Ad not found', 404)
-        );
+        return res.status(404).json(createErrorResponse("Ad not found", 404));
       }
 
       // Update the ad status to PENDING_APPROVAL
       const submittedAd = await req.prisma.ad.update({
         where: { id: adId },
-        data: { 
-          status: 'PENDING_APPROVAL',
-          updatedAt: new Date()
+        data: {
+          status: "PENDING_APPROVAL",
+          updatedAt: new Date(),
         },
         include: {
           company: true,
-          location: true
-        }
+          location: true,
+        },
       });
 
-      res.json(createResponse('Ad submitted for approval successfully', submittedAd));
+      res.json(
+        createResponse("Ad submitted for approval successfully", submittedAd),
+      );
     } catch (error) {
       next(error);
     }
@@ -933,43 +1194,43 @@ class EmployerController {
       const { adId } = req.params;
 
       const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
+        where: { userId: req.user.userId },
       });
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       // Verify ad ownership
       const adToArchive = await req.prisma.ad.findFirst({
         where: {
           id: adId,
-          employerId: employer.id
-        }
+          employerId: employer.id,
+        },
       });
 
       if (!adToArchive) {
-        return res.status(404).json(
-          createErrorResponse('Ad not found', 404)
-        );
+        return res.status(404).json(createErrorResponse("Ad not found", 404));
       }
 
       // Update ad status to ARCHIVED
       const archivedAd = await req.prisma.ad.update({
         where: { id: adId },
-        data: { 
-          status: 'ARCHIVED',
-          updatedAt: new Date()
+        data: {
+          status: "ARCHIVED",
+          updatedAt: new Date(),
         },
         include: {
           company: true,
-          location: true
-        }
+          location: true,
+        },
       });
 
-      res.status(200).json(createResponse('Ad archived successfully', archivedAd));
+      res
+        .status(200)
+        .json(createResponse("Ad archived successfully", archivedAd));
     } catch (error) {
       next(error);
     }
@@ -985,19 +1246,20 @@ class EmployerController {
       const { page = 1, limit = 10, status } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
-      });
+      let where = {};
+
+      // Get employer using helper method
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
-      const where = {
+      where = {
         employerId: employer.id,
-        ...(status && { isActive: status === 'active' })
+        ...(status && { isActive: status === "active" }),
       };
 
       const [mous, total] = await Promise.all([
@@ -1005,9 +1267,9 @@ class EmployerController {
           where,
           skip,
           take: parseInt(limit),
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: "desc" },
         }),
-        req.prisma.mOU.count({ where })
+        req.prisma.mOU.count({ where }),
       ]);
 
       const pagination = {
@@ -1016,10 +1278,10 @@ class EmployerController {
         total,
         pages: Math.ceil(total / parseInt(limit)),
         hasNext: skip + parseInt(limit) < total,
-        hasPrev: parseInt(page) > 1
+        hasPrev: parseInt(page) > 1,
       };
 
-      res.json(createResponse('MOUs retrieved successfully', mous, pagination));
+      res.json(createResponse("MOUs retrieved successfully", mous, pagination));
     } catch (error) {
       next(error);
     }
@@ -1028,35 +1290,36 @@ class EmployerController {
   // Create/sign new MOU agreement (NEW)
   async createMOU(req, res, next) {
     try {
-      const {
-        branchAdminId,
-        feeType,
-        feeAmount,
-        feePercentage,
-        terms,
-        notes
-      } = req.body;
+      const { branchAdminId, feeType, feeAmount, feePercentage, terms, notes } =
+        req.body;
 
       if (!branchAdminId || !feeType || (!feeAmount && !feePercentage)) {
-        return res.status(400).json(
-          createErrorResponse('Branch admin, fee type, and fee amount/percentage are required', 400)
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              "Branch admin, fee type, and fee amount/percentage are required",
+              400,
+            ),
+          );
       }
 
-      if (!['FIXED', 'PERCENTAGE'].includes(feeType)) {
-        return res.status(400).json(
-          createErrorResponse('Fee type must be FIXED or PERCENTAGE', 400)
-        );
+      if (!["FIXED", "PERCENTAGE"].includes(feeType)) {
+        return res
+          .status(400)
+          .json(
+            createErrorResponse("Fee type must be FIXED or PERCENTAGE", 400),
+          );
       }
 
       const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
+        where: { userId: req.user.userId },
       });
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       // Verify branch admin exists
@@ -1064,15 +1327,15 @@ class EmployerController {
         where: { id: branchAdminId },
         include: {
           user: {
-            select: { city: true }
-          }
-        }
+            select: { city: true },
+          },
+        },
       });
 
       if (!branchAdmin) {
-        return res.status(404).json(
-          createErrorResponse('Branch admin not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Branch admin not found", 404));
       }
 
       // Check for existing active MOU with same branch admin
@@ -1080,14 +1343,19 @@ class EmployerController {
         where: {
           employerId: employer.id,
           branchAdminId: branchAdminId,
-          isActive: true
-        }
+          isActive: true,
+        },
       });
 
       if (existingMOU) {
-        return res.status(409).json(
-          createErrorResponse('Active MOU already exists with this branch admin', 409)
-        );
+        return res
+          .status(409)
+          .json(
+            createErrorResponse(
+              "Active MOU already exists with this branch admin",
+              409,
+            ),
+          );
       }
 
       const mou = await req.prisma.mOU.create({
@@ -1095,17 +1363,20 @@ class EmployerController {
           employerId: employer.id,
           branchAdminId,
           feeType,
-          feeValue: feeType === 'FIXED' ? feeAmount : feePercentage,
+          feeValue: feeType === "FIXED" ? feeAmount : feePercentage,
           terms,
           notes,
           signedAt: new Date(),
-          status: 'PENDING_APPROVAL',
-          isActive: false
+          status: "PENDING_APPROVAL",
+          isActive: false,
         },
-
       });
 
-      res.status(201).json(createResponse('MOU created successfully and sent for approval', mou));
+      res
+        .status(201)
+        .json(
+          createResponse("MOU created successfully and sent for approval", mou),
+        );
     } catch (error) {
       next(error);
     }
@@ -1121,37 +1392,48 @@ class EmployerController {
       const { page = 1, limit = 20, search, status, skills } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
-      });
+      // For Branch Admin accessing employer data, we still need to validate access
+      if (req.user.role === "BRANCH_ADMIN" && !req.targetEmployerId) {
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              "Employer ID required for Branch Admin access",
+              400,
+            ),
+          );
+      }
 
-      if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+      // Get employer using helper method
+      const employer = await this.getEmployer(req);
+
+      if (!employer && req.user.role === "EMPLOYER") {
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       // Build search criteria
       let where = {
         user: {
           isActive: true,
-          role: 'CANDIDATE'
-        }
+          role: "CANDIDATE",
+        },
       };
 
       // Add search filter if provided
       if (search) {
         where.user.OR = [
-          { name: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } }
+          { name: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
         ];
       }
 
       // Add skills filter if provided
       if (skills) {
-        const skillArray = skills.split(',').map(skill => skill.trim());
+        const skillArray = skills.split(",").map((skill) => skill.trim());
         where.tags = {
-          hasSome: skillArray
+          hasSome: skillArray,
         };
       }
 
@@ -1167,29 +1449,48 @@ class EmployerController {
                 name: true,
                 email: true,
                 phone: true,
-                city: true
-              }
-            }
+                cityId: true,
+              },
+            },
+            allocations: {
+              where: employer ? { employerId: employer.id } : {},
+              include: {
+                ad: {
+                  select: {
+                    id: true,
+                    title: true,
+                    company: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: "desc" },
         }),
-        req.prisma.candidate.count({ where })
+        req.prisma.candidate.count({ where }),
       ]);
 
       // Process candidates to add computed fields
-      const processedCandidates = candidates.map(candidate => {
+      const processedCandidates = candidates.map((candidate) => {
         // Extract data from profile_data JSONB field
         const profileData = candidate.profile_data || {};
         const experienceData = candidate.experience || {};
-        
+
         return {
           ...candidate,
-          currentJobTitle: profileData.currentJobTitle || 'No title specified',
+          currentJobTitle: profileData.currentJobTitle || "No title specified",
           experience: profileData.experience || experienceData.years || 0,
           expectedSalary: profileData.expectedSalary || profileData.salary || 0,
-          currentLocation: profileData.currentLocation || candidate.user?.city || 'Not specified',
+          currentLocation:
+            profileData.currentLocation ||
+            candidate.user?.city ||
+            "Not specified",
           skills: candidate.tags || [],
-          bio: profileData.bio || profileData.summary || 'No bio available'
+          bio: profileData.bio || profileData.summary || "No bio available",
         };
       });
 
@@ -1199,10 +1500,16 @@ class EmployerController {
         total,
         pages: Math.ceil(total / parseInt(limit)),
         hasNext: skip + parseInt(limit) < total,
-        hasPrev: parseInt(page) > 1
+        hasPrev: parseInt(page) > 1,
       };
 
-      res.json(createResponse('Candidates retrieved successfully', { candidates: processedCandidates }, pagination));
+      res.json(
+        createResponse(
+          "Candidates retrieved successfully",
+          { candidates: processedCandidates },
+          pagination,
+        ),
+      );
     } catch (error) {
       next(error);
     }
@@ -1218,50 +1525,50 @@ class EmployerController {
         cityId,
         experienceLevel,
         minRating,
-        excludeApplied = false
+        excludeApplied = false,
       } = req.query;
-      
+
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
       const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
+        where: { userId: req.user.userId },
       });
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       // Build search criteria
       let where = {
         user: {
           isActive: true,
-          ...(cityId && { cityId })
-        }
+          ...(cityId && { cityId }),
+        },
       };
 
       // Add skills filter if provided
       if (skills) {
-        const skillArray = skills.split(',').map(skill => skill.trim());
+        const skillArray = skills.split(",").map((skill) => skill.trim());
         where.tags = {
-          hasSome: skillArray
+          hasSome: skillArray,
         };
       }
 
       // Add rating filter if provided
       if (minRating) {
         where.overallRating = {
-          gte: parseFloat(minRating).toString()
+          gte: parseFloat(minRating).toString(),
         };
       }
 
       // Exclude candidates who already applied to employer's jobs
-      if (excludeApplied === 'true') {
+      if (excludeApplied === "true") {
         where.allocations = {
           none: {
-            employerId: employer.id
-          }
+            employerId: employer.id,
+          },
         };
       }
 
@@ -1280,23 +1587,20 @@ class EmployerController {
                 city: {
                   select: {
                     name: true,
-                    state: true
-                  }
-                }
-              }
+                    state: true,
+                  },
+                },
+              },
             },
             _count: {
               select: {
-                allocations: true
-              }
-            }
+                allocations: true,
+              },
+            },
           },
-          orderBy: [
-            { overallRating: 'desc' },
-            { updatedAt: 'desc' }
-          ]
+          orderBy: [{ overallRating: "desc" }, { updatedAt: "desc" }],
         }),
-        req.prisma.candidate.count({ where })
+        req.prisma.candidate.count({ where }),
       ]);
 
       const pagination = {
@@ -1305,10 +1609,16 @@ class EmployerController {
         total,
         pages: Math.ceil(total / parseInt(limit)),
         hasNext: skip + parseInt(limit) < total,
-        hasPrev: parseInt(page) > 1
+        hasPrev: parseInt(page) > 1,
       };
 
-      res.json(createResponse('Candidates retrieved successfully', candidates, pagination));
+      res.json(
+        createResponse(
+          "Candidates retrieved successfully",
+          candidates,
+          pagination,
+        ),
+      );
     } catch (error) {
       next(error);
     }
@@ -1321,13 +1631,13 @@ class EmployerController {
       const { notes } = req.body;
 
       const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
+        where: { userId: req.user.userId },
       });
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       // Verify candidate exists
@@ -1335,15 +1645,24 @@ class EmployerController {
         where: { id: candidateId },
         include: {
           user: {
-            select: { name: true, email: true }
-          }
-        }
+            select: {
+              name: true,
+              email: true,
+              cityRef: {
+                select: {
+                  name: true,
+                  state: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!candidate) {
-        return res.status(404).json(
-          createErrorResponse('Candidate not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Candidate not found", 404));
       }
 
       // Check if already bookmarked
@@ -1351,22 +1670,22 @@ class EmployerController {
         where: {
           employerId_candidateId: {
             employerId: employer.id,
-            candidateId: candidateId
-          }
-        }
+            candidateId: candidateId,
+          },
+        },
       });
 
       if (existingBookmark) {
-        return res.status(409).json(
-          createErrorResponse('Candidate already bookmarked', 409)
-        );
+        return res
+          .status(409)
+          .json(createErrorResponse("Candidate already bookmarked", 409));
       }
 
       const bookmark = await req.prisma.employerBookmark.create({
         data: {
           employerId: employer.id,
           candidateId,
-          notes
+          notes,
         },
         include: {
           candidate: {
@@ -1375,17 +1694,19 @@ class EmployerController {
                 select: {
                   name: true,
                   email: true,
-                  city: {
-                    select: { name: true, state: true }
-                  }
-                }
-              }
-            }
-          }
-        }
+                  cityRef: {
+                    select: { name: true, state: true },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
-      res.status(201).json(createResponse('Candidate bookmarked successfully', bookmark));
+      res
+        .status(201)
+        .json(createResponse("Candidate bookmarked successfully", bookmark));
     } catch (error) {
       next(error);
     }
@@ -1397,29 +1718,29 @@ class EmployerController {
       const { candidateId } = req.params;
 
       const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
+        where: { userId: req.user.userId },
       });
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       const deleted = await req.prisma.employerBookmark.deleteMany({
         where: {
           employerId: employer.id,
-          candidateId: candidateId
-        }
+          candidateId: candidateId,
+        },
       });
 
       if (deleted.count === 0) {
-        return res.status(404).json(
-          createErrorResponse('Bookmark not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Bookmark not found", 404));
       }
 
-      res.json(createResponse('Bookmark removed successfully'));
+      res.json(createResponse("Bookmark removed successfully"));
     } catch (error) {
       next(error);
     }
@@ -1432,13 +1753,13 @@ class EmployerController {
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
       const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId }
+        where: { userId: req.user.userId },
       });
 
       if (!employer) {
-        return res.status(404).json(
-          createErrorResponse('Employer profile not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
       }
 
       const [bookmarks, total] = await Promise.all([
@@ -1455,16 +1776,18 @@ class EmployerController {
                     email: true,
                     phone: true,
                     city: {
-                      select: { name: true, state: true }
-                    }
-                  }
-                }
-              }
-            }
+                      select: { name: true, state: true },
+                    },
+                  },
+                },
+              },
+            },
           },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: "desc" },
         }),
-        req.prisma.employerBookmark.count({ where: { employerId: employer.id } })
+        req.prisma.employerBookmark.count({
+          where: { employerId: employer.id },
+        }),
       ]);
 
       const pagination = {
@@ -1473,14 +1796,33 @@ class EmployerController {
         total,
         pages: Math.ceil(total / parseInt(limit)),
         hasNext: skip + parseInt(limit) < total,
-        hasPrev: parseInt(page) > 1
+        hasPrev: parseInt(page) > 1,
       };
 
-      res.json(createResponse('Bookmarked candidates retrieved successfully', bookmarks, pagination));
+      res.json(
+        createResponse(
+          "Bookmarked candidates retrieved successfully",
+          bookmarks,
+          pagination,
+        ),
+      );
     } catch (error) {
       next(error);
     }
   }
 }
 
-module.exports = new EmployerController();
+const employerController = new EmployerController();
+
+// Bind all methods to preserve 'this' context
+Object.getOwnPropertyNames(Object.getPrototypeOf(employerController))
+  .filter(
+    (name) =>
+      name !== "constructor" && typeof employerController[name] === "function",
+  )
+  .forEach((name) => {
+    employerController[name] =
+      employerController[name].bind(employerController);
+  });
+
+module.exports = employerController;

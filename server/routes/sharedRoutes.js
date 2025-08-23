@@ -1,6 +1,41 @@
+
 const express = require('express');
 const router = express.Router();
-const { optionalAuth } = require('../middleware/auth'); // Assuming optionalAuth is here
+const { optionalAuth } = require('../middleware/auth');
+const { createResponse, createErrorResponse } = require('../utils/response');
+
+// Get education qualifications
+router.get('/education-qualifications', async (req, res, next) => {
+  try {
+    const qualifications = await req.prisma.educationQualification.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' }
+    });
+
+    res.json(createResponse('Education qualifications retrieved successfully', qualifications));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get allocation statuses
+router.get('/allocation-statuses', async (req, res, next) => {
+  try {
+    const statuses = [
+      { value: 'APPLIED', label: 'Applied' },
+      { value: 'SHORTLISTED', label: 'Shortlisted' },
+      { value: 'INTERVIEW_SCHEDULED', label: 'Interview Scheduled' },
+      { value: 'INTERVIEW_COMPLETED', label: 'Interview Completed' },
+      { value: 'HIRED', label: 'Hired' },
+      { value: 'HOLD', label: 'Hold' },
+      { value: 'REJECTED', label: 'Rejected' }
+    ];
+
+    res.json(createResponse('Allocation statuses retrieved successfully', statuses));
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Get job preview by ID (works for all user roles, includes draft/pending for authorized users)
 router.get('/jobs/:id/preview', optionalAuth, async (req, res, next) => {
@@ -160,8 +195,6 @@ router.get('/jobs/:id', async (req, res, next) => {
       return res.status(404).json({ message: 'Job not found' });
     }
 
-
-
     // Transform job for frontend
     const transformedJob = {
       id: job.id,
@@ -171,7 +204,7 @@ router.get('/jobs/:id', async (req, res, next) => {
         id: job.company?.id,
         name: job.company?.name || 'Company Name',
         logo: job.company?.logo,
-        industry: job.job?.industry,
+        industry: job.company?.industry,
         description: job.company?.description,
         website: job.company?.website,
         size: job.company?.size

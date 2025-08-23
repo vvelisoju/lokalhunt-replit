@@ -32,6 +32,7 @@ const Register = () => {
     password: '',
     confirmPassword: '',
     city: '',
+    companyName: '',
     role: 'CANDIDATE'
   })
   const [errors, setErrors] = useState({})
@@ -53,7 +54,9 @@ const Register = () => {
     setActiveTab(tab)
     setFormData(prev => ({
       ...prev,
-      role: tab === 'candidate' ? 'CANDIDATE' : 'EMPLOYER'
+      role: tab === 'candidate' ? 'CANDIDATE' : 'EMPLOYER',
+      companyName: tab === 'candidate' ? '' : prev.companyName,
+      lastName: tab === 'employer' ? '' : prev.lastName
     }))
     setErrors({})
   }
@@ -66,14 +69,21 @@ const Register = () => {
     }
   }
 
+  const handleCityChange = (cityId) => {
+    setFormData(prev => ({ ...prev, city: cityId }))
+    if (errors.city) {
+      setErrors(prev => ({ ...prev, city: '' }))
+    }
+  }
+
   const validateForm = () => {
     const newErrors = {}
 
     if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required'
+      newErrors.firstName = activeTab === 'employer' ? 'Contact person name is required' : 'First name is required'
     }
 
-    if (!formData.lastName.trim()) {
+    if (activeTab === 'candidate' && !formData.lastName.trim()) {
       newErrors.lastName = 'Last name is required'
     }
 
@@ -91,6 +101,10 @@ const Register = () => {
 
     if (!formData.city) {
       newErrors.city = 'City is required'
+    }
+
+    if (formData.role === 'EMPLOYER' && !formData.companyName.trim()) {
+      newErrors.companyName = 'Company name is required for employers'
     }
 
     if (!formData.password) {
@@ -123,7 +137,8 @@ const Register = () => {
         phone: formData.phone,
         password: formData.password,
         city: formData.city,
-        role: formData.role
+        role: formData.role,
+        ...(formData.role === 'EMPLOYER' && { companyName: formData.companyName })
       }
 
       const result = await register(registrationData)
@@ -266,31 +281,60 @@ const Register = () => {
 
             {/* Registration Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Name Fields */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* Company Name - First for Employers */}
+              {activeTab === 'employer' && (
                 <FormInput
-                  label="First Name"
+                  label="Company Name"
+                  type="text"
+                  name="companyName"
+                  value={formData.companyName}
+                  onChange={handleChange}
+                  placeholder="Enter your company name"
+                  required
+                  icon={BuildingOfficeIcon}
+                  error={errors.companyName}
+                />
+              )}
+
+              {/* Name Fields */}
+              {activeTab === 'candidate' ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <FormInput
+                    label="First Name"
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    placeholder="First name"
+                    required
+                    icon={UserIcon}
+                    error={errors.firstName}
+                  />
+                  <FormInput
+                    label="Last Name"
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    placeholder="Last name"
+                    required
+                    icon={UserIcon}
+                    error={errors.lastName}
+                  />
+                </div>
+              ) : (
+                <FormInput
+                  label="Contact Person Name"
                   type="text"
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleChange}
-                  placeholder="First name"
+                  placeholder="Enter contact person name"
                   required
                   icon={UserIcon}
                   error={errors.firstName}
                 />
-                <FormInput
-                  label="Last Name"
-                  type="text"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  placeholder="Last name"
-                  required
-                  icon={UserIcon}
-                  error={errors.lastName}
-                />
-              </div>
+              )}
 
               {/* Email and Phone */}
               <FormInput
@@ -322,7 +366,7 @@ const Register = () => {
                 label="City"
                 name="city"
                 value={formData.city}
-                onChange={handleChange}
+                onChange={handleCityChange}
                 error={errors.city}
               />
 

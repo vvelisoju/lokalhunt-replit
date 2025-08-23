@@ -26,6 +26,7 @@ router.get('/', (req, res) => {
       employer: '/api/employer',
       branchAdmin: '/api/branch-admin',
       profile: '/api/profile',
+      shared: '/api/shared',
       health: '/health',
       ai: '/api/ai'
     }

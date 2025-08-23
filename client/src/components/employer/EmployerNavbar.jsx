@@ -47,9 +47,18 @@ const EmployerNavbar = () => {
     }
   ]
 
-  const handleLogout = async () => {
-    await logout()
-    navigate('/login')
+  const handleLogout = async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    try {
+      await logout()
+      navigate('/login', { replace: true })
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Still navigate to login even if logout API fails
+      navigate('/login', { replace: true })
+    }
   }
 
   return (

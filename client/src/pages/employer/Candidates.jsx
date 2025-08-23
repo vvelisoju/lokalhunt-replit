@@ -6,19 +6,36 @@ import {
   FunnelIcon,
   EyeIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  ChevronDownIcon,
+  ChevronUpIcon
 } from '@heroicons/react/24/outline'
 import FormInput from '../../components/ui/FormInput'
 import Select from '../../components/ui/Select'
 import Button from '../../components/ui/Button'
 import Loader from '../../components/ui/Loader'
 import Modal from '../../components/ui/Modal'
+import CandidateCard from '../../components/ui/CandidateCard'
+import AllocationStatusBadge from '../../components/ui/AllocationStatusBadge'
+import AllocationStatusSelect from '../../components/ui/AllocationStatusSelect'
 import { getAllCandidates, updateCandidateStatus } from '../../services/employer/candidates'
 import { getAds } from '../../services/employer/ads'
+import { useRole } from '../../context/RoleContext'
 import { toast } from 'react-hot-toast'
 
 const Candidates = () => {
   const [searchParams] = useSearchParams()
+  
+  // Role context for Branch Admin functionality
+  const roleContext = useRole()
+  const { 
+    isAdminView = () => false, 
+    isBranchAdmin = () => false, 
+    can = () => false, 
+    targetEmployer = null, 
+    getCurrentEmployerId = () => null 
+  } = roleContext || {}
+
   const [candidates, setCandidates] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCandidate, setSelectedCandidate] = useState(null)
@@ -33,19 +50,19 @@ const Candidates = () => {
   const [statusFilter, setStatusFilter] = useState('')
   const [skillFilter, setSkillFilter] = useState('')
   const [experienceFilter, setExperienceFilter] = useState('')
+  const [genderFilter, setGenderFilter] = useState('')
+  const [educationFilter, setEducationFilter] = useState('')
   const [selectedAd, setSelectedAd] = useState(adIdFilter || '')
+  const [appliedOnlyFilter, setAppliedOnlyFilter] = useState(false)
   
-  // State for ads dropdown
+  // State for ads dropdown and education qualifications
   const [approvedAds, setApprovedAds] = useState([])
+  const [educationQualifications, setEducationQualifications] = useState([])
+  
+  // More filters toggle state
+  const [showMoreFilters, setShowMoreFilters] = useState(false)
 
-  const statusOptions = [
-    { value: '', label: 'All Statuses' },
-    { value: 'ALLOCATED', label: 'Allocated' },
-    { value: 'SHORTLISTED', label: 'Shortlisted' },
-    { value: 'INTERVIEW', label: 'Interview' },
-    { value: 'HIRED', label: 'Hired' },
-    { value: 'REJECTED', label: 'Rejected' }
-  ]
+  
 
   const experienceOptions = [
     { value: '', label: 'All Experience' },
@@ -56,17 +73,39 @@ const Candidates = () => {
     { value: '10+', label: '10+ years' }
   ]
 
+  const genderOptions = [
+    { value: '', label: 'All Genders' },
+    { value: 'MALE', label: 'Male' },
+    { value: 'FEMALE', label: 'Female' },
+    { value: 'BOTH', label: 'Any Gender' }
+  ]
+
   useEffect(() => {
     loadCandidates()
     loadApprovedAds()
+    loadEducationQualifications()
   }, [])
 
   const loadCandidates = async () => {
     setIsLoading(true)
     try {
       const result = await getAllCandidates()
+      
       if (result.success) {
-        let allCandidates = result.data.candidates || []
+        // Based on the API response structure, candidates are in result.data.data.candidates
+        let allCandidates = []
+        
+        if (result.data && result.data.data && Array.isArray(result.data.data.candidates)) {
+          allCandidates = result.data.data.candidates
+        } else if (result.data && Array.isArray(result.data.candidates)) {
+          allCandidates = result.data.candidates
+        } else if (result.data && Array.isArray(result.data.data)) {
+          allCandidates = result.data.data
+        } else if (Array.isArray(result.data)) {
+          allCandidates = result.data
+        }
+        
+        console.log('Loaded candidates:', allCandidates)
         
         // If we have an ad filter, only show candidates for that specific ad
         if (selectedAd) {
@@ -77,11 +116,13 @@ const Candidates = () => {
         
         setCandidates(allCandidates)
       } else {
-        toast.error('Failed to load candidates')
+        toast.error(result.error || 'Failed to load candidates')
+        setCandidates([])
       }
     } catch (error) {
       console.error('Error loading candidates:', error)
-      toast.error('Failed to load candidates')
+      toast.error('Failed to load candidates - ' + (error.message || 'Unknown error'))
+      setCandidates([])
     } finally {
       setIsLoading(false)
     }
@@ -91,12 +132,21 @@ const Candidates = () => {
     try {
       const result = await getAds({ status: 'APPROVED', limit: 100 })
       if (result.success) {
-        const ads = result.data.data.ads || []
+        // Handle the API response structure properly
+        let ads = []
+        if (result.data && result.data.data && Array.isArray(result.data.data)) {
+          ads = result.data.data
+        } else if (result.data && Array.isArray(result.data)) {
+          ads = result.data
+        }
+        
+        console.log('Loaded approved ads:', ads)
+        
         setApprovedAds([
-          { value: '', label: 'All Ads' },
+          { value: '', label: 'All Job Ads' },
           ...ads.map(ad => ({
             value: ad.id,
-            label: ad.title
+            label: `${ad.title} - ${ad.company?.name || 'Company'}`
           }))
         ])
       }
@@ -105,56 +155,134 @@ const Candidates = () => {
     }
   }
 
-  const handleStatusUpdate = async (candidateId, status, notes = '') => {
+  const loadEducationQualifications = async () => {
     try {
-      const result = await updateCandidateStatus(candidateId, status, notes)
+      const response = await fetch('/api/shared/education-qualifications')
+      const result = await response.json()
+      
+      if (result.status === 'success') {
+        const qualifications = [
+          { value: '', label: 'All Education Levels' },
+          ...result.data.map(qual => ({
+            value: qual.id,
+            label: qual.name
+          }))
+        ]
+        setEducationQualifications(qualifications)
+      } else {
+        // Fallback to static data if API fails
+        const qualifications = [
+          { value: '', label: 'All Education Levels' },
+          { value: 'HIGH_SCHOOL', label: 'High School' },
+          { value: 'DIPLOMA', label: 'Diploma' },
+          { value: 'BACHELORS', label: 'Bachelor\'s Degree' },
+          { value: 'MASTERS', label: 'Master\'s Degree' },
+          { value: 'PHD', label: 'PhD' },
+          { value: 'PROFESSIONAL', label: 'Professional Certification' }
+        ]
+        setEducationQualifications(qualifications)
+      }
+    } catch (error) {
+      console.error('Error loading education qualifications:', error)
+      // Fallback to static data
+      const qualifications = [
+        { value: '', label: 'All Education Levels' },
+        { value: 'HIGH_SCHOOL', label: 'High School' },
+        { value: 'DIPLOMA', label: 'Diploma' },
+        { value: 'BACHELORS', label: 'Bachelor\'s Degree' },
+        { value: 'MASTERS', label: 'Master\'s Degree' },
+        { value: 'PHD', label: 'PhD' },
+        { value: 'PROFESSIONAL', label: 'Professional Certification' }
+      ]
+      setEducationQualifications(qualifications)
+    }
+  }
+
+  const handleStatusUpdate = async (allocationId, status, notes = '') => {
+    try {
+      // Validate status before API call
+      const validStatuses = [
+        'APPLIED', 'SHORTLISTED', 'INTERVIEW_SCHEDULED', 
+        'INTERVIEW_COMPLETED', 'HIRED', 'HOLD', 'REJECTED'
+      ];
+      
+      if (!validStatuses.includes(status)) {
+        toast.error(`Invalid status: ${status}. Please select a valid status.`)
+        return
+      }
+
+      console.log('Updating allocation status:', { allocationId, status, notes })
+      
+      const result = await updateCandidateStatus(allocationId, status, notes)
       if (result.success) {
         toast.success('Candidate status updated successfully')
-        // Update local state
-        setCandidates(prev => prev.map(candidate => 
-          candidate.id === candidateId 
-            ? { ...candidate, status, notes }
-            : candidate
-        ))
+        // Reload candidates to get updated data
+        await loadCandidates()
       } else {
         toast.error(result.error || 'Failed to update candidate status')
       }
     } catch (error) {
       console.error('Error updating candidate status:', error)
-      toast.error('Failed to update candidate status')
+      toast.error('Failed to update candidate status: ' + (error.message || 'Unknown error'))
     }
   }
 
-  const getStatusBadgeColor = (status) => {
-    switch (status) {
-      case 'ALLOCATED':
-        return 'bg-blue-100 text-blue-800'
-      case 'SHORTLISTED':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'INTERVIEW':
-        return 'bg-purple-100 text-purple-800'
-      case 'HIRED':
-        return 'bg-green-100 text-green-800'
-      case 'REJECTED':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
+  
 
   const filteredCandidates = candidates.filter(candidate => {
-    const matchesSearch = candidate.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         candidate.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         candidate.currentJobTitle?.toLowerCase().includes(searchTerm.toLowerCase())
+    // Search filter - check name, email, job title
+    const candidateName = candidate.user?.name || candidate.name || ''
+    const candidateEmail = candidate.user?.email || candidate.email || ''
+    const candidateJobTitle = candidate.currentJobTitle || candidate.jobTitle || ''
     
-    const matchesStatus = !statusFilter || candidate.status === statusFilter
-    const matchesSkill = !skillFilter || (candidate.skills && candidate.skills.some(skill => 
+    const matchesSearch = !searchTerm || 
+      candidateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      candidateEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      candidateJobTitle.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    // Status filter - check allocations for status
+    const matchesStatus = !statusFilter || (candidate.allocations && 
+      candidate.allocations.some(allocation => allocation.status === statusFilter))
+    
+    // Skills filter - handle both array and string formats
+    const candidateSkills = candidate.skills || candidate.tags || []
+    const skillsArray = Array.isArray(candidateSkills) ? candidateSkills : 
+                       typeof candidateSkills === 'string' ? candidateSkills.split(',').map(s => s.trim()) : []
+    
+    const matchesSkill = !skillFilter || skillsArray.some(skill => 
       skill.toLowerCase().includes(skillFilter.toLowerCase())
-    ))
+    )
     
-    const matchesAd = !selectedAd || (candidate.allocations && candidate.allocations.some(allocation => allocation.adId === selectedAd))
+    // Job Ad filter
+    const matchesAd = !selectedAd || (candidate.allocations && 
+      candidate.allocations.some(allocation => allocation.adId === selectedAd))
     
-    return matchesSearch && matchesStatus && matchesSkill && matchesAd
+    // Gender filter - check profile data or user data
+    const candidateGender = candidate.profile_data?.gender || candidate.gender || candidate.user?.gender || ''
+    const matchesGender = !genderFilter || candidateGender.toLowerCase() === genderFilter.toLowerCase()
+    
+    // Education filter - check profile data for education level
+    const candidateEducation = candidate.profile_data?.education?.level || candidate.education?.level || candidate.educationLevel || ''
+    const matchesEducation = !educationFilter || candidateEducation === educationFilter
+    
+    // Experience filter - Parse experience ranges and match
+    const candidateExp = parseInt(candidate.experience || candidate.experienceYears || candidate.totalExperience) || 0
+    const matchesExperience = !experienceFilter || (() => {
+      switch(experienceFilter) {
+        case '0-1': return candidateExp >= 0 && candidateExp <= 1
+        case '1-3': return candidateExp >= 1 && candidateExp <= 3
+        case '3-5': return candidateExp >= 3 && candidateExp <= 5
+        case '5-10': return candidateExp >= 5 && candidateExp <= 10
+        case '10+': return candidateExp >= 10
+        default: return true
+      }
+    })()
+    
+    // Applied candidates only filter - show only candidates who have applied to employer's ads
+    const matchesAppliedOnly = !appliedOnlyFilter || (candidate.allocations && candidate.allocations.length > 0)
+    
+    return matchesSearch && matchesStatus && matchesSkill && matchesAd && 
+           matchesGender && matchesEducation && matchesExperience && matchesAppliedOnly
   })
 
   // Update candidates when ad filter changes
@@ -218,124 +346,129 @@ const Candidates = () => {
               </span>
             )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <FormInput
-              label="Search candidates"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by name, email, or job title..."
-              icon={MagnifyingGlassIcon}
-            />
+          
+          {/* Primary Filters - Always Visible */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            <div className="lg:col-span-1">
+              <FormInput
+                label="Global Search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by name, email, or job title..."
+                icon={MagnifyingGlassIcon}
+              />
+            </div>
             <Select
               label="Job Ad"
               value={selectedAd}
-              onChange={(e) => setSelectedAd(e.target.value)}
+              onChange={(value) => setSelectedAd(value)}
               options={approvedAds}
             />
-            <Select
+            <AllocationStatusSelect
               label="Status"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              options={statusOptions}
+              onChange={(value) => setStatusFilter(value)}
+              includeAll={true}
             />
-            <FormInput
-              label="Skills"
-              value={skillFilter}
-              onChange={(e) => setSkillFilter(e.target.value)}
-              placeholder="Filter by skills..."
-            />
-            <Select
-              label="Experience"
-              value={experienceFilter}
-              onChange={(e) => setExperienceFilter(e.target.value)}
-              options={experienceOptions}
-            />
+          </div>
+          
+          {/* More Filters Toggle */}
+          <div className="border-t border-gray-200 pt-4">
+            <button
+              onClick={() => setShowMoreFilters(!showMoreFilters)}
+              className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <FunnelIcon className="h-4 w-4" />
+              More Filters
+              {showMoreFilters ? (
+                <ChevronUpIcon className="h-4 w-4" />
+              ) : (
+                <ChevronDownIcon className="h-4 w-4" />
+              )}
+              {(genderFilter || educationFilter || skillFilter || experienceFilter || appliedOnlyFilter) && (
+                <span className="ml-1 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                  {[genderFilter, educationFilter, skillFilter, experienceFilter, appliedOnlyFilter].filter(Boolean).length} active
+                </span>
+              )}
+            </button>
+            
+            {/* Additional Filters - Collapsible */}
+            {showMoreFilters && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 p-4 bg-gray-50 rounded-lg">
+                <Select
+                  label="Gender"
+                  value={genderFilter}
+                  onChange={(value) => setGenderFilter(value)}
+                  options={genderOptions}
+                />
+                <Select
+                  label="Education"
+                  value={educationFilter}
+                  onChange={(value) => setEducationFilter(value)}
+                  options={educationQualifications}
+                />
+                <FormInput
+                  label="Skills"
+                  value={skillFilter}
+                  onChange={(e) => setSkillFilter(e.target.value)}
+                  placeholder="Filter by skills..."
+                />
+                <Select
+                  label="Experience"
+                  value={experienceFilter}
+                  onChange={(value) => setExperienceFilter(value)}
+                  options={experienceOptions}
+                />
+                
+                {/* Applied Candidates Only Toggle */}
+                <div className="col-span-full mt-2">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={appliedOnlyFilter}
+                      onChange={(e) => setAppliedOnlyFilter(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      Show only candidates who have applied to my job ads
+                    </span>
+                  </label>
+                </div>
+                
+                {/* Clear All Filters */}
+                <div className="col-span-full mt-4 pt-3 border-t border-gray-200">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setGenderFilter('');
+                      setEducationFilter('');
+                      setSkillFilter('');
+                      setExperienceFilter('');
+                      setAppliedOnlyFilter(false);
+                    }}
+                    className="text-gray-600 hover:text-gray-900"
+                  >
+                    Clear All More Filters
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Candidates Grid */}
         {filteredCandidates.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
             {filteredCandidates.map((candidate) => (
-              <div key={candidate.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200 hover:border-blue-300">
-              <div className="p-6">
-                {/* Candidate Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <img
-                      className="h-12 w-12 rounded-full object-cover"
-                      src={candidate.user?.profileImage || `https://ui-avatars.com/api/?name=${candidate.user?.name}&background=1976d2&color=fff`}
-                      alt={candidate.user?.name || 'Candidate'}
-                    />
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900">
-                        {candidate.user?.name || 'Unknown'}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {candidate.currentJobTitle || 'No job title'}
-                      </p>
-                    </div>
-                  </div>
-                  {candidate.status && (
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(candidate.status)}`}>
-                      {candidate.status}
-                    </span>
-                  )}
-                </div>
-
-                {/* Candidate Details */}
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <span className="font-medium">Email:</span>
-                    <span className="ml-2">{candidate.user?.email || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <span className="font-medium">Experience:</span>
-                    <span className="ml-2">{candidate.experience || 'N/A'} years</span>
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <span className="font-medium">Location:</span>
-                    <span className="ml-2">{candidate.currentLocation || 'N/A'}</span>
-                  </div>
-                </div>
-
-                {/* Skills */}
-                {candidate.skills && candidate.skills.length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Skills</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {candidate.skills.slice(0, 3).map((skill, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                      {candidate.skills.length > 3 && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md">
-                          +{candidate.skills.length - 3} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="flex space-x-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleViewCandidate(candidate)}
-                    className="flex-1"
-                  >
-                    <EyeIcon className="h-4 w-4 mr-1" />
-                    View Details
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
+              <CandidateCard
+                key={candidate.id}
+                candidate={candidate}
+                onStatusUpdate={handleStatusUpdate}
+                onViewProfile={handleViewCandidate}
+                loading={{}}
+              />
+            ))}
           </div>
         ) : (
           <div className="text-center py-12">
@@ -396,9 +529,7 @@ const Candidates = () => {
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2">Status</h4>
                 {selectedCandidate.status ? (
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(selectedCandidate.status)}`}>
-                    {selectedCandidate.status}
-                  </span>
+                  <AllocationStatusBadge status={selectedCandidate.status} size="sm" />
                 ) : (
                   <span className="text-sm text-gray-500">No status</span>
                 )}

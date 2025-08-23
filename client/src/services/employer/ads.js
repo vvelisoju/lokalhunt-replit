@@ -1,9 +1,12 @@
-import api from '../api'
+import { makeRoleAwareRequest } from '../api'
 
 export const createAd = async (adData) => {
   try {
-    const response = await api.post('/employers/ads', adData)
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest('/employers/ads', {
+      method: 'POST',
+      data: adData
+    })
+    return { success: true, data: response }
   } catch (error) {
     return { 
       success: false, 
@@ -14,8 +17,11 @@ export const createAd = async (adData) => {
 
 export const updateAd = async (adId, adData) => {
   try {
-    const response = await api.put(`/employers/ads/${adId}`, adData)
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest(`/employers/ads/${adId}`, {
+      method: 'PUT',
+      data: adData
+    })
+    return { success: true, data: response }
   } catch (error) {
     return { 
       success: false, 
@@ -26,8 +32,10 @@ export const updateAd = async (adId, adData) => {
 
 export const getAds = async (params = {}) => {
   try {
-    const response = await api.get('/employers/ads', { params })
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest('/employers/ads', {
+      params
+    })
+    return { success: true, data: response }
   } catch (error) {
     return { 
       success: false, 
@@ -38,8 +46,8 @@ export const getAds = async (params = {}) => {
 
 export const getAd = async (adId) => {
   try {
-    const response = await api.get(`/employers/ads/${adId}`)
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest(`/employers/ads/${adId}`)
+    return { success: true, data: response }
   } catch (error) {
     return { 
       success: false, 
@@ -50,8 +58,10 @@ export const getAd = async (adId) => {
 
 export const submitForApproval = async (adId) => {
   try {
-    const response = await api.patch(`/employers/ads/${adId}/submit`)
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest(`/employers/ads/${adId}/submit`, {
+      method: 'PATCH'
+    })
+    return { success: true, data: response }
   } catch (error) {
     return { 
       success: false, 
@@ -62,8 +72,10 @@ export const submitForApproval = async (adId) => {
 
 export const archiveAd = async (adId) => {
   try {
-    const response = await api.patch(`/employers/ads/${adId}/archive`)
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest(`/employers/ads/${adId}/archive`, {
+      method: 'PATCH'
+    })
+    return { success: true, data: response }
   } catch (error) {
     return { 
       success: false, 

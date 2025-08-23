@@ -1,12 +1,12 @@
 const express = require('express');
 const employerController = require('../controllers/employerController');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken, requireRoleOrAdminAccess } = require('../middleware/auth');
 
 const router = express.Router();
 
-// All routes require EMPLOYER role
+// All routes require EMPLOYER role or Branch Admin with admin access
 router.use(authenticateToken);
-router.use(requireRole('EMPLOYER'));
+router.use(requireRoleOrAdminAccess('EMPLOYER'));
 
 // =======================
 // PROFILE MANAGEMENT
@@ -75,13 +75,10 @@ router.post('/mous', employerController.createMOU);
 
 // Get all candidates for the employer
 router.get('/candidates', employerController.getAllCandidates);
-
 // Search candidates by skills, city, and experience
 router.get('/candidates/search', employerController.searchCandidates);
-
 // Bookmark a candidate
 router.post('/candidates/:candidateId/bookmark', employerController.bookmarkCandidate);
-
 // Remove candidate bookmark
 router.delete('/candidates/:candidateId/bookmark', employerController.removeBookmark);
 
@@ -89,10 +86,17 @@ router.delete('/candidates/:candidateId/bookmark', employerController.removeBook
 router.get('/candidates/bookmarks', employerController.getBookmarkedCandidates);
 
 // =======================
+// ALLOCATION MANAGEMENT
+// =======================
+
+// Update allocation status
+router.patch('/allocations/:allocationId', employerController.updateCandidateStatus);
+
+// =======================
 // LEGACY CANDIDATE MANAGEMENT (EXISTING)
 // =======================
 
-// Update candidate status in allocation
+// Update candidate status in allocation (legacy route)
 router.put('/candidates/:allocationId/status', employerController.updateCandidateStatus);
 
 module.exports = router;

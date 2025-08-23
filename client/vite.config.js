@@ -1,26 +1,21 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import tailwindcss from '@tailwindcss/vite'
-
+import tailwindcss from "@tailwindcss/vite";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(),tailwindcss()],
+  plugins: [react(), tailwindcss()],
   server: {
     port: 3000,
     host: "0.0.0.0",
     base: "/",
     allowedHosts: [
-      "localhost",
-      "127.0.0.1",
+      "localhost:3000",
       "8623772d-42f2-4847-92b4-3b6c3e49b220-00-1xro0juetxdg.riker.replit.dev",
-      "https://lokalhunt.up.railway.app",
-      "https://www.lokalhunt.com/",
-      "https://lokalhunt.com/"
     ],
     proxy: {
       "/api": {
-        target: "https://lokalhunt.up.railway.app",
+        target: "http://localhost:5000",
         changeOrigin: true,
         secure: false,
         ws: true,

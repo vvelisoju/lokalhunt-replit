@@ -20,12 +20,32 @@ const CompaniesTab = ({ employer, onAddCompany, onEditCompany }) => {
         {employer.companies && employer.companies.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {employer.companies.map((company) => (
-              <div key={company.id} className="border border-gray-200 rounded-lg p-4">
+              <div 
+                key={company.id} 
+                className={`border rounded-lg p-4 ${
+                  company.isDefault 
+                    ? 'border-blue-300 bg-blue-50' 
+                    : 'border-gray-200'
+                }`}
+              >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <BuildingOfficeIcon className="h-8 w-8 text-blue-500" />
+                    <BuildingOfficeIcon className={`h-8 w-8 ${
+                      company.isDefault ? 'text-blue-600' : 'text-blue-500'
+                    }`} />
                     <div>
-                      <h4 className="font-semibold text-gray-900">{company.name}</h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className={`font-semibold ${
+                          company.isDefault ? 'text-blue-900' : 'text-gray-900'
+                        }`}>
+                          {company.name}
+                        </h4>
+                        {company.isDefault && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Default
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-600">{company.industry}</p>
                     </div>
                   </div>

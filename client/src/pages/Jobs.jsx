@@ -89,17 +89,11 @@ const Jobs = () => {
   // Load jobs when component mounts or filters change
   useEffect(() => {
     const loadJobs = async () => {
-      if (isAuthenticated === null || isAuthenticated === undefined) return
-      
       try {
         setLoading(true)
-        let response
         
-        if (isAuthenticated && user?.role === 'CANDIDATE') {
-          response = await candidateApi.searchJobsWithStatus(apiParams)
-        } else {
-          response = await publicApi.searchJobs(apiParams)
-        }
+        // Use public API for all users - it handles authentication internally
+        const response = await publicApi.searchJobs(apiParams)
         
         const responseData = response.data?.data || response.data || response
         const jobs = responseData?.jobs || []
@@ -117,7 +111,7 @@ const Jobs = () => {
     }
     
     loadJobs()
-  }, [currentPage, jobsPerPage, filters.search, filters.location, filters.category, filters.sortBy, isAuthenticated, user?.role])
+  }, [currentPage, jobsPerPage, filters.search, filters.location, filters.category, filters.sortBy, apiParams])
 
   const handleFiltersChange = useCallback((newFilters) => {
     setFilters(newFilters)
@@ -340,8 +334,7 @@ const Jobs = () => {
                   status: job.status || 'APPROVED' // Default to APPROVED for public jobs
                 }
 
-                // Debug log to check user role
-                console.log('Current user:', user, 'Role:', user?.role, 'Is authenticated:', isAuthenticated)
+                // Public API handles authentication status internally
 
                 return (
                   <SharedJobCard 

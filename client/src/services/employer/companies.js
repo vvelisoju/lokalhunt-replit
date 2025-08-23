@@ -1,9 +1,12 @@
-import api from '../api'
+import { makeRoleAwareRequest } from '../api'
 
 export const createCompany = async (companyData) => {
   try {
-    const response = await api.post('/employers/companies', companyData)
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest('/employers/companies', {
+      method: 'POST',
+      data: companyData
+    })
+    return { success: true, data: response }
   } catch (error) {
     return { 
       success: false, 
@@ -14,8 +17,8 @@ export const createCompany = async (companyData) => {
 
 export const getCompanies = async () => {
   try {
-    const response = await api.get('/employers/companies')
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest('/employers/companies')
+    return { success: true, data: response }
   } catch (error) {
     return { 
       success: false, 
@@ -26,8 +29,8 @@ export const getCompanies = async () => {
 
 export const getCompany = async (companyId) => {
   try {
-    const response = await api.get(`/employers/companies/${companyId}`)
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest(`/employers/companies/${companyId}`)
+    return { success: true, data: response }
   } catch (error) {
     return { 
       success: false, 
@@ -38,8 +41,11 @@ export const getCompany = async (companyId) => {
 
 export const updateCompany = async (companyId, companyData) => {
   try {
-    const response = await api.put(`/employers/companies/${companyId}`, companyData)
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest(`/employers/companies/${companyId}`, {
+      method: 'PUT',
+      data: companyData
+    })
+    return { success: true, data: response }
   } catch (error) {
     return { 
       success: false, 

@@ -7,22 +7,31 @@ import Select from '../../components/ui/Select';
 import Button from '../../components/ui/Button';
 import Pagination from '../../components/ui/Pagination';
 import CreateEmployerModal from '../../components/modals/CreateEmployerModal';
+import { useRole } from '../../context/RoleContext';
 import { 
   getEmployers, 
   approveEmployer, 
-  rejectEmployer, 
-  blockEmployer, 
-  unblockEmployer,
-  deleteEmployer
+  rejectEmployer,
+  deleteEmployer,
+  getSubscriptionPlans
 } from '../../services/branch-admin/employers';
 
 const Employers = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const roleContext = useRole();
+  const { viewAsAdmin, setTargetEmployerContext } = roleContext || {};
   
   const [employers, setEmployers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [subscriptionPlans, setSubscriptionPlans] = useState([]);
+  const [summary, setSummary] = useState({
+    totalEmployers: 0,
+    activeSubscriptions: 0,
+    noSubscription: 0,
+    totalActiveJobs: 0
+  });
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -30,56 +39,86 @@ const Employers = () => {
     pages: 0
   });
 
-  // Filters from URL
+  // Simplified filters from URL
   const [filters, setFilters] = useState({
     search: searchParams.get('search') || '',
-    status: searchParams.get('status') || '',
-    sortBy: searchParams.get('sortBy') || 'createdAt',
-    sortOrder: searchParams.get('sortOrder') || 'desc'
+    planId: searchParams.get('planId') || '',
+    subscriptionStatus: searchParams.get('subscriptionStatus') || ''
   });
 
-  const statusOptions = [
-    { value: '', label: 'All Status' },
-    { value: 'PENDING_APPROVAL', label: 'Pending Approval' },
+  // Dynamic plan options based on loaded subscription plans
+  const planOptions = [
+    { value: '', label: 'All Plans' },
+    ...subscriptionPlans.map(plan => ({ value: plan.id, label: plan.name }))
+  ];
+
+  // Subscription status filter options
+  const subscriptionStatusOptions = [
+    { value: '', label: 'All Subscription Status' },
     { value: 'ACTIVE', label: 'Active' },
-    { value: 'BLOCKED', label: 'Blocked' },
-    { value: 'REJECTED', label: 'Rejected' }
-  ];
-
-  const sortOptions = [
-    { value: 'createdAt', label: 'Date Created' },
-    { value: 'name', label: 'Name' },
-    { value: 'status', label: 'Status' }
-  ];
-
-  const sortOrderOptions = [
-    { value: 'desc', label: 'Newest First' },
-    { value: 'asc', label: 'Oldest First' }
+    { value: 'PENDING_APPROVAL', label: 'Pending Approval' },
+    { value: 'EXPIRED', label: 'Expired' },
+    { value: 'CANCELLED', label: 'Cancelled' },
+    { value: 'PAST_DUE', label: 'Past Due' },
+    { value: 'NO_SUBSCRIPTION', label: 'No Subscription' }
   ];
 
   useEffect(() => {
     const page = parseInt(searchParams.get('page')) || 1;
+    const urlFilters = {
+      search: searchParams.get('search') || '',
+      planId: searchParams.get('planId') || '',
+      subscriptionStatus: searchParams.get('subscriptionStatus') || ''
+    };
+    
+    setFilters(urlFilters);
     setPagination(prev => ({ ...prev, page }));
     loadEmployers();
+    loadSubscriptionPlans();
   }, [searchParams]);
+
+  const loadSubscriptionPlans = async () => {
+    try {
+      const response = await getSubscriptionPlans();
+      if (response.success) {
+        setSubscriptionPlans(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to load subscription plans:', error);
+    }
+  };
 
   const loadEmployers = async () => {
     setLoading(true);
     try {
+      const currentPage = parseInt(searchParams.get('page')) || 1;
+      const currentFilters = {
+        search: searchParams.get('search') || '',
+        planId: searchParams.get('planId') || '',
+        subscriptionStatus: searchParams.get('subscriptionStatus') || ''
+      };
+      
       const params = {
-        page: pagination.page,
+        page: currentPage,
         limit: pagination.limit,
-        ...filters
+        ...currentFilters
       };
 
       const response = await getEmployers(params);
       
       if (response.success) {
-        setEmployers(response.data.employers || []);
+        const data = response.data.data || response.data;
+        setEmployers(data.employers || []);
+        setSummary(data.summary || {
+          totalEmployers: 0,
+          activeSubscriptions: 0,
+          noSubscription: 0,
+          totalActiveJobs: 0
+        });
         setPagination(prev => ({
           ...prev,
-          total: response.data.total || 0,
-          pages: response.data.pages || 0
+          total: data.pagination?.totalCount || 0,
+          pages: data.pagination?.totalPages || 0
         }));
       } else {
         toast.error(response.error);
@@ -140,36 +179,22 @@ const Employers = () => {
     }
   };
 
-  const handleBlock = async (employerId, notes) => {
-    try {
-      const response = await blockEmployer(employerId, notes);
-      if (response.success) {
-        toast.success('Employer blocked successfully');
-        loadEmployers();
-      } else {
-        toast.error(response.error);
-      }
-    } catch (error) {
-      toast.error('Failed to block employer');
-    }
-  };
-
-  const handleUnblock = async (employerId) => {
-    try {
-      const response = await unblockEmployer(employerId);
-      if (response.success) {
-        toast.success('Employer unblocked successfully');
-        loadEmployers();
-      } else {
-        toast.error(response.error);
-      }
-    } catch (error) {
-      toast.error('Failed to unblock employer');
-    }
-  };
+  
 
   const handleView = (employerId) => {
-    navigate(`/branch-admin/employers/${employerId}`);
+    // Find the employer data to set context
+    const employer = employers.find(emp => emp.id === employerId);
+    
+    if (employer && setTargetEmployerContext && viewAsAdmin) {
+      // Set the target employer context for sidebar navigation
+      setTargetEmployerContext(employer);
+      
+      // Use viewAsAdmin to set the context and navigate
+      viewAsAdmin(employer);
+    }
+    
+    // Navigate to the employer dashboard using standard employer components
+    navigate(`/branch-admin/employers/${employerId}/dashboard`);
   };
 
   const handleCreateSuccess = (employerId) => {
@@ -185,9 +210,8 @@ const Employers = () => {
   const clearFilters = () => {
     setFilters({
       search: '',
-      status: '',
-      sortBy: 'createdAt',
-      sortOrder: 'desc'
+      planId: '',
+      subscriptionStatus: ''
     });
     setSearchParams({});
   };
@@ -199,7 +223,7 @@ const Employers = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Employer Management</h1>
           <p className="text-gray-600 mt-1">
-            Review and manage employer registrations
+            Manage employers and their subscriptions in your branch
           </p>
         </div>
         <Button
@@ -214,43 +238,40 @@ const Employers = () => {
         </Button>
       </div>
 
-      {/* Filters */}
+      
+
+      {/* Simplified Filters */}
       <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="md:col-span-2">
             <FormInput
-              placeholder="Search employers..."
+              placeholder="Search by name, email, company..."
               value={filters.search}
               onChange={(e) => updateFilters({ search: e.target.value })}
             />
           </div>
-          
+
           <Select
-            value={filters.status}
-            onChange={(value) => updateFilters({ status: value })}
-            options={statusOptions}
-            placeholder="Filter by status"
+            value={filters.planId || ''}
+            onChange={(value) => updateFilters({ planId: value })}
+            options={planOptions}
+            placeholder="Filter by Plan"
           />
-          
+
           <Select
-            value={filters.sortBy}
-            onChange={(value) => updateFilters({ sortBy: value })}
-            options={sortOptions}
-          />
-          
-          <Select
-            value={filters.sortOrder}
-            onChange={(value) => updateFilters({ sortOrder: value })}
-            options={sortOrderOptions}
+            value={filters.subscriptionStatus || ''}
+            onChange={(value) => updateFilters({ subscriptionStatus: value })}
+            options={subscriptionStatusOptions}
+            placeholder="Subscription Status"
           />
         </div>
 
         <div className="flex justify-between items-center mt-4">
           <p className="text-sm text-gray-600">
-            {pagination.total} employers found
+            {pagination.total} employers found in your branch
           </p>
           
-          {Object.values(filters).some(value => value && value !== 'createdAt' && value !== 'desc') && (
+          {Object.values(filters).some(value => value) && (
             <Button
               variant="outline"
               size="sm"
@@ -268,8 +289,6 @@ const Employers = () => {
         loading={loading}
         onApprove={handleApprove}
         onReject={handleReject}
-        onBlock={handleBlock}
-        onUnblock={handleUnblock}
         onView={handleView}
       />
 

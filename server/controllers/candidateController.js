@@ -1,3 +1,5 @@
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 const { createResponse, createErrorResponse } = require("../utils/response");
 const { ObjectStorageService } = require("../objectStorage");
 
@@ -9,7 +11,7 @@ class CandidateController {
   // Get complete candidate profile
   async getProfile(req, res, next) {
     try {
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
         include: {
           user: {
@@ -81,7 +83,7 @@ class CandidateController {
         cityId, // Added cityId to the destructured body
       } = req.body;
 
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
@@ -142,13 +144,13 @@ class CandidateController {
 
       // Update user if there are user fields to update
       if (Object.keys(userUpdateData).length > 0) {
-        await req.prisma.user.update({
+        await prisma.user.update({
           where: { id: req.user.userId },
           data: userUpdateData,
         });
       }
 
-      const updatedCandidate = await req.prisma.candidate.update({
+      const updatedCandidate = await prisma.candidate.update({
         where: { userId: req.user.userId },
         data: updateData,
         include: {
@@ -196,7 +198,7 @@ class CandidateController {
   // Get candidate dashboard
   async getDashboard(req, res, next) {
     try {
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
         include: {
           user: {
@@ -288,7 +290,7 @@ class CandidateController {
       const { notes } = req.body;
 
       // Check if candidate exists
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
@@ -299,7 +301,7 @@ class CandidateController {
       }
 
       // Check if ad exists and is approved
-      const ad = await req.prisma.ad.findFirst({
+      const ad = await prisma.ad.findFirst({
         where: {
           id: adId,
           status: "APPROVED",
@@ -317,7 +319,7 @@ class CandidateController {
       }
 
       // Check if already applied
-      const existingApplication = await req.prisma.allocation.findFirst({
+      const existingApplication = await prisma.allocation.findFirst({
         where: {
           candidateId: candidate.id,
           adId: adId,
@@ -333,7 +335,7 @@ class CandidateController {
       }
 
       // Create application
-      const application = await req.prisma.allocation.create({
+      const application = await prisma.allocation.create({
         data: {
           candidateId: candidate.id,
           adId: adId,
@@ -366,7 +368,7 @@ class CandidateController {
       const { page = 1, limit = 10, status } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
@@ -382,7 +384,7 @@ class CandidateController {
       };
 
       const [applications, total] = await Promise.all([
-        req.prisma.allocation.findMany({
+        prisma.allocation.findMany({
           where,
           skip,
           take: parseInt(limit),
@@ -399,7 +401,7 @@ class CandidateController {
           },
           orderBy: { createdAt: "desc" },
         }),
-        req.prisma.allocation.count({ where }),
+        prisma.allocation.count({ where }),
       ]);
 
       // Transform applications to include candidate count
@@ -437,7 +439,7 @@ class CandidateController {
     try {
       const { adId } = req.params;
 
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
@@ -448,7 +450,7 @@ class CandidateController {
       }
 
       // Check if bookmark exists
-      const existingBookmark = await req.prisma.bookmark.findUnique({
+      const existingBookmark = await prisma.bookmark.findUnique({
         where: {
           candidateId_adId: {
             candidateId: candidate.id,
@@ -459,7 +461,7 @@ class CandidateController {
 
       if (existingBookmark) {
         // Remove bookmark
-        await req.prisma.bookmark.delete({
+        await prisma.bookmark.delete({
           where: { id: existingBookmark.id },
         });
         res.json(
@@ -469,7 +471,7 @@ class CandidateController {
         );
       } else {
         // Add bookmark
-        await req.prisma.bookmark.create({
+        await prisma.bookmark.create({
           data: {
             candidateId: candidate.id,
             adId: adId,
@@ -490,7 +492,7 @@ class CandidateController {
       const { page = 1, limit = 10 } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
@@ -501,7 +503,7 @@ class CandidateController {
       }
 
       const [bookmarks, total] = await Promise.all([
-        req.prisma.bookmark.findMany({
+        prisma.bookmark.findMany({
           where: { candidateId: candidate.id },
           skip,
           take: parseInt(limit),
@@ -515,13 +517,13 @@ class CandidateController {
           },
           orderBy: { createdAt: "desc" },
         }),
-        req.prisma.bookmark.count({ where: { candidateId: candidate.id } }),
+        prisma.bookmark.count({ where: { candidateId: candidate.id } }),
       ]);
 
       // Check application status for each bookmarked job
       const bookmarksWithStatus = await Promise.all(
         bookmarks.map(async (bookmark) => {
-          const application = await req.prisma.allocation.findFirst({
+          const application = await prisma.allocation.findFirst({
             where: {
               candidateId: candidate.id,
               adId: bookmark.ad.id,
@@ -562,14 +564,14 @@ class CandidateController {
       const { name, phone, dateOfBirth, profileData } = req.body;
 
       const [updatedUser, updatedCandidate] = await Promise.all([
-        req.prisma.user.update({
+        prisma.user.update({
           where: { id: req.user.userId },
           data: {
             ...(name && { name }),
             ...(phone && { phone }),
           },
         }),
-        req.prisma.candidate.update({
+        prisma.candidate.update({
           where: { userId: req.user.userId },
           data: {
             ...(dateOfBirth && { dateOfBirth: new Date(dateOfBirth) }),
@@ -593,7 +595,7 @@ class CandidateController {
     try {
       const { experience } = req.body;
 
-      const updatedCandidate = await req.prisma.candidate.update({
+      const updatedCandidate = await prisma.candidate.update({
         where: { userId: req.user.userId },
         data: { experience },
       });
@@ -610,7 +612,7 @@ class CandidateController {
     try {
       const { education } = req.body;
 
-      const updatedCandidate = await req.prisma.candidate.update({
+      const updatedCandidate = await prisma.candidate.update({
         where: { userId: req.user.userId },
         data: { education },
       });
@@ -627,7 +629,7 @@ class CandidateController {
     try {
       const { tags } = req.body;
 
-      const updatedCandidate = await req.prisma.candidate.update({
+      const updatedCandidate = await prisma.candidate.update({
         where: { userId: req.user.userId },
         data: { tags },
       });
@@ -643,7 +645,7 @@ class CandidateController {
     try {
       const { profilePhoto } = req.body;
 
-      const updatedCandidate = await req.prisma.candidate.update({
+      const updatedCandidate = await prisma.candidate.update({
         where: { userId: req.user.userId },
         data: { profilePhoto },
       });
@@ -660,7 +662,7 @@ class CandidateController {
 
   async removeProfilePhoto(req, res, next) {
     try {
-      await req.prisma.candidate.update({
+      await prisma.candidate.update({
         where: { userId: req.user.userId },
         data: { profilePhoto: null },
       });
@@ -702,7 +704,7 @@ class CandidateController {
       const normalizedPath =
         objectStorageService.normalizeObjectEntityPath(resumeUrl);
 
-      const updatedCandidate = await req.prisma.candidate.update({
+      const updatedCandidate = await prisma.candidate.update({
         where: { userId: req.user.userId },
         data: { resumeUrl: normalizedPath },
       });
@@ -724,7 +726,7 @@ class CandidateController {
 
   async getResume(req, res, next) {
     try {
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
         select: { resumeUrl: true, updatedAt: true },
       });
@@ -751,7 +753,7 @@ class CandidateController {
 
   async deleteResume(req, res, next) {
     try {
-      await req.prisma.candidate.update({
+      await prisma.candidate.update({
         where: { userId: req.user.userId },
         data: { resumeUrl: null },
       });
@@ -801,7 +803,7 @@ class CandidateController {
           .json(createErrorResponse("openToWork must be a boolean value", 400));
       }
 
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
@@ -817,7 +819,7 @@ class CandidateController {
         openToWork,
       };
 
-      const updatedCandidate = await req.prisma.candidate.update({
+      const updatedCandidate = await prisma.candidate.update({
         where: { userId: req.user.userId },
         data: { profileData: updatedProfileData },
         include: {
@@ -858,7 +860,7 @@ class CandidateController {
 
   async getOpenToWorkStatus(req, res, next) {
     try {
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
         select: { profileData: true, updatedAt: true },
       });
@@ -898,7 +900,7 @@ class CandidateController {
 
   async getProfileCompleteness(req, res, next) {
     try {
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
@@ -950,7 +952,7 @@ class CandidateController {
       const { page = 1, limit = 20 } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
@@ -962,7 +964,7 @@ class CandidateController {
 
       // Get recent activities (applications, bookmarks, etc.)
       const [recentApplications, recentBookmarks] = await Promise.all([
-        req.prisma.allocation.findMany({
+        prisma.allocation.findMany({
           where: { candidateId: candidate.id },
           take: parseInt(limit) / 2,
           include: {
@@ -970,7 +972,7 @@ class CandidateController {
           },
           orderBy: { createdAt: "desc" },
         }),
-        req.prisma.bookmark.findMany({
+        prisma.bookmark.findMany({
           where: { candidateId: candidate.id },
           take: parseInt(limit) / 2,
           include: {
@@ -1015,7 +1017,7 @@ class CandidateController {
     try {
       const { applicationId } = req.params;
 
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
@@ -1025,7 +1027,7 @@ class CandidateController {
           .json(createErrorResponse("Candidate profile not found", 404));
       }
 
-      const application = await req.prisma.allocation.findFirst({
+      const application = await prisma.allocation.findFirst({
         where: {
           id: applicationId,
           candidateId: candidate.id,
@@ -1061,7 +1063,7 @@ class CandidateController {
     try {
       const { applicationId } = req.params;
 
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
@@ -1071,7 +1073,7 @@ class CandidateController {
           .json(createErrorResponse("Candidate profile not found", 404));
       }
 
-      const application = await req.prisma.allocation.findFirst({
+      const application = await prisma.allocation.findFirst({
         where: {
           id: applicationId,
           candidateId: candidate.id,
@@ -1091,7 +1093,7 @@ class CandidateController {
       }
 
       // Delete the application record entirely so user can apply again
-      await req.prisma.allocation.delete({
+      await prisma.allocation.delete({
         where: { id: applicationId },
       });
 
@@ -1110,7 +1112,7 @@ class CandidateController {
       const { applicationId } = req.params;
       const { notes } = req.body;
 
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
@@ -1120,7 +1122,7 @@ class CandidateController {
           .json(createErrorResponse("Candidate profile not found", 404));
       }
 
-      const application = await req.prisma.allocation.findFirst({
+      const application = await prisma.allocation.findFirst({
         where: {
           id: applicationId,
           candidateId: candidate.id,
@@ -1133,7 +1135,7 @@ class CandidateController {
           .json(createErrorResponse("Application not found", 404));
       }
 
-      const updatedApplication = await req.prisma.allocation.update({
+      const updatedApplication = await prisma.allocation.update({
         where: { id: applicationId },
         data: { notes },
       });
@@ -1157,7 +1159,7 @@ class CandidateController {
     try {
       const { adId } = req.params;
 
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
@@ -1167,7 +1169,7 @@ class CandidateController {
           .json(createErrorResponse("Candidate profile not found", 404));
       }
 
-      const deleted = await req.prisma.bookmark.deleteMany({
+      const deleted = await prisma.bookmark.deleteMany({
         where: {
           candidateId: candidate.id,
           adId: adId,
@@ -1188,7 +1190,7 @@ class CandidateController {
 
   async clearAllBookmarks(req, res, next) {
     try {
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
@@ -1198,7 +1200,7 @@ class CandidateController {
           .json(createErrorResponse("Candidate profile not found", 404));
       }
 
-      const deleted = await req.prisma.bookmark.deleteMany({
+      const deleted = await prisma.bookmark.deleteMany({
         where: { candidateId: candidate.id },
       });
 
@@ -1221,7 +1223,7 @@ class CandidateController {
       const { page = 1, limit = 10 } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
         include: { user: { include: { cityRef: true } } }, // Changed from city to cityRef
       });
@@ -1235,7 +1237,7 @@ class CandidateController {
       // Get jobs in candidate's city that match their skills
       const candidateSkills = candidate.tags || [];
 
-      const jobs = await req.prisma.ad.findMany({
+      const jobs = await prisma.ad.findMany({
         where: {
           status: "APPROVED",
           isActive: true,
@@ -1282,7 +1284,7 @@ class CandidateController {
       const { page = 1, limit = 10 } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
         include: { user: { include: { cityRef: true } } }, // Changed from city to cityRef
       });
@@ -1296,7 +1298,7 @@ class CandidateController {
       const candidateSkills = candidate.tags || [];
 
       // This would be more sophisticated in production with proper skill matching
-      const jobs = await req.prisma.ad.findMany({
+      const jobs = await prisma.ad.findMany({
         where: {
           status: "APPROVED",
           isActive: true,
@@ -1351,7 +1353,7 @@ class CandidateController {
 
   async getRatings(req, res, next) {
     try {
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
         select: {
           ratings: true,
@@ -1376,7 +1378,7 @@ class CandidateController {
     try {
       const { skill } = req.params;
 
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
         select: { ratingHistory: true },
       });
@@ -1466,7 +1468,7 @@ class CandidateController {
   // Account Settings
   async getAccountSettings(req, res, next) {
     try {
-      const user = await req.prisma.user.findUnique({
+      const user = await prisma.user.findUnique({
         where: { id: req.user.userId },
         select: {
           name: true,
@@ -1495,7 +1497,7 @@ class CandidateController {
     try {
       const { name, phone } = req.body;
 
-      const updatedUser = await req.prisma.user.update({
+      const updatedUser = await prisma.user.update({
         where: { id: req.user.userId },
         data: {
           ...(name && { name }),
@@ -1558,7 +1560,7 @@ class CandidateController {
 
   async deactivateAccount(req, res, next) {
     try {
-      await req.prisma.user.update({
+      await prisma.user.update({
         where: { id: req.user.userId },
         data: { isActive: false },
       });
@@ -1572,7 +1574,7 @@ class CandidateController {
   // Statistics
   async getApplicationStats(req, res, next) {
     try {
-      const candidate = await req.prisma.candidate.findUnique({
+      const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
@@ -1582,7 +1584,7 @@ class CandidateController {
           .json(createErrorResponse("Candidate profile not found", 404));
       }
 
-      const stats = await req.prisma.allocation.groupBy({
+      const stats = await prisma.allocation.groupBy({
         by: ["status"],
         where: { candidateId: candidate.id },
         _count: { status: true },
@@ -1766,7 +1768,7 @@ class CandidateController {
       // const objectPath = normalizedPath;
 
       // Update candidate profile with new photo path
-      const updatedCandidate = await req.prisma.candidate.update({
+      const updatedCandidate = await prisma.candidate.update({
         where: { userId: req.user.userId },
         data: {
           profilePhoto: normalizedPath,
@@ -1839,7 +1841,7 @@ class CandidateController {
       console.log("Normalized cover path:", normalizedPath);
 
       // Update candidate profile with new cover photo path
-      const updatedCandidate = await req.prisma.candidate.update({
+      const updatedCandidate = await prisma.candidate.update({
         where: { userId: req.user.userId },
         data: {
           coverPhoto: normalizedPath,
@@ -1938,14 +1940,14 @@ class CandidateController {
       }
 
       // Get candidate ID from user
-      let candidate = await req.prisma.candidate.findUnique({
+      let candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
         select: { id: true, user: { select: { cityId: true, cityRef: true } } }, // Include cityId and cityRef
       });
 
       if (!candidate) {
         // Create candidate profile if it doesn't exist
-        const newCandidate = await req.prisma.candidate.create({
+        const newCandidate = await prisma.candidate.create({
           data: {
             userId: req.user.userId,
             skills: [],
@@ -1966,7 +1968,7 @@ class CandidateController {
       }
 
       const [jobs, total, userBookmarks, userApplications] = await Promise.all([
-        req.prisma.ad.findMany({
+        prisma.ad.findMany({
           where,
           skip,
           take: parseInt(limit),
@@ -1989,14 +1991,14 @@ class CandidateController {
           },
           orderBy,
         }),
-        req.prisma.ad.count({ where }),
+        prisma.ad.count({ where }),
         // Get user's bookmarks
-        req.prisma.bookmark.findMany({
+        prisma.bookmark.findMany({
           where: { candidateId: candidate.id },
           select: { adId: true },
         }),
         // Get user's applications
-        req.prisma.allocation.findMany({
+        prisma.allocation.findMany({
           where: { candidateId: candidate.id },
           select: { adId: true },
         }),
