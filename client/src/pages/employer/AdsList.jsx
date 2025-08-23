@@ -278,6 +278,7 @@ const AdsList = () => {
                 <JobCard
                   key={ad.id}
                   job={{
+                    employerId: ad.employerId || ad.employer?.id || getCurrentEmployerId(),
                     id: ad.id,
                     title: ad.title,
                     description: ad.description,
@@ -303,9 +304,15 @@ const AdsList = () => {
                       : [],
                     postedAt: ad.createdAt,
                     candidatesCount:
-                      ad._count?.allocations || ad.candidatesCount || ad.applicationCount || 0,
+                      ad._count?.allocations ||
+                      ad.candidatesCount ||
+                      ad.applicationCount ||
+                      0,
                     applicationCount:
-                      ad._count?.allocations || ad.candidatesCount || ad.applicationCount || 0,
+                      ad._count?.allocations ||
+                      ad.candidatesCount ||
+                      ad.applicationCount ||
+                      0,
                     bookmarkedCount:
                       ad._count?.employerBookmarks || ad.bookmarkedCount || 0,
                   }}

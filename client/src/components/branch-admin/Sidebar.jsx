@@ -48,11 +48,14 @@ const Sidebar = ({ isOpen, onClose }) => {
       href: "/branch-admin/screening",
       icon: UsersIcon,
     },
-    {
-      name: t("branchAdmin.sidebar.mou", "MOU Management"),
-      href: "/branch-admin/mou",
-      icon: DocumentTextIcon,
-    },
+    /* MOU Management - Commented out as not in use
+        {
+          name: 'MOU Management',
+          href: '/branch-admin/mou',
+          icon: DocumentTextIcon,
+          current: location.pathname === '/branch-admin/mou'
+        },
+        */
     {
       name: t("branchAdmin.sidebar.profile", "Admin Profile"),
       href: "/branch-admin/profile",

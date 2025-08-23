@@ -109,9 +109,10 @@ router.get(
 );
 
 // =======================
-// MOU MANAGEMENT
+// MOU MANAGEMENT (COMMENTED OUT - NOT IN USE)
 // =======================
 
+/* 
 // Get all MOUs
 router.get("/mous", branchAdminController.getMous);
 
@@ -120,6 +121,7 @@ router.post("/mous", branchAdminController.createMOU);
 
 // Update MOU
 router.put("/mous/:mouId", branchAdminController.updateMOU);
+*/
 
 // =======================
 // REPORTING

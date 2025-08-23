@@ -1401,48 +1401,39 @@ class EmployerController {
   // CANDIDATE SEARCH & MANAGEMENT (NEW)
   // =======================
 
-  // Get all candidates for the employer (NEW)
+  // Get all candidates for the employer (only those who applied to employer's approved ads)
   async getAllCandidates(req, res, next) {
     try {
-      const { page = 1, limit = 20, search, status, skills } = req.query;
+      const { page = 1, limit = 20, search, skills, minRating, cityId } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      // For Branch Admin accessing employer data, we still need to validate access
-      if (req.user.role === "BRANCH_ADMIN" && !req.targetEmployerId) {
-        return res
-          .status(400)
-          .json(
-            createErrorResponse(
-              "Employer ID required for Branch Admin access",
-              400,
-            ),
-          );
-      }
+      // Get employer to verify they exist
+      const employer = await req.prisma.employer.findUnique({
+        where: { userId: req.user.userId },
+      });
 
-      // Get employer using helper method
-      const employer = await this.getEmployer(req);
-
-      if (!employer && req.user.role === "EMPLOYER") {
+      if (!employer) {
         return res
           .status(404)
           .json(createErrorResponse("Employer profile not found", 404));
       }
 
-      // Build search criteria
+      // Build search criteria - only show candidates who applied to this employer's approved ads
       let where = {
         user: {
           isActive: true,
-          role: "CANDIDATE",
+          ...(cityId && { cityId }),
+        },
+        // Only show candidates who have applied to this employer's approved ads
+        allocations: {
+          some: {
+            employerId: employer.id,
+            ad: {
+              status: "APPROVED"
+            }
+          },
         },
       };
-
-      // Add search filter if provided
-      if (search) {
-        where.user.OR = [
-          { name: { contains: search, mode: "insensitive" } },
-          { email: { contains: search, mode: "insensitive" } },
-        ];
-      }
 
       // Add skills filter if provided
       if (skills) {
@@ -1450,6 +1441,42 @@ class EmployerController {
         where.tags = {
           hasSome: skillArray,
         };
+      }
+
+      // Add rating filter if provided
+      if (minRating) {
+        where.overallRating = {
+          gte: parseFloat(minRating).toString(),
+        };
+      }
+
+      // Add search filter if provided
+      if (search) {
+        const searchTerms = search.split(" ").filter(term => term.length > 0);
+        where.OR = [
+          {
+            user: {
+              name: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+          },
+          {
+            user: {
+              email: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+          },
+          // Search in skills/tags
+          {
+            tags: {
+              hasSome: searchTerms,
+            },
+          },
+        ];
       }
 
       const [candidates, total] = await Promise.all([
@@ -1465,21 +1492,40 @@ class EmployerController {
                 email: true,
                 phone: true,
                 cityId: true,
+                city: {
+                  select: {
+                    id: true,
+                    name: true,
+                    state: true,
+                  },
+                },
               },
             },
             allocations: {
-              where: employer ? { employerId: employer.id } : {},
+              where: {
+                employerId: employer.id,
+                ad: {
+                  status: "APPROVED"
+                }
+              },
               include: {
                 ad: {
                   select: {
                     id: true,
                     title: true,
-                    company: {
-                      select: {
-                        name: true,
-                      },
-                    },
                   },
+                },
+              },
+            },
+            _count: {
+              select: {
+                allocations: {
+                  where: {
+                    employerId: employer.id,
+                    ad: {
+                      status: "APPROVED"
+                    }
+                  }
                 },
               },
             },
@@ -1488,26 +1534,6 @@ class EmployerController {
         }),
         req.prisma.candidate.count({ where }),
       ]);
-
-      // Process candidates to add computed fields
-      const processedCandidates = candidates.map((candidate) => {
-        // Extract data from profile_data JSONB field
-        const profileData = candidate.profile_data || {};
-        const experienceData = candidate.experience || {};
-
-        return {
-          ...candidate,
-          currentJobTitle: profileData.currentJobTitle || "No title specified",
-          experience: profileData.experience || experienceData.years || 0,
-          expectedSalary: profileData.expectedSalary || profileData.salary || 0,
-          currentLocation:
-            profileData.currentLocation ||
-            candidate.user?.city ||
-            "Not specified",
-          skills: candidate.tags || [],
-          bio: profileData.bio || profileData.summary || "No bio available",
-        };
-      });
 
       const pagination = {
         page: parseInt(page),
@@ -1520,8 +1546,8 @@ class EmployerController {
 
       res.json(
         createResponse(
-          "Candidates retrieved successfully",
-          { candidates: processedCandidates },
+          "Applied candidates retrieved successfully",
+          { candidates },
           pagination,
         ),
       );
