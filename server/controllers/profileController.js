@@ -1,5 +1,5 @@
-const { createResponse, createErrorResponse } = require('../utils/response');
-const bcrypt = require('bcryptjs');
+const { createResponse, createErrorResponse } = require("../utils/response");
+const bcrypt = require("bcryptjs");
 
 // Initialize Prisma Client globally
 const { PrismaClient } = require("@prisma/client");
@@ -23,29 +23,29 @@ class ProfileController {
           isActive: true,
           createdAt: true,
           updatedAt: true,
-          cityRef: {
+          city: {
             select: {
               id: true,
               name: true,
-              state: true
-            }
-          }
-        }
+              state: true,
+            },
+          },
+        },
       });
 
       if (!user) {
-        return res.status(404).json(
-          createErrorResponse('User not found', 404)
-        );
+        return res.status(404).json(createErrorResponse("User not found", 404));
       }
 
       // Format response with cityName for frontend compatibility
       const profileData = {
         ...user,
-        cityName: user.cityRef ? `${user.cityRef.name}, ${user.cityRef.state}` : null
+        cityName: user.city ? `${user.city.name}, ${user.city.state}` : null,
       };
 
-      res.json(createResponse('Profile retrieved successfully', { user: profileData }));
+      res.json(
+        createResponse("Profile retrieved successfully", { user: profileData }),
+      );
     } catch (error) {
       next(error);
     }
@@ -68,13 +68,18 @@ class ProfileController {
       if (firstName !== undefined || lastName !== undefined) {
         const currentUser = await prisma.user.findUnique({
           where: { id: req.user.userId },
-          select: { firstName: true, lastName: true }
+          select: { firstName: true, lastName: true },
         });
 
-        const newFirstName = firstName !== undefined ? firstName : currentUser.firstName;
-        const newLastName = lastName !== undefined ? lastName : currentUser.lastName;
+        const newFirstName =
+          firstName !== undefined ? firstName : currentUser.firstName;
+        const newLastName =
+          lastName !== undefined ? lastName : currentUser.lastName;
 
-        updateData.name = `${newFirstName || ''} ${newLastName || ''}`.trim() || newFirstName || newLastName;
+        updateData.name =
+          `${newFirstName || ""} ${newLastName || ""}`.trim() ||
+          newFirstName ||
+          newLastName;
       }
 
       const updatedUser = await prisma.user.update({
@@ -92,23 +97,27 @@ class ProfileController {
           isActive: true,
           createdAt: true,
           updatedAt: true,
-          cityRef: {
+          city: {
             select: {
               id: true,
               name: true,
-              state: true
-            }
-          }
-        }
+              state: true,
+            },
+          },
+        },
       });
 
       // Format response with cityName for frontend compatibility
       const profileData = {
         ...updatedUser,
-        cityName: updatedUser.cityRef ? `${updatedUser.cityRef.name}, ${updatedUser.cityRef.state}` : null
+        cityName: updatedUser.city
+          ? `${updatedUser.city.name}, ${updatedUser.city.state}`
+          : null,
       };
 
-      res.json(createResponse('Profile updated successfully', { user: profileData }));
+      res.json(
+        createResponse("Profile updated successfully", { user: profileData }),
+      );
     } catch (error) {
       next(error);
     }
@@ -120,29 +129,35 @@ class ProfileController {
       const { currentPassword, newPassword } = req.body;
 
       if (!currentPassword || !newPassword) {
-        return res.status(400).json(
-          createErrorResponse('Current password and new password are required', 400)
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              "Current password and new password are required",
+              400,
+            ),
+          );
       }
 
       // Get current user with password
       const user = await prisma.user.findUnique({
         where: { id: req.user.userId },
-        select: { passwordHash: true }
+        select: { passwordHash: true },
       });
 
       if (!user) {
-        return res.status(404).json(
-          createErrorResponse('User not found', 404)
-        );
+        return res.status(404).json(createErrorResponse("User not found", 404));
       }
 
       // Verify current password
-      const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
+      const isValidPassword = await bcrypt.compare(
+        currentPassword,
+        user.passwordHash,
+      );
       if (!isValidPassword) {
-        return res.status(400).json(
-          createErrorResponse('Current password is incorrect', 400)
-        );
+        return res
+          .status(400)
+          .json(createErrorResponse("Current password is incorrect", 400));
       }
 
       // Hash new password
@@ -151,10 +166,10 @@ class ProfileController {
       // Update password
       await prisma.user.update({
         where: { id: req.user.userId },
-        data: { passwordHash: newPasswordHash }
+        data: { passwordHash: newPasswordHash },
       });
 
-      res.json(createResponse('Password updated successfully'));
+      res.json(createResponse("Password updated successfully"));
     } catch (error) {
       next(error);
     }
@@ -165,10 +180,10 @@ class ProfileController {
     try {
       await prisma.user.update({
         where: { id: req.user.userId },
-        data: { isActive: false }
+        data: { isActive: false },
       });
 
-      res.json(createResponse('Profile deactivated successfully'));
+      res.json(createResponse("Profile deactivated successfully"));
     } catch (error) {
       next(error);
     }

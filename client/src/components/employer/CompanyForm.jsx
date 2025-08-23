@@ -83,8 +83,22 @@ const CompanyForm = ({ company, onSubmit, onCancel, isLoading = false }) => {
     }
   }
 
-  const handleChange = (e) => {
-    const { name, value } = e.target
+  const handleChange = (e, fieldName = null) => {
+    let name, value
+    
+    // Handle direct value calls (from Select components)
+    if (fieldName) {
+      name = fieldName
+      value = e
+    } 
+    // Handle event object calls (from regular inputs)
+    else if (e && e.target) {
+      name = e.target.name
+      value = e.target.value
+    } else {
+      return
+    }
+    
     setFormData(prev => ({ ...prev, [name]: value }))
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
@@ -148,7 +162,7 @@ const CompanyForm = ({ company, onSubmit, onCancel, isLoading = false }) => {
         label="City"
         name="cityId"
         value={formData.cityId}
-        onChange={handleChange}
+        onChange={(value) => handleChange(value, 'cityId')}
         options={cities}
         placeholder="Select city"
         required
@@ -172,7 +186,7 @@ const CompanyForm = ({ company, onSubmit, onCancel, isLoading = false }) => {
           label="Industry Sector"
           name="industry"
           value={formData.industry}
-          onChange={handleChange}
+          onChange={(value) => handleChange(value, 'industry')}
           options={industrySectors}
           placeholder="Select industry"
           error={errors.industry}
@@ -182,7 +196,7 @@ const CompanyForm = ({ company, onSubmit, onCancel, isLoading = false }) => {
           label="Company Size"
           name="size"
           value={formData.size}
-          onChange={handleChange}
+          onChange={(value) => handleChange(value, 'size')}
           options={companySizes}
           placeholder="Select company size"
           error={errors.size}

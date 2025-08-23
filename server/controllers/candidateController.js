@@ -25,8 +25,8 @@ class CandidateController {
               cityId: true, // Changed from city to cityId
               isActive: true,
               createdAt: true,
-              cityRef: {
-                // Added cityRef to include city details
+              city: {
+                // Added city to include city details
                 select: {
                   id: true,
                   name: true,
@@ -163,8 +163,8 @@ class CandidateController {
               email: true,
               phone: true,
               cityId: true, // Changed from city to cityId
-              cityRef: {
-                // Added cityRef to include city details
+              city: {
+                // Added city to include city details
                 select: {
                   id: true,
                   name: true,
@@ -202,7 +202,7 @@ class CandidateController {
         where: { userId: req.user.userId },
         include: {
           user: {
-            include: { cityRef: true }, // Changed from city to cityRef
+            include: { city: true }, // Changed from city to city
           },
           allocations: {
             include: {
@@ -834,8 +834,8 @@ class CandidateController {
               cityId: true, // Changed from city to cityId
               isActive: true,
               createdAt: true,
-              cityRef: {
-                // Added cityRef to include city details
+              city: {
+                // Added city to include city details
                 select: {
                   id: true,
                   name: true,
@@ -1225,7 +1225,7 @@ class CandidateController {
 
       const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
-        include: { user: { include: { cityRef: true } } }, // Changed from city to cityRef
+        include: { user: { include: { city: true } } }, // Changed from city to city
       });
 
       if (!candidate) {
@@ -1286,7 +1286,7 @@ class CandidateController {
 
       const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
-        include: { user: { include: { cityRef: true } } }, // Changed from city to cityRef
+        include: { user: { include: { city: true } } }, // Changed from city to city
       });
 
       if (!candidate) {
@@ -1476,8 +1476,8 @@ class CandidateController {
           phone: true,
           isActive: true,
           cityId: true, // Changed from city to cityId
-          cityRef: {
-            // Added cityRef to include city details
+          city: {
+            // Added city to include city details
             select: {
               id: true,
               name: true,
@@ -1785,8 +1785,8 @@ class CandidateController {
               cityId: true, // Changed from city to cityId
               isActive: true,
               createdAt: true,
-              cityRef: {
-                // Added cityRef to include city details
+              city: {
+                // Added city to include city details
                 select: {
                   id: true,
                   name: true,
@@ -1858,8 +1858,8 @@ class CandidateController {
               cityId: true, // Changed from city to cityId
               isActive: true,
               createdAt: true,
-              cityRef: {
-                // Added cityRef to include city details
+              city: {
+                // Added city to include city details
                 select: {
                   id: true,
                   name: true,
@@ -1942,7 +1942,7 @@ class CandidateController {
       // Get candidate ID from user
       let candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
-        select: { id: true, user: { select: { cityId: true, cityRef: true } } }, // Include cityId and cityRef
+        select: { id: true, user: { select: { cityId: true, city: true } } }, // Include cityId and city
       });
 
       if (!candidate) {
@@ -1958,8 +1958,8 @@ class CandidateController {
         });
         candidate = {
           id: newCandidate.id,
-          user: { cityId: null, cityRef: null },
-        }; // Initialize cityId and cityRef
+          user: { cityId: null, city: null },
+        }; // Initialize cityId and city
       }
 
       // Add location filter based on candidate's city if location is not provided in query

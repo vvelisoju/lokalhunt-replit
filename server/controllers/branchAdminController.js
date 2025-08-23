@@ -1141,14 +1141,14 @@ class BranchAdminController {
   // Get pending ads for approval
   async getPendingAds(req, res, next) {
     try {
-      const { 
-        page = 1, 
-        limit = 10, 
+      const {
+        page = 1,
+        limit = 10,
         categoryName,
         search = "",
         status = "PENDING_APPROVAL",
         sortBy = "createdAt",
-        sortOrder = "desc"
+        sortOrder = "desc",
       } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
@@ -1173,7 +1173,11 @@ class BranchAdminController {
             { title: { contains: search, mode: "insensitive" } },
             { description: { contains: search, mode: "insensitive" } },
             { company: { name: { contains: search, mode: "insensitive" } } },
-            { employer: { user: { name: { contains: search, mode: "insensitive" } } } }
+            {
+              employer: {
+                user: { name: { contains: search, mode: "insensitive" } },
+              },
+            },
           ],
         }),
       };
@@ -2079,17 +2083,17 @@ class BranchAdminController {
       // Add search filter
       if (search) {
         whereCondition.OR = [
-          { 
-            user: { 
+          {
+            user: {
               name: { contains: search, mode: "insensitive" },
-              role: "EMPLOYER"
-            } 
+              role: "EMPLOYER",
+            },
           },
-          { 
-            user: { 
+          {
+            user: {
               email: { contains: search, mode: "insensitive" },
-              role: "EMPLOYER"
-            } 
+              role: "EMPLOYER",
+            },
           },
           {
             companies: {
@@ -2105,7 +2109,15 @@ class BranchAdminController {
           whereCondition.subscriptions = {
             none: {},
           };
-        } else if (["ACTIVE", "PENDING_APPROVAL", "EXPIRED", "CANCELLED", "PAST_DUE"].includes(subscriptionStatus)) {
+        } else if (
+          [
+            "ACTIVE",
+            "PENDING_APPROVAL",
+            "EXPIRED",
+            "CANCELLED",
+            "PAST_DUE",
+          ].includes(subscriptionStatus)
+        ) {
           whereCondition.subscriptions = {
             some: { status: subscriptionStatus },
           };
@@ -2113,7 +2125,12 @@ class BranchAdminController {
       }
 
       // Add plan filter - fix the planId handling
-      if (planId && planId !== "[object Object]" && planId !== "undefined" && planId.trim() !== "") {
+      if (
+        planId &&
+        planId !== "[object Object]" &&
+        planId !== "undefined" &&
+        planId.trim() !== ""
+      ) {
         whereCondition.subscriptions = {
           some: {
             planId: planId,
@@ -2134,7 +2151,7 @@ class BranchAdminController {
                 phone: true,
                 isActive: true,
                 createdAt: true,
-                cityRef: {
+                city: {
                   select: {
                     name: true,
                     state: true,
@@ -2236,7 +2253,7 @@ class BranchAdminController {
         ...employer,
         user: {
           ...employer.user,
-          city: employer.user.cityRef, // Map cityRef to city for consistency
+          city: employer.user.city, // Map city to city for consistency
         },
         subscriptionDetails: {
           hasActiveSubscription: employer.subscriptions.length > 0,

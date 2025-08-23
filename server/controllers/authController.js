@@ -1,21 +1,21 @@
-const { createResponse, createErrorResponse } = require('../utils/response');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
+const { createResponse, createErrorResponse } = require("../utils/response");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 class AuthController {
   // Register new user
   async register(req, res, next) {
     try {
-      const { 
-        name, 
-        firstName, 
-        lastName, 
-        email, 
-        phone, 
-        password, 
-        role = 'CANDIDATE',
+      const {
+        name,
+        firstName,
+        lastName,
+        email,
+        phone,
+        password,
+        role = "CANDIDATE",
         city,
         cityId,
         companyName,
@@ -23,32 +23,43 @@ class AuthController {
         industry,
         companySize,
         website,
-        contactDetails
+        contactDetails,
       } = req.body;
 
       // Build full name from firstName/lastName if name not provided
-      const fullName = name || (firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName);
+      const fullName =
+        name ||
+        (firstName && lastName
+          ? `${firstName} ${lastName}`
+          : firstName || lastName);
 
       // Debug logging
-      console.log('Registration request body:', req.body);
-      console.log('Computed fullName:', fullName);
+      console.log("Registration request body:", req.body);
+      console.log("Computed fullName:", fullName);
 
       // Validation
       if (!fullName || !email || !password) {
-        return res.status(400).json(
-          createErrorResponse('Name (or firstName/lastName), email and password are required', 400)
-        );
+        return res
+          .status(400)
+          .json(
+            createErrorResponse(
+              "Name (or firstName/lastName), email and password are required",
+              400,
+            ),
+          );
       }
 
       // Check if user already exists
       const existingUser = await prisma.user.findUnique({
-        where: { email }
+        where: { email },
       });
 
       if (existingUser) {
-        return res.status(409).json(
-          createErrorResponse('User with this email already exists', 409)
-        );
+        return res
+          .status(409)
+          .json(
+            createErrorResponse("User with this email already exists", 409),
+          );
       }
 
       // Hash password
@@ -67,7 +78,7 @@ class AuthController {
           phone,
           passwordHash,
           role,
-          cityId: userCityId
+          cityId: userCityId,
         },
         select: {
           id: true,
@@ -78,16 +89,16 @@ class AuthController {
           phone: true,
           role: true,
           cityId: true,
-          createdAt: true
-        }
+          createdAt: true,
+        },
       });
 
       // Create role-specific profile
-      if (role === 'CANDIDATE') {
+      if (role === "CANDIDATE") {
         await prisma.candidate.create({
-          data: { userId: user.id }
+          data: { userId: user.id },
         });
-      } else if (role === 'EMPLOYER') {
+      } else if (role === "EMPLOYER") {
         // Create employer profile
         const employer = await prisma.employer.create({
           data: {
@@ -119,7 +130,7 @@ class AuthController {
 
         // Assign basic subscription (Self-Service plan)
         const basicPlan = await prisma.plan.findFirst({
-          where: { name: 'Self-Service' }
+          where: { name: "Self-Service" },
         });
 
         if (basicPlan) {
@@ -127,31 +138,33 @@ class AuthController {
             data: {
               employerId: employer.id,
               planId: basicPlan.id,
-              status: 'ACTIVE',
-              startDate: new Date()
-            }
+              status: "ACTIVE",
+              startDate: new Date(),
+            },
           });
         }
-      } else if (role === 'BRANCH_ADMIN') {
+      } else if (role === "BRANCH_ADMIN") {
         await prisma.branchAdmin.create({
-          data: { 
+          data: {
             userId: user.id,
-            assignedCityId: cityId
-          }
+            assignedCityId: cityId,
+          },
         });
       }
 
       // Generate JWT token
       const token = jwt.sign(
         { userId: user.id, role: user.role },
-        process.env.JWT_SECRET || 'lokalhunt-secret',
-        { expiresIn: '7d' }
+        process.env.JWT_SECRET || "lokalhunt-secret",
+        { expiresIn: "7d" },
       );
 
-      res.status(201).json(createResponse('User registered successfully', {
-        user,
-        token
-      }));
+      res.status(201).json(
+        createResponse("User registered successfully", {
+          user,
+          token,
+        }),
+      );
     } catch (error) {
       next(error);
     }
@@ -164,9 +177,9 @@ class AuthController {
 
       // Validation
       if (!email || !password) {
-        return res.status(400).json(
-          createErrorResponse('Email and password are required', 400)
-        );
+        return res
+          .status(400)
+          .json(createErrorResponse("Email and password are required", 400));
       }
 
       // Find user
@@ -176,45 +189,47 @@ class AuthController {
           candidate: true,
           employer: true,
           branchAdmin: true,
-          cityRef: true
-        }
+          city: true,
+        },
       });
 
       if (!user) {
-        return res.status(401).json(
-          createErrorResponse('Invalid credentials', 401)
-        );
+        return res
+          .status(401)
+          .json(createErrorResponse("Invalid credentials", 401));
       }
 
       // Check password
       const isValidPassword = await bcrypt.compare(password, user.passwordHash);
       if (!isValidPassword) {
-        return res.status(401).json(
-          createErrorResponse('Invalid credentials', 401)
-        );
+        return res
+          .status(401)
+          .json(createErrorResponse("Invalid credentials", 401));
       }
 
       // Check if user is active
       if (!user.isActive) {
-        return res.status(403).json(
-          createErrorResponse('Account is deactivated', 403)
-        );
+        return res
+          .status(403)
+          .json(createErrorResponse("Account is deactivated", 403));
       }
 
       // Generate JWT token
       const token = jwt.sign(
         { userId: user.id, role: user.role },
-        process.env.JWT_SECRET || 'lokalhunt-secret',
-        { expiresIn: '7d' }
+        process.env.JWT_SECRET || "lokalhunt-secret",
+        { expiresIn: "7d" },
       );
 
       // Remove password from response
       const { passwordHash, ...userWithoutPassword } = user;
 
-      res.json(createResponse('Login successful', {
-        user: userWithoutPassword,
-        token
-      }));
+      res.json(
+        createResponse("Login successful", {
+          user: userWithoutPassword,
+          token,
+        }),
+      );
     } catch (error) {
       next(error);
     }
@@ -241,27 +256,33 @@ class AuthController {
           employer: {
             include: {
               companies: true,
-              mous: true
-            }
+              mous: true,
+            },
           },
           branchAdmin: {
             include: {
-              assignedCity: true
-            }
+              assignedCity: true,
+            },
           },
-          cityRef: true
-        }
+          city: {
+            select: {
+              id: true,
+              name: true,
+              state: true,
+            },
+          },
+        },
       });
 
       if (!user) {
-        return res.status(404).json(
-          createErrorResponse('User not found', 404)
-        );
+        return res.status(404).json(createErrorResponse("User not found", 404));
       }
 
       const { passwordHash, ...userWithoutPassword } = user;
 
-      res.json(createResponse('Profile retrieved successfully', userWithoutPassword));
+      res.json(
+        createResponse("Profile retrieved successfully", userWithoutPassword),
+      );
     } catch (error) {
       next(error);
     }

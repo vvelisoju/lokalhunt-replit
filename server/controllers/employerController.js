@@ -869,14 +869,22 @@ class EmployerController {
       const { allocationId } = req.params;
       const { status, notes } = req.body;
 
-      const validStatuses = ["APPLIED", "SHORTLISTED", "INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED", "HIRED", "HOLD", "REJECTED"];
-      
+      const validStatuses = [
+        "APPLIED",
+        "SHORTLISTED",
+        "INTERVIEW_SCHEDULED",
+        "INTERVIEW_COMPLETED",
+        "HIRED",
+        "HOLD",
+        "REJECTED",
+      ];
+
       if (!status || !validStatuses.includes(status)) {
         return res
           .status(400)
           .json(
             createErrorResponse(
-              `Valid status is required. Allowed values: ${validStatuses.join(', ')}`,
+              `Valid status is required. Allowed values: ${validStatuses.join(", ")}`,
               400,
             ),
           );
@@ -931,13 +939,18 @@ class EmployerController {
 
       // Check if status transition is valid
       const validTransitions = {
-        'APPLIED': ['SHORTLISTED', 'REJECTED'],
-        'SHORTLISTED': ['INTERVIEW_SCHEDULED', 'HIRED', 'HOLD', 'REJECTED'],
-        'INTERVIEW_SCHEDULED': ['INTERVIEW_COMPLETED', 'HIRED', 'HOLD', 'REJECTED'],
-        'INTERVIEW_COMPLETED': ['HIRED', 'HOLD', 'REJECTED'],
-        'HOLD': ['HIRED', 'REJECTED', 'INTERVIEW_SCHEDULED'],
-        'HIRED': [], // Final state
-        'REJECTED': [] // Final state
+        APPLIED: ["SHORTLISTED", "REJECTED"],
+        SHORTLISTED: ["INTERVIEW_SCHEDULED", "HIRED", "HOLD", "REJECTED"],
+        INTERVIEW_SCHEDULED: [
+          "INTERVIEW_COMPLETED",
+          "HIRED",
+          "HOLD",
+          "REJECTED",
+        ],
+        INTERVIEW_COMPLETED: ["HIRED", "HOLD", "REJECTED"],
+        HOLD: ["HIRED", "REJECTED", "INTERVIEW_SCHEDULED"],
+        HIRED: [], // Final state
+        REJECTED: [], // Final state
       };
 
       const currentStatus = allocation.status;
@@ -948,13 +961,15 @@ class EmployerController {
           .status(400)
           .json(
             createErrorResponse(
-              `Cannot transition from ${currentStatus} to ${status}. Allowed transitions: ${allowedNextStatuses.join(', ') || 'None'}`,
+              `Cannot transition from ${currentStatus} to ${status}. Allowed transitions: ${allowedNextStatuses.join(", ") || "None"}`,
               400,
             ),
           );
       }
 
-      console.log(`[STATUS UPDATE] Updating allocation ${allocationId} from ${currentStatus} to ${status}`);
+      console.log(
+        `[STATUS UPDATE] Updating allocation ${allocationId} from ${currentStatus} to ${status}`,
+      );
 
       const updatedAllocation = await req.prisma.allocation.update({
         where: { id: allocationId },
@@ -992,7 +1007,7 @@ class EmployerController {
         ),
       );
     } catch (error) {
-      console.error('Error updating candidate status:', error);
+      console.error("Error updating candidate status:", error);
       next(error);
     }
   }
@@ -1648,7 +1663,7 @@ class EmployerController {
             select: {
               name: true,
               email: true,
-              cityRef: {
+              city: {
                 select: {
                   name: true,
                   state: true,
@@ -1694,7 +1709,7 @@ class EmployerController {
                 select: {
                   name: true,
                   email: true,
-                  cityRef: {
+                  city: {
                     select: { name: true, state: true },
                   },
                 },

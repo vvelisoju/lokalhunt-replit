@@ -493,8 +493,22 @@ const AdForm = () => {
   };
 
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const handleChange = (e, fieldName = null) => {
+    let name, value;
+    
+    // Handle direct value calls (from Select components)
+    if (fieldName) {
+      name = fieldName;
+      value = e;
+    } 
+    // Handle event object calls (from regular inputs)
+    else if (e && e.target) {
+      name = e.target.name;
+      value = e.target.value;
+    } else {
+      return;
+    }
+    
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
@@ -745,7 +759,7 @@ const AdForm = () => {
                 <Select
                   name="companyId"
                   value={formData.companyId}
-                  onChange={handleChange}
+                  onChange={(value) => handleChange(value, 'companyId')}
                   options={companies}
                   placeholder="Select your company"
                   required
@@ -765,7 +779,7 @@ const AdForm = () => {
                 <Select
                   name="city"
                   value={formData.city}
-                  onChange={handleChange}
+                  onChange={(value) => handleChange(value, 'city')}
                   options={cities}
                   placeholder="Select job location"
                   required
@@ -813,7 +827,7 @@ const AdForm = () => {
                 <Select
                   name="employmentType"
                   value={formData.employmentType}
-                  onChange={handleChange}
+                  onChange={(value) => handleChange(value, 'employmentType')}
                   options={employmentTypes}
                   placeholder="Select employment type"
                   required
@@ -833,7 +847,7 @@ const AdForm = () => {
                 <Select
                   name="experienceLevel"
                   value={formData.experienceLevel}
-                  onChange={handleChange}
+                  onChange={(value) => handleChange(value, 'experienceLevel')}
                   options={experienceLevels}
                   placeholder="Select required experience"
                   required
@@ -894,7 +908,7 @@ const AdForm = () => {
                 <Select
                   name="educationQualificationId"
                   value={formData.educationQualificationId}
-                  onChange={handleChange}
+                  onChange={(value) => handleChange(value, 'educationQualificationId')}
                   options={educationQualifications}
                   placeholder="Select education requirement"
                   disabled={loadingEducation}
