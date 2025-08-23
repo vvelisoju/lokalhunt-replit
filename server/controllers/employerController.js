@@ -814,7 +814,7 @@ class EmployerController {
         req.prisma.allocation.findMany({
           where: {
             adId: adId,
-            status: { in: ["ALLOCATED", "SHORTLISTED", "HIRED", "REJECTED"] },
+            status: { in: ["HIRED", "SHORTLISTED", "HIRED", "REJECTED"] },
           },
           skip,
           take: parseInt(limit),
@@ -837,7 +837,7 @@ class EmployerController {
         req.prisma.allocation.count({
           where: {
             adId: adId,
-            status: { in: ["ALLOCATED", "SHORTLISTED", "HIRED", "REJECTED"] },
+            status: { in: ["APPLIED", "SHORTLISTED", "HIRED", "REJECTED"] },
           },
         }),
       ]);

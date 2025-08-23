@@ -68,7 +68,7 @@ class BranchAdminController {
         // Allocated candidates
         req.prisma.allocation.count({
           where: {
-            status: "ALLOCATED",
+            status: "APPLIED",
             ad: { locationId: cityId },
           },
         }),
@@ -454,7 +454,7 @@ class BranchAdminController {
         }),
         req.prisma.allocation.count({
           where: {
-            status: "ALLOCATED",
+            status: "APPLIED",
             allocatedBy: req.user.userId,
             allocatedAt: { gte: lastWeek },
           },
@@ -547,7 +547,7 @@ class BranchAdminController {
         adsApproved,
         adsRejected,
         candidatesScreened,
-        candidatesAllocated,
+        candidatesHired,
         averageReviewTime,
         totalApplicationsProcessed,
         currentPendingAds,
@@ -581,7 +581,7 @@ class BranchAdminController {
         // Candidates screened
         req.prisma.allocation.count({
           where: {
-            status: { in: ["SCREENED", "ALLOCATED"] },
+            status: { in: ["SHORTLISTED", "APPLIED"] },
             allocatedBy: req.user.userId,
             updatedAt: { gte: startDate },
             ad: { locationId: cityId },
@@ -590,7 +590,7 @@ class BranchAdminController {
         // Candidates allocated to employers
         req.prisma.allocation.count({
           where: {
-            status: "ALLOCATED",
+            status: "APPLIED",
             allocatedBy: req.user.userId,
             allocatedAt: { gte: startDate },
             ad: { locationId: cityId },
@@ -626,7 +626,7 @@ class BranchAdminController {
 
       const allocationRate =
         candidatesScreened > 0
-          ? Math.round((candidatesAllocated / candidatesScreened) * 100)
+          ? Math.round((candidatesHired / candidatesScreened) * 100)
           : 0;
 
       const performance = {
@@ -641,7 +641,7 @@ class BranchAdminController {
           },
           candidateScreening: {
             screened: candidatesScreened,
-            allocated: candidatesAllocated,
+            allocated: candidatesHired,
             allocationRate: `${allocationRate}%`,
             totalProcessed: totalApplicationsProcessed,
           },
@@ -767,9 +767,9 @@ class BranchAdminController {
       const applicationStats = {
         total: ad.allocations.length,
         applied: ad.allocations.filter((a) => a.status === "APPLIED").length,
-        screened: ad.allocations.filter((a) => a.status === "SCREENED").length,
-        allocated: ad.allocations.filter((a) => a.status === "ALLOCATED")
+        screened: ad.allocations.filter((a) => a.status === "SHORTLISTED")
           .length,
+        allocated: ad.allocations.filter((a) => a.status === "APPLIED").length,
         shortlisted: ad.allocations.filter((a) => a.status === "SHORTLISTED")
           .length,
         hired: ad.allocations.filter((a) => a.status === "HIRED").length,
@@ -995,7 +995,7 @@ class BranchAdminController {
       const enrichedAllocation = {
         ...allocation,
         canScreen: ["APPLIED"].includes(allocation.status),
-        canAllocate: ["SCREENED"].includes(allocation.status),
+        canAllocate: ["SHORTLISTED"].includes(allocation.status),
         hasActiveMOU: allocation.ad.employer.mous.length > 0,
         skillMatch: 85, // Placeholder - would calculate based on skills matching
         timeInStatus: "N/A", // Placeholder - would calculate time since last update
@@ -1035,7 +1035,7 @@ class BranchAdminController {
           ad: {
             locationId: branchAdmin.assignedCityId,
           },
-          status: "SCREENED",
+          status: "SHORTLISTED",
         },
         include: {
           candidate: true,
@@ -1085,7 +1085,7 @@ class BranchAdminController {
       const updatedAllocation = await req.prisma.allocation.update({
         where: { id: allocationId },
         data: {
-          status: "ALLOCATED",
+          status: "APPLIED",
           notes,
           allocatedBy: req.user.userId,
           allocatedAt: new Date(),
@@ -1441,7 +1441,7 @@ class BranchAdminController {
           ad: {
             locationId: branchAdmin.assignedCityId,
           },
-          status: { in: ["APPLIED", "SCREENED"] },
+          status: { in: ["APPLIED", "SHORTLISTED"] },
         },
         include: {
           candidate: true,
@@ -1511,7 +1511,7 @@ class BranchAdminController {
 
       // Update allocation status and add fee information if allocating
       const allocationUpdateData = {
-        status: action === "screen" ? "SCREENED" : "ALLOCATED",
+        status: action === "screen" ? "SHORTLISTED" : "APPLIED",
         notes,
         allocatedBy: req.user.userId,
         allocatedAt: action === "allocate" ? new Date() : null,
@@ -1912,7 +1912,7 @@ class BranchAdminController {
         }),
         req.prisma.allocation.count({
           where: {
-            status: "ALLOCATED",
+            status: "APPLIED",
             ad: { locationId: cityId },
           },
         }),

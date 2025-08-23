@@ -255,9 +255,10 @@ class CandidateController {
         total: candidate.allocations.length,
         applied: candidate.allocations.filter((a) => a.status === "APPLIED")
           .length,
-        screened: candidate.allocations.filter((a) => a.status === "SCREENED")
-          .length,
-        allocated: candidate.allocations.filter((a) => a.status === "ALLOCATED")
+        screened: candidate.allocations.filter(
+          (a) => a.status === "SHORTLISTED",
+        ).length,
+        allocated: candidate.allocations.filter((a) => a.status === "APPLIED")
           .length,
         shortlisted: candidate.allocations.filter(
           (a) => a.status === "SHORTLISTED",
@@ -1077,7 +1078,7 @@ class CandidateController {
         where: {
           id: applicationId,
           candidateId: candidate.id,
-          status: { in: ["APPLIED", "SCREENED", "RATED"] }, // Can withdraw if not yet allocated/hired
+          status: { in: ["APPLIED", "SHORTLISTED", "RATED"] }, // Can withdraw if not yet allocated/hired
         },
       });
 
