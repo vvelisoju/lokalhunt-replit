@@ -207,29 +207,33 @@ const AdForm = () => {
   };
 
   useEffect(() => {
-    if (adId) {
-      loadAdData();
-    }
     loadInitialData();
   }, [adId, employerId]);
 
   const loadInitialData = async () => {
+    setIsPageLoading(true);
     try {
-      // Load companies
+      // Load companies first
       const companiesResult = await getCompanies();
       let defaultCompanyId = "";
+      let companiesOptions = [];
+      
       if (companiesResult.success) {
         console.log("Companies loaded for dropdown:", companiesResult.data);
         const companiesList = companiesResult.data.data || [];
-        const companiesOptions = companiesList.map((company) => ({
+        companiesOptions = companiesList.map((company) => ({
           value: company.id,
           label: company.name,
         }));
         setCompanies(companiesOptions);
+        
         // Set first company as default for new ads
         if (!isEditing && companiesOptions.length > 0) {
           defaultCompanyId = companiesOptions[0].value;
         }
+      } else {
+        console.error("Failed to load companies:", companiesResult.error);
+        toast.error("Failed to load companies");
       }
 
       // Load cities, categories, and education qualifications in parallel
@@ -237,152 +241,99 @@ const AdForm = () => {
       setLoadingCategories(true);
       setLoadingEducation(true);
 
-      const [citiesResult, categoriesResult, educationResult] =
-        await Promise.all([
-          fetch("/api/public/cities"),
-          fetch("/api/public/categories"),
-          fetch("/api/public/education-qualifications"),
-        ]);
+      const [citiesResponse, categoriesResponse, educationResponse] = await Promise.all([
+        fetch("/api/public/cities").catch(err => ({ ok: false, error: err })),
+        fetch("/api/public/categories").catch(err => ({ ok: false, error: err })),
+        fetch("/api/public/education-qualifications").catch(err => ({ ok: false, error: err }))
+      ]);
 
       // Process cities
       let defaultCityId = "";
-      if (citiesResult.ok) {
-        const citiesData = await citiesResult.json();
-        if (citiesData.status === "success") {
-          const citiesOptions = citiesData.data.map((city) => ({
-            value: city.id,
-            label: `${city.name}, ${city.state}`,
-          }));
-          setCities(citiesOptions);
-          // Set first city as default for new ads
-          if (!isEditing && citiesOptions.length > 0) {
-            defaultCityId = citiesOptions[0].value;
+      let citiesOptions = [];
+      
+      if (citiesResponse.ok) {
+        try {
+          const citiesData = await citiesResponse.json();
+          if (citiesData.status === "success") {
+            citiesOptions = citiesData.data.map((city) => ({
+              value: city.id,
+              label: `${city.name}, ${city.state}`,
+            }));
+            setCities(citiesOptions);
+            
+            // Set first city as default for new ads
+            if (!isEditing && citiesOptions.length > 0) {
+              defaultCityId = citiesOptions[0].value;
+            }
           }
+        } catch (err) {
+          console.error("Error parsing cities data:", err);
         }
+      } else {
+        console.error("Failed to fetch cities");
       }
       setLoadingCities(false);
 
       // Process categories
-      if (categoriesResult.ok) {
-        const categoriesData = await categoriesResult.json();
-        if (categoriesData.status === "success") {
-          setCategories(
-            categoriesData.data.map((category) => ({
-              value: category.id,
-              label: category.name,
-            })),
-          );
+      if (categoriesResponse.ok) {
+        try {
+          const categoriesData = await categoriesResponse.json();
+          if (categoriesData.status === "success") {
+            setCategories(
+              categoriesData.data.map((category) => ({
+                value: category.id,
+                label: category.name,
+              })),
+            );
+          }
+        } catch (err) {
+          console.error("Error parsing categories data:", err);
         }
+      } else {
+        console.error("Failed to fetch categories");
       }
       setLoadingCategories(false);
 
       // Process education qualifications
-      if (educationResult.ok) {
-        const educationData = await educationResult.json();
-        if (educationData.status === "success") {
-          setEducationQualifications(
-            educationData.data.map((qualification) => ({
-              value: qualification.id,
-              label: qualification.name,
-            })),
-          );
+      if (educationResponse.ok) {
+        try {
+          const educationData = await educationResponse.json();
+          if (educationData.status === "success") {
+            setEducationQualifications(
+              educationData.data.map((qualification) => ({
+                value: qualification.id,
+                label: qualification.name,
+              })),
+            );
+          }
+        } catch (err) {
+          console.error("Error parsing education data:", err);
         }
+      } else {
+        console.error("Failed to fetch education qualifications");
       }
       setLoadingEducation(false);
 
-      // Load ad data if editing
+      // Now handle ad data loading or setting defaults
       if (isEditing) {
-        const adResult = await getAd(adId);
-        if (adResult.success) {
-          console.log("Ad data loaded:", adResult.data);
-          const ad = adResult.data.data || adResult.data;
-
-          // Set current job status for conditional rendering
-          setCurrentJobStatus(ad.status);
-
-          // Parse category specific fields for job details
-          const categorySpecificFields = ad.categorySpecificFields || {};
-
-          // Handle employment type mapping
-          let employmentType =
-            ad.employmentType || categorySpecificFields.employmentType || "";
-
-          // Handle experience level mapping
-          let experienceLevel =
-            ad.experienceLevel || categorySpecificFields.experienceLevel || "";
-
-          // Handle salary mapping - check multiple possible locations
-          let salaryMin = "";
-          let salaryMax = "";
-
-          if (ad.salaryMin) {
-            salaryMin = ad.salaryMin.toString();
-          } else if (categorySpecificFields.salaryMin) {
-            salaryMin = categorySpecificFields.salaryMin.toString();
-          } else if (categorySpecificFields.salaryRange?.min) {
-            salaryMin = categorySpecificFields.salaryRange.min.toString();
-          }
-
-          if (ad.salaryMax) {
-            salaryMax = ad.salaryMax.toString();
-          } else if (categorySpecificFields.salaryMax) {
-            salaryMax = categorySpecificFields.salaryMax.toString();
-          } else if (categorySpecificFields.salaryRange?.max) {
-            salaryMax = categorySpecificFields.salaryRange.max.toString();
-          }
-
-          // Handle skills mapping - check multiple possible locations
-          let skills = "";
-          if (ad.skills) {
-            skills = Array.isArray(ad.skills)
-              ? ad.skills.join(", ")
-              : ad.skills;
-          } else if (categorySpecificFields.skills) {
-            skills = Array.isArray(categorySpecificFields.skills)
-              ? categorySpecificFields.skills.join(", ")
-              : categorySpecificFields.skills;
-          } else if (categorySpecificFields.requiredSkills) {
-            skills = Array.isArray(categorySpecificFields.requiredSkills)
-              ? categorySpecificFields.requiredSkills.join(", ")
-              : categorySpecificFields.requiredSkills;
-          }
-
-          setFormData({
-            title: ad.title || "",
-            description: ad.description || "",
-            categoryName: ad.categoryName || "Jobs",
-            categoryId: ad.categoryId || "",
-            city: ad.locationId || ad.location?.id || "",
-            employmentType: employmentType,
-            experienceLevel: experienceLevel,
-            salaryMin: salaryMin,
-            salaryMax: salaryMax,
-            skills: skills,
-            validUntil: ad.validUntil ? ad.validUntil.split("T")[0] : "",
-            companyId: ad.companyId || "",
-            gender: ad.gender || "",
-            educationQualificationId: ad.educationQualificationId || "",
-          });
-        } else {
-          toast.error("Failed to load ad data");
-          navigate("/employer/ads");
-        }
+        await loadAdData();
       } else {
-        // Set default values for new ads to reduce employer burden
+        // Set default values for new ads
         const defaultDate = new Date();
-        defaultDate.setDate(defaultDate.getDate() + 15); // 15 days as requested
+        defaultDate.setDate(defaultDate.getDate() + 15);
 
         setFormData((prev) => ({
           ...prev,
-          companyId: defaultCompanyId, // First company
-          city: defaultCityId, // First location
-          validUntil: defaultDate.toISOString().split("T")[0], // 15 days from now
-          employmentType: "FULL_TIME", // Full time
-          experienceLevel: "ENTRY_LEVEL", // Entry level
-          gender: "BOTH", // Both male and female
+          companyId: defaultCompanyId,
+          city: defaultCityId,
+          validUntil: defaultDate.toISOString().split("T")[0],
+          employmentType: "FULL_TIME",
+          experienceLevel: "ENTRY_LEVEL",
+          gender: "BOTH",
         }));
       }
     } catch (error) {
+      console.error("Error in loadInitialData:", error);
       toast.error("Failed to load form data");
     } finally {
       setIsPageLoading(false);
@@ -390,28 +341,29 @@ const AdForm = () => {
   };
 
   const loadAdData = async () => {
-    setIsLoading(true);
     try {
+      console.log("Loading ad data for adId:", adId);
+      
       // Use different endpoint for Branch Admin
       let response;
       if (isBranchAdminEdit) {
         // Use Branch Admin API to get ad details
-        response = await fetch(`/api/branch-admins/ads/${adId}`, {
+        const apiResponse = await fetch(`/api/branch-admins/ads/${adId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
-        response = await response.json();
-        if (!response.status || response.status !== 'success') {
-          throw new Error(response.message || 'Failed to load ad');
+        const result = await apiResponse.json();
+        if (!result.status || result.status !== 'success') {
+          throw new Error(result.message || 'Failed to load ad');
         }
-        response = { success: true, data: response.data };
+        response = { success: true, data: result.data };
       } else {
         response = await getAd(adId);
       }
 
       if (response.success) {
-        console.log("Ad data loaded:", response.data);
+        console.log("Ad data loaded successfully:", response.data);
         const ad = response.data.data || response.data;
 
         // Set current job status for conditional rendering
@@ -481,14 +433,14 @@ const AdForm = () => {
           educationQualificationId: ad.educationQualificationId || "",
         });
       } else {
+        console.error("Failed to load ad data:", response.error);
         toast.error("Failed to load ad data");
         navigate("/employer/ads");
       }
     } catch (error) {
+      console.error("Error loading ad data:", error);
       toast.error("Failed to load ad data");
-      navigate("/employer/ads"); // Navigate away on error
-    } finally {
-      setIsLoading(false);
+      navigate("/employer/ads");
     }
   };
 
