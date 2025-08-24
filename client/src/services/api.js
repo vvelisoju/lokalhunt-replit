@@ -1,8 +1,26 @@
 import axios from 'axios'
 
+// Dynamically determine API base URL
+let API_BASE_URL = import.meta.env.VITE_API_URL
+
+if (!API_BASE_URL) {
+  if (typeof window !== 'undefined') {
+    // In browser, use current origin
+    API_BASE_URL = `${window.location.origin}/api`
+  } else {
+    // Fallback for SSR or development
+    API_BASE_URL = 'http://localhost:5000/api'
+  }
+} else {
+  // Ensure API path is appended if not already present
+  if (!API_BASE_URL.endsWith('/api')) {
+    API_BASE_URL = `${API_BASE_URL}/api`
+  }
+}
+
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:5000/api'),
+  baseURL: API_BASE_URL,
   timeout: 10000,
   withCredentials: true, // Enable credentials for CORS
   headers: {

@@ -4,21 +4,24 @@ import api from './api'
 export const getImageUrl = (path) => {
   if (!path) return null
 
-  // If it's already a full URL, return as-is
-  if (path.startsWith('http')) return path
-
-  // Get the server URL - always use the current origin for Replit
-  const getServerUrl = () => {
-    // For Replit deployments, use the current origin
-    if (window.location.hostname.includes('replit.dev')) {
-      return window.location.origin
-    } else {
-      // Development: Use localhost on port 5000
-      return 'http://localhost:5000'
-    }
+  // If it's already a full URL, return as is
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path
   }
 
-  const serverUrl = getServerUrl()
+  // Use environment variable or dynamically determine server URL
+  let serverUrl = import.meta.env.VITE_API_URL
+
+  // If no environment variable is set, determine URL dynamically
+  if (!serverUrl) {
+    if (typeof window !== 'undefined') {
+      // In browser, use current origin
+      serverUrl = window.location.origin
+    } else {
+      // Fallback for SSR or development
+      serverUrl = 'http://localhost:5000'
+    }
+  }
 
   // Handle server-served files (already in correct format with /api/public/)
   if (path.startsWith('/api/public/')) {

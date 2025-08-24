@@ -1,4 +1,39 @@
-import api from './api'
+import axios from 'axios';
+
+// Dynamically determine API base URL
+let API_BASE_URL = import.meta.env.VITE_API_URL
+
+if (!API_BASE_URL) {
+  if (typeof window !== 'undefined') {
+    // In browser, use current origin
+    API_BASE_URL = `${window.location.origin}/api`
+  } else {
+    // Fallback for SSR or development
+    API_BASE_URL = 'http://localhost:5000/api'
+  }
+} else {
+  // Ensure API path is appended if not already present
+  if (!API_BASE_URL.endsWith('/api')) {
+    API_BASE_URL = `${API_BASE_URL}/api`
+  }
+}
+
+// Configure axios instance with the dynamic base URL
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Function to set the auth token
+api.setToken = (token) => {
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common['Authorization'];
+  }
+};
 
 const sharedApi = {
   // Get job preview by ID

@@ -610,10 +610,10 @@ const LinkedInProfile = () => {
               maxFileSize={10485760}
               onGetUploadParameters={handleGetCoverImageUploadParameters}
               onComplete={handleCoverPhotoComplete}
-              buttonClassName="bg-white bg-opacity-90 backdrop-blur-sm text-gray-700 px-2 py-1 sm:px-3 sm:py-2 rounded-full text-xs sm:text-sm font-medium hover:bg-opacity-100 transition-all duration-200 shadow-lg"
+              buttonClassName="bg-white bg-opacity-90 backdrop-blur-sm text-gray-700 p-1 sm:px-3 sm:py-2 rounded-full text-xs sm:text-sm font-medium hover:bg-opacity-100 transition-all duration-200 shadow-lg"
             >
               <span className="hidden sm:inline">📷 Enhance cover</span>
-              <span className="sm:hidden">📷</span>
+              <span className="sm:hidden text-xs">📷</span>
             </ObjectUploader>
           </div>
         </div>
@@ -637,17 +637,25 @@ const LinkedInProfile = () => {
                 </div>
               )}
               
-              {/* Camera Icon */}
+              {/* Open to Work Badge */}
+              {openToWork && (
+                <div className="absolute -top-1 -right-1 sm:top-0 sm:right-0 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow-lg ring-2 ring-white">
+                  <span className="hidden sm:inline">🟢 Open to Work</span>
+                  <span className="sm:hidden">🟢</span>
+                </div>
+              )}
+              
+              {/* Camera Icon - Smaller in mobile */}
               <ObjectUploader
                 maxNumberOfFiles={1}
                 maxFileSize={10485760}
                 onGetUploadParameters={handleGetProfileImageUploadParameters}
                 onComplete={handleProfilePhotoComplete}
-                buttonClassName="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 bg-white p-1.5 sm:p-2 rounded-full shadow-lg hover:shadow-xl transition-all"
+                buttonClassName="absolute bottom-0 right-0 sm:bottom-1 sm:right-1 bg-white p-1 sm:p-1.5 rounded-full shadow-lg hover:shadow-xl transition-all"
                 allowedFileTypes={['image/*']}
                 uploadType="image"
               >
-                <CameraIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600" />
+                <CameraIcon className="h-2.5 w-2.5 sm:h-4 sm:w-4 text-gray-600" />
               </ObjectUploader>
             </div>
           </div>
@@ -724,11 +732,6 @@ const LinkedInProfile = () => {
             >
               {openToWork ? 'Remove Open to Work' : 'Set Open to Work'}
             </Button>
-            {openToWork && (
-              <span className="bg-green-100 text-green-800 text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full self-start sm:self-center">
-                🟢 Open to Work
-              </span>
-            )}
           </div>
         </div>
       </div>
