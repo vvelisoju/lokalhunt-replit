@@ -1,6 +1,7 @@
 import React from 'react'
-import { 
-  Bars3Icon, 
+import { Link } from 'react-router-dom'
+import {
+  Bars3Icon,
   BellIcon
 } from '@heroicons/react/24/outline'
 import { useAuth } from '../../context/AuthContext'
@@ -35,8 +36,19 @@ const Header = ({ onMenuClick }) => {
             </h1>
           </div>
 
-          {/* Right side - notifications and user menu */}
+          {/* Right side - Employers + notifications and user menu */}
           <div className="flex items-center space-x-4">
+            {/* Employers Button */}
+            <Link
+              to="/branch-admin/employers"
+              className="w-8 h-8 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center transition-colors duration-200"
+              title="Employers"
+            >
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </Link>
+
             {/* Notifications */}
             <button
               type="button"
@@ -46,9 +58,9 @@ const Header = ({ onMenuClick }) => {
             </button>
 
             {/* User profile dropdown */}
-            <ProfileDropdown 
-              user={{...user, role: 'BRANCH_ADMIN'}} 
-              logout={logout} 
+            <ProfileDropdown
+              user={{...user, role: 'BRANCH_ADMIN'}}
+              logout={logout}
               onLanguageChange={changeLanguage}
             />
           </div>

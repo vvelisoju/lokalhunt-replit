@@ -1,5 +1,5 @@
 import React from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 
 // Landing Page
@@ -23,6 +23,11 @@ import CandidateResume from './pages/candidate/Resume'
 import CandidateLinkedInProfile from './pages/candidate/LinkedInProfile'
 import CandidateAccountSettings from './pages/candidate/AccountSettings'
 import TestInterface from './pages/candidate/TestInterface'
+// Import CandidateJobs component
+import CandidateJobs from './pages/candidate/Jobs';
+// Import CandidateJobView component
+import CandidateJobView from "./pages/candidate/JobView";
+
 
 // Employer Pages
 import EmployerDashboard from './pages/employer/Dashboard'
@@ -64,6 +69,17 @@ import { CandidateProvider } from './context/CandidateContext'
 import { RoleProvider } from './context/RoleContext'
 import RoleAwareRoute from './routes/RoleAwareRoute'
 
+// Shared Pages
+import CandidateProfileView from './pages/candidate/CandidateProfileView'
+// Import the PublicCandidateProfile component
+import PublicCandidateProfile from './pages/PublicCandidateProfile'
+// Import Employer specific components
+import AdCandidates from "./pages/employer/AdCandidates";
+import Candidates from "./pages/employer/Candidates";
+import EmployerCandidateProfileView from "./pages/employer/CandidateProfileView";
+import CompanyProfile from "./pages/employer/CompanyProfile";
+
+
 function App() {
   return (
     <ToastProvider>
@@ -77,9 +93,9 @@ function App() {
               <Route path="/jobs" element={<Jobs />} />
               <Route path="/jobs/:id" element={<JobDetail />} />
               <Route path="/jobs/:id/preview" element={<JobPreview />} />
-
-              {/* Companies Page */}
               <Route path="/companies" element={<Companies />} />
+              {/* Public Candidate Profile Route */}
+              <Route path="/candidate/:candidateId/profile" element={<PublicCandidateProfile />} />
 
               {/* Dashboard redirect for logged in users */}
               <Route path="/dashboard" element={
@@ -105,14 +121,16 @@ function App() {
                   <CandidateLayout />
                 </ProtectedRoute>
               }>
+                <Route index element={<Navigate to="/candidate/dashboard" replace />} />
                 <Route path="dashboard" element={<CandidateDashboard />} />
-                <Route path="profile" element={<CandidateProfile />} />
+                <Route path="jobs" element={<CandidateJobs />} />
+                <Route path="jobs/:id" element={<CandidateJobView />} />
                 <Route path="applications" element={<CandidateApplications />} />
                 <Route path="bookmarks" element={<CandidateBookmarks />} />
+                <Route path="profile" element={<CandidateProfile />} />
                 <Route path="resume" element={<CandidateResume />} />
-                <Route path="linkedin-profile" element={<CandidateLinkedInProfile />} />
-                <Route path="account-settings" element={<CandidateAccountSettings />} />
-                <Route path="test" element={<TestInterface />} />
+                <Route path="settings" element={<CandidateAccountSettings />} />
+                <Route path="profile/:candidateId" element={<CandidateProfileView />} />
               </Route>
 
               {/* Protected Employer Routes (With Layout) */}
@@ -129,10 +147,14 @@ function App() {
                 <Route path="ads/:adId/edit" element={<EmployerAdForm />} />
                 <Route path="ads/:adId/candidates" element={<EmployerAdCandidates />} />
                 <Route path="candidates" element={<EmployerCandidates />} />
-                <Route path="company-profile" element={<EmployerCompanyProfile />} />
-                <Route path="account-settings" element={<EmployerAccountSettings />} />
+                <Route path="candidate/:candidateId/profile" element={<EmployerCandidateProfileView />} />
+                <Route path="/employer/ads/:id/candidates" element={<AdCandidates />} />
+                <Route path="/employer/candidates" element={<Candidates />} />
+                <Route path="/employer/candidate/:candidateId/profile" element={<EmployerCandidateProfileView />} />
+                <Route path="/employer/companies" element={<CompanyProfile />} />
                 <Route path="subscription" element={<EmployerSubscription />} />
                 <Route path="mou" element={<EmployerMou />} />
+                <Route path="account-settings" element={<EmployerAccountSettings />} />
               </Route>
 
               {/* Protected Branch Admin Routes (With Layout) */}
@@ -155,7 +177,7 @@ function App() {
                 <Route path="employers/:employerId/ads/:adId/candidates" element={<EmployerAdCandidates />} />
                 <Route path="employers/:employerId/companies" element={<EmployerCompanyProfile />} />
                 <Route path="employers/:employerId/subscription" element={<EmployerSubscription />} />
-                
+
                 <Route path="screening" element={<Screening />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="admin-profile" element={<AdminProfile />} />

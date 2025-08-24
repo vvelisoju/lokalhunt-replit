@@ -1,467 +1,736 @@
-import { useState, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
-import { EyeIcon, EyeSlashIcon, PencilIcon, UserIcon } from '@heroicons/react/24/outline';
-import Button from './Button';
-import FormInput from './FormInput';
-import Modal from './Modal';
-import { getCities } from '../../services/common/cities';
-import { profileService } from '../../services/profileService';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState } from "react";
+import { toast } from "react-hot-toast";
+import {
+  UserIcon,
+  PhoneIcon,
+  MapPinIcon,
+  BriefcaseIcon,
+  AcademicCapIcon,
+  CogIcon,
+  KeyIcon,
+  PencilIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  CheckIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
+import Button from "./Button";
+import FormInput from "./FormInput";
+import Modal from "./Modal";
+import Loader from "./Loader";
+import CityDropdown from "./CityDropdown";
 
 const Profile = ({
   profileData,
   onUpdateProfile,
   onUpdatePassword,
-  userType = 'branchAdmin',
-  loading = false
+  userType = "candidate",
+  loading = false,
 }) => {
-  const { updateUser } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    cityId: ''
-  });
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
+  const [editMode, setEditMode] = useState(false);
+  const [passwordMode, setPasswordMode] = useState(false);
   const [showPasswords, setShowPasswords] = useState({
     current: false,
     new: false,
-    confirm: false
+    confirm: false,
   });
-  const [cities, setCities] = useState([]);
-  const [citiesLoading, setCitiesLoading] = useState(false);
-  const [profileLoading, setProfileLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    city: "",
+    companyName: "",
+    industry: "",
+    assignedCity: "",
+  });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    loadCities();
-  }, []);
+  React.useEffect(() => {
+    if (profileData && typeof profileData === "object") {
+      // Handle city data - extract ID if it's an object
+      let cityValue = "";
+      if (profileData.city) {
+        if (typeof profileData.city === "object" && profileData.city.id) {
+          cityValue = profileData.city.id.toString();
+        } else if (typeof profileData.city === "string") {
+          cityValue = profileData.city;
+        } else if (typeof profileData.city === "number") {
+          cityValue = profileData.city.toString();
+        }
+      }
 
-  useEffect(() => {
-    if (profileData) {
-      // Handle both nested user object and direct profile data
-      const userData = profileData.user || profileData;
       setFormData({
-        firstName: userData.firstName || '',
-        lastName: userData.lastName || '',
-        email: userData.email || '',
-        phone: userData.phone || '',
-        cityId: userData.cityId || ''
+        firstName: profileData.firstName || "",
+        lastName: profileData.lastName || "",
+        email: profileData.email || "",
+        phone: profileData.phone || "",
+        city: cityValue,
+        companyName: profileData.companyName || "",
+        industry: profileData.industry || "",
+        assignedCity: profileData.assignedCity || "",
       });
     }
   }, [profileData]);
 
-  const loadCities = async () => {
-    setCitiesLoading(true);
-    try {
-      const response = await getCities();
-      console.log('Cities API response:', response);
+  const handleEdit = () => {
+    setEditMode(true);
+  };
 
-      if (response.success && response.data && Array.isArray(response.data)) {
-        setCities(response.data);
-        console.log('Cities loaded successfully:', response.data.length, 'cities');
-      } else if (response && Array.isArray(response)) {
-        // Handle direct array response
-        setCities(response);
-        console.log('Cities loaded (direct array):', response.length, 'cities');
-      } else {
-        console.error('Invalid cities response format:', response);
-        // Fallback cities from database schema
-        const fallbackCities = [
-          { id: 'c66cc663-ec21-41bc-b58c-7f6a53c8ed70', name: 'Bangalore', state: 'Karnataka' },
-          { id: '4ae30f5b-d4d1-4d7a-a3c7-de3040eb94fa', name: 'Delhi', state: 'Delhi' },
-          { id: 'd505a6c5-8140-459b-8ff3-39565c65b74e', name: 'Hyderabad', state: 'Telangana' },
-          { id: '69f77c2d-aaaa-4c14-bf9c-61a1910a018a', name: 'Mumbai', state: 'Maharashtra' },
-          { id: 'aba48839-eb36-4d8a-8a40-963017304952', name: 'Pune', state: 'Maharashtra' }
-        ];
-        setCities(fallbackCities);
-        toast.error('Using fallback cities due to API error');
+  const handleCancel = () => {
+    setEditMode(false);
+    if (profileData) {
+      // Handle city data - extract ID if it's an object
+      let cityValue = "";
+      if (profileData.city) {
+        if (typeof profileData.city === "object" && profileData.city.id) {
+          cityValue = profileData.city.id.toString();
+        } else if (typeof profileData.city === "string") {
+          cityValue = profileData.city;
+        } else if (typeof profileData.city === "number") {
+          cityValue = profileData.city.toString();
+        }
       }
-    } catch (error) {
-      console.error('Error loading cities:', error);
-      // Fallback cities
-      const fallbackCities = [
-        { id: 'c66cc663-ec21-41bc-b58c-7f6a53c8ed70', name: 'Bangalore', state: 'Karnataka' },
-        { id: '4ae30f5b-d4d1-4d7a-a3c7-de3040eb94fa', name: 'Delhi', state: 'Delhi' },
-        { id: 'd505a6c5-8140-459b-8ff3-39565c65b74e', name: 'Hyderabad', state: 'Telangana' },
-        { id: '69f77c2d-aaaa-4c14-bf9c-61a1910a018a', name: 'Mumbai', state: 'Maharashtra' },
-        { id: 'aba48839-eb36-4d8a-8a40-963017304952', name: 'Pune', state: 'Maharashtra' }
-      ];
-      setCities(fallbackCities);
-      toast.error('Failed to load cities from server. Using default cities.');
-    } finally {
-      setCitiesLoading(false);
+
+      setFormData({
+        firstName: profileData.firstName || "",
+        lastName: profileData.lastName || "",
+        email: profileData.email || "",
+        phone: profileData.phone || "",
+        city: cityValue,
+        companyName: profileData.companyName || "",
+        industry: profileData.industry || "",
+        assignedCity: profileData.assignedCity || "",
+      });
     }
-  };
-
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handlePasswordChange = (field, value) => {
-    setPasswordData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const togglePasswordVisibility = (field) => {
-    setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }));
   };
 
   const handleSave = async () => {
     try {
-      // Validate required fields
-      if (!formData.firstName || !formData.lastName) {
-        toast.error('First name and last name are required');
-        return;
-      }
-
-      if (!formData.cityId) {
-        toast.error('Please select a city');
-        return;
-      }
-
-      const updateData = {
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        email: formData.email, // Email is read-only, but include for consistency
-        phone: formData.phone?.trim() || '',
-        cityId: formData.cityId
-      };
-
-      console.log('Updating profile with data:', updateData);
-      const result = await onUpdateProfile(updateData);
-      setIsEditing(false);
-      toast.success('Profile updated successfully');
-
-      // Update AuthContext with new user data
-      const userData = profileData?.user || profileData;
-      const updatedUserData = {
-        ...userData,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        name: `${formData.firstName} ${formData.lastName}`,
-        email: formData.email,
-        phone: formData.phone,
-        cityId: formData.cityId
-      };
-      updateUser(updatedUserData);
+      setIsSubmitting(true);
+      // Send city directly as the API expects it
+      await onUpdateProfile(formData);
+      setEditMode(false);
+      // Don't show toast here as it's handled in the parent component
     } catch (error) {
-      console.error('Profile update error:', error);
-      toast.error(error.message || 'Failed to update profile');
+      toast.error(error.message || "Failed to update profile");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handlePasswordUpdate = async (e) => {
-    e.preventDefault();
+  const handlePasswordChange = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('New passwords do not match');
+      toast.error("New passwords do not match");
       return;
     }
+
     if (passwordData.newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters long');
+      toast.error("Password must be at least 6 characters long");
       return;
     }
 
     try {
-      const result = await profileService.updatePassword({
+      setIsSubmitting(true);
+      await onUpdatePassword({
         currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword
+        newPassword: passwordData.newPassword,
       });
-      if (result.success) {
-        setShowPasswordModal(false);
-        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        toast.success('Password updated successfully');
-      } else {
-        toast.error(result.error);
-      }
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setPasswordMode(false);
+      // Don't show toast here as it's handled in the parent component
     } catch (error) {
-      toast.error(error.message || 'Failed to update password');
+      toast.error(error.message || "Failed to update password");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Function to get city name from cityId
-  const getCityName = (userData) => {
-    // Check for cityName first (from new profile API)
-    if (userData.cityName) {
-      return userData.cityName;
-    }
-    // Fallback to cityRef format
-    if (userData.cityRef) {
-      return `${userData.cityRef.name}, ${userData.cityRef.state}`;
-    }
-    return userData.city || 'Not specified';
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
   };
 
-  // Get current city name for display
-  const getCurrentCityName = () => {
-    // Handle both nested user object and direct profile data
-    const userData = profileData?.user || profileData;
-
-    if (!userData?.cityId) return 'Not specified';
-
-    // Check if cityName is already provided (from API response)
-    if (userData.cityName) {
-      return userData.cityName;
-    }
-
-    // If cityRef is available (populated city data)
-    if (userData.cityRef) {
-      return `${userData.cityRef.name}, ${userData.cityRef.state}`;
-    }
-
-    // Find city in cities list
-    const city = cities.find(c => c.id === userData.cityId);
-    return city ? `${city.name}, ${city.state}` : 'Unknown city';
-  };
-
-  const formatRole = (role) => {
-    const roleMap = {
-      'CANDIDATE': 'Candidate',
-      'EMPLOYER': 'Employer',
-      'BRANCH_ADMIN': 'Branch Admin',
-      'SUPER_ADMIN': 'Super Admin'
-    };
-    return roleMap[role] || role;
-  };
-
-  if (loading || profileLoading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Profile Information</h2>
-        <div className="flex space-x-3">
-          {/* Hide change password button in edit mode */}
-          {!isEditing && (
-            <Button
-              onClick={() => setShowPasswordModal(true)}
-              variant="outline"
-              size="sm"
-            >
-              Change Password
-            </Button>
-          )}
-          {isEditing ? (
-            <div className="flex space-x-2">
-              <Button
-                onClick={() => setIsEditing(false)}
-                variant="outline"
-                size="sm"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSave}
-                size="sm"
-              >
-                Save Changes
-              </Button>
+    <div className="min-h-screen bg-gray-50">
+      {/* Content Container - maximized screen space */}
+      <div className="w-full px-2 sm:px-4 py-4 sm:py-6">
+        {/* Page Header - improved for desktop and mobile */}
+        <div className="mb-4 sm:mb-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 lg:w-12 lg:h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <UserIcon className="h-5 w-5 lg:h-6 lg:w-6 text-blue-600" />
+                </div>
+                <div>
+                  <h1 className="text-xl lg:text-2xl font-semibold text-gray-900">
+                    Profile
+                  </h1>
+                  <p className="text-sm lg:text-base text-gray-500">
+                    Account Settings
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons - aligned right for mobile and desktop */}
+              <div className="flex flex-row gap-2 sm:gap-3">
+                {!editMode && !passwordMode && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPasswordMode(true)}
+                      className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2"
+                    >
+                      <KeyIcon className="h-4 w-4" />
+                      <span className="hidden sm:inline">Change Password</span>
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleEdit}
+                      className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2"
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                      <span className="hidden sm:inline">Edit Profile</span>
+                    </Button>
+                  </>
+                )}
+
+                {editMode && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancel}
+                      className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                      <span className="hidden sm:inline">Cancel</span>
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleSave}
+                      disabled={isSubmitting}
+                      className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2"
+                    >
+                      <CheckIcon className="h-4 w-4" />
+                      <span className="hidden sm:inline">Save Changes</span>
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
-          ) : (
-            <Button
-              onClick={() => setIsEditing(true)}
-              variant="outline"
-              size="sm"
-              icon={PencilIcon}
-            >
-              Edit Profile
-            </Button>
-          )}
+          </div>
         </div>
-      </div>
 
-      {/* Profile Form */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* First Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              First Name
-            </label>
-            <input
-              type="text"
-              value={formData.firstName || ''}
-              onChange={(e) => handleInputChange('firstName', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={!isEditing}
-            />
+        {/* Profile Card - improved responsive design */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          {/* Profile Header - Compact design */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 sm:px-6 py-4 sm:py-5">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 lg:w-16 lg:h-16 bg-white rounded-full flex items-center justify-center shadow-lg flex-shrink-0">
+                <UserIcon className="h-7 w-7 lg:h-8 lg:w-8 text-gray-600" />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <h2 className="text-lg lg:text-xl font-semibold text-gray-900 truncate">
+                  {(profileData?.firstName || "").toString()}{" "}
+                  {(profileData?.lastName || "").toString()}
+                </h2>
+                <p className="text-gray-600 text-sm truncate">
+                  {(profileData?.email || "No email").toString()}
+                </p>
+                {userType === "employer" && profileData?.companyName && (
+                  <p className="text-gray-500 text-xs truncate">
+                    {(profileData.companyName || "").toString()}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Last Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Last Name
-            </label>
-            <input
-              type="text"
-              value={formData.lastName || ''}
-              onChange={(e) => handleInputChange('lastName', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={!isEditing}
-            />
-          </div>
+          {/* Profile Fields - improved desktop grid layout */}
+          <div className="p-4 sm:p-6 space-y-6 sm:space-y-8">
+            {/* Basic Information */}
+            <div className="space-y-6">
+              <h3 className="text-sm lg:text-base font-medium text-gray-900 uppercase tracking-wider">
+                Basic Information
+              </h3>
 
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={formData.email || ''}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-              disabled
-              readOnly
-            />
-            <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
-          </div>
+              {/* Desktop Grid Layout for larger screens */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* First Name */}
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <UserIcon className="h-5 w-5 text-gray-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        First Name
+                      </label>
+                      {editMode ? (
+                        <FormInput
+                          value={formData.firstName}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              firstName: e.target.value,
+                            })
+                          }
+                          placeholder="Enter your first name"
+                          className="border border-gray-300 bg-white rounded-lg w-full focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="text-gray-900 font-medium text-sm lg:text-base">
+                          {(
+                            profileData?.firstName || "Not provided"
+                          ).toString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-          {/* Phone */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              value={formData.phone || ''}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={!isEditing}
-            />
-          </div>
+                {/* Last Name */}
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <UserIcon className="h-5 w-5 text-gray-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Last Name
+                      </label>
+                      {editMode ? (
+                        <FormInput
+                          value={formData.lastName}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              lastName: e.target.value,
+                            })
+                          }
+                          placeholder="Enter your last name"
+                          className="border border-gray-300 bg-white rounded-lg w-full focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="text-gray-900 font-medium text-sm lg:text-base">
+                          {(profileData?.lastName || "Not provided").toString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-          {/* City Dropdown */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              City
-            </label>
-            {isEditing ? (
-              <select
-                value={formData.cityId || ''}
-                onChange={(e) => handleInputChange('cityId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={citiesLoading}
-              >
-                <option value="">
-                  {citiesLoading ? 'Loading cities...' : 'Select a city'}
-                </option>
-                {cities.map((city) => (
-                  <option key={city.id} value={city.id}>
-                    {city.name}, {city.state}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={getCurrentCityName()}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                disabled
-                readOnly
-              />
+                {/* Email */}
+                <div className="space-y-3 lg:col-span-2">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <span className="text-gray-600 text-sm font-medium">
+                        @
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Email Address
+                      </label>
+                      <p className="text-gray-900 font-medium text-sm lg:text-base">
+                        {(profileData?.email || "Not provided").toString()}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Email cannot be changed
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Phone */}
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <PhoneIcon className="h-5 w-5 text-gray-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Phone Number
+                      </label>
+                      {editMode ? (
+                        <FormInput
+                          value={formData.phone}
+                          onChange={(e) =>
+                            setFormData({ ...formData, phone: e.target.value })
+                          }
+                          placeholder="Enter your phone number"
+                          className="border border-gray-300 bg-white rounded-lg w-full focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="text-gray-900 font-medium text-sm lg:text-base">
+                          {(profileData?.phone || "Not provided").toString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* City */}
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <MapPinIcon className="h-5 w-5 text-gray-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        City
+                      </label>
+                      {editMode ? (
+                        <CityDropdown
+                          value={formData.city}
+                          onChange={(cityId) =>
+                            setFormData({ ...formData, city: cityId })
+                          }
+                          placeholder="Select your city"
+                          className="w-full"
+                          hideLabel={true}
+                        />
+                      ) : (
+                        <p className="text-gray-900 font-medium text-sm lg:text-base">
+                          {typeof profileData?.city === "object" &&
+                          profileData?.city?.name
+                            ? `${profileData.city.name}, ${profileData.city.state}`
+                            : (profileData?.city || "Not provided").toString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Company Information for Employers */}
+            {userType === "employer" && (
+              <div className="space-y-6">
+                <h3 className="text-sm lg:text-base font-medium text-gray-900 uppercase tracking-wider">
+                  Company Information
+                </h3>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Company Name */}
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <BriefcaseIcon className="h-5 w-5 text-gray-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Company Name
+                        </label>
+                        {editMode ? (
+                          <FormInput
+                            value={formData.companyName}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                companyName: e.target.value,
+                              })
+                            }
+                            placeholder="Enter your company name"
+                            className="border border-gray-300 bg-white rounded-lg w-full focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          />
+                        ) : (
+                          <p className="text-gray-900 font-medium text-sm lg:text-base">
+                            {(
+                              profileData?.companyName || "Not provided"
+                            ).toString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Industry */}
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <AcademicCapIcon className="h-5 w-5 text-gray-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Industry
+                        </label>
+                        {editMode ? (
+                          <FormInput
+                            value={formData.industry}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                industry: e.target.value,
+                              })
+                            }
+                            placeholder="Enter your industry"
+                            className="border border-gray-300 bg-white rounded-lg w-full focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          />
+                        ) : (
+                          <p className="text-gray-900 font-medium text-sm lg:text-base">
+                            {(
+                              profileData?.industry || "Not provided"
+                            ).toString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Branch Admin Information */}
+            {userType === "branchAdmin" && (
+              <div className="space-y-6">
+                <h3 className="text-sm lg:text-base font-medium text-gray-900 uppercase tracking-wider">
+                  Admin Information
+                </h3>
+
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <CogIcon className="h-5 w-5 text-gray-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Assigned City
+                    </label>
+                    <p className="text-gray-900 font-medium text-sm lg:text-base">
+                      {(profileData?.assignedCity || "Not assigned").toString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="mt-4 sm:mt-6">
+          <button
+            onClick={() => setPasswordMode(true)}
+            className="w-full bg-white border border-gray-200 rounded-2xl p-4 lg:p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center space-x-3 lg:space-x-4">
+              <div className="w-10 h-10 lg:w-12 lg:h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                <KeyIcon className="h-5 w-5 lg:h-6 lg:w-6 text-red-600" />
+              </div>
+              <div className="text-left">
+                <p className="font-medium text-gray-900 text-sm lg:text-base">
+                  Change Password
+                </p>
+                <p className="text-sm text-gray-500">Update your password</p>
+              </div>
+            </div>
+            <div className="text-gray-400 text-lg lg:text-xl">›</div>
+          </button>
         </div>
       </div>
 
       {/* Change Password Modal */}
       <Modal
-        isOpen={showPasswordModal}
-        onClose={() => setShowPasswordModal(false)}
+        isOpen={passwordMode}
+        onClose={() => {
+          setPasswordMode(false);
+          setPasswordData({
+            currentPassword: "",
+            newPassword: "",
+            confirmPassword: "",
+          });
+        }}
         title="Change Password"
-        maxWidth="md"
       >
-        <div className="space-y-4">
-          <div className="relative">
-            <FormInput
-              label="Current Password"
-              type={showPasswords.current ? 'text' : 'password'}
-              value={passwordData.currentPassword}
-              onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
-              required
-            />
-            <button
-              type="button"
-              className="absolute right-3 top-8 text-gray-400 hover:text-gray-600"
-              onClick={() => togglePasswordVisibility('current')}
-            >
-              {showPasswords.current ? (
-                <EyeSlashIcon className="h-5 w-5" />
-              ) : (
-                <EyeIcon className="h-5 w-5" />
-              )}
-            </button>
+        <div className="space-y-6 p-1 sm:p-0">
+          {/* Password Requirements Info */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+            <div className="flex items-start space-x-2">
+              <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-blue-600 text-xs font-medium">i</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-blue-800 mb-1">Password Requirements</p>
+                <p className="text-xs text-blue-700">Must be at least 6 characters long</p>
+              </div>
+            </div>
           </div>
 
-          <div className="relative">
-            <FormInput
-              label="New Password"
-              type={showPasswords.new ? 'text' : 'password'}
-              value={passwordData.newPassword}
-              onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
-              required
-              help="Minimum 6 characters"
-            />
-            <button
-              type="button"
-              className="absolute right-3 top-8 text-gray-400 hover:text-gray-600"
-              onClick={() => togglePasswordVisibility('new')}
-            >
-              {showPasswords.new ? (
-                <EyeSlashIcon className="h-5 w-5" />
-              ) : (
-                <EyeIcon className="h-5 w-5" />
+          <div className="space-y-5">
+            {/* Current Password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Current Password
+              </label>
+              <div className="relative">
+                <FormInput
+                  type={showPasswords.current ? "text" : "password"}
+                  value={passwordData.currentPassword}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      currentPassword: e.target.value,
+                    })
+                  }
+                  placeholder="Enter your current password"
+                  className="pr-12 h-12 text-base border-2 border-gray-200 focus:border-blue-500 rounded-xl"
+                />
+                <button
+                  type="button"
+                  onClick={() => togglePasswordVisibility("current")}
+                  className="absolute inset-y-0 right-0 flex items-center pr-4 touch-manipulation"
+                >
+                  {showPasswords.current ? (
+                    <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* New Password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                New Password
+              </label>
+              <div className="relative">
+                <FormInput
+                  type={showPasswords.new ? "text" : "password"}
+                  value={passwordData.newPassword}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      newPassword: e.target.value,
+                    })
+                  }
+                  placeholder="Enter your new password"
+                  className="pr-12 h-12 text-base border-2 border-gray-200 focus:border-blue-500 rounded-xl"
+                />
+                <button
+                  type="button"
+                  onClick={() => togglePasswordVisibility("new")}
+                  className="absolute inset-y-0 right-0 flex items-center pr-4 touch-manipulation"
+                >
+                  {showPasswords.new ? (
+                    <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Confirm New Password
+              </label>
+              <div className="relative">
+                <FormInput
+                  type={showPasswords.confirm ? "text" : "password"}
+                  value={passwordData.confirmPassword}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      confirmPassword: e.target.value,
+                    })
+                  }
+                  placeholder="Confirm your new password"
+                  className="pr-12 h-12 text-base border-2 border-gray-200 focus:border-blue-500 rounded-xl"
+                />
+                <button
+                  type="button"
+                  onClick={() => togglePasswordVisibility("confirm")}
+                  className="absolute inset-y-0 right-0 flex items-center pr-4 touch-manipulation"
+                >
+                  {showPasswords.confirm ? (
+                    <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  )}
+                </button>
+              </div>
+              {/* Password Match Indicator */}
+              {passwordData.confirmPassword && (
+                <div className="mt-2">
+                  {passwordData.newPassword === passwordData.confirmPassword ? (
+                    <p className="text-xs text-green-600 flex items-center">
+                      <CheckIcon className="h-3 w-3 mr-1" />
+                      Passwords match
+                    </p>
+                  ) : (
+                    <p className="text-xs text-red-600 flex items-center">
+                      <XMarkIcon className="h-3 w-3 mr-1" />
+                      Passwords do not match
+                    </p>
+                  )}
+                </div>
               )}
-            </button>
+            </div>
           </div>
 
-          <div className="relative">
-            <FormInput
-              label="Confirm New Password"
-              type={showPasswords.confirm ? 'text' : 'password'}
-              value={passwordData.confirmPassword}
-              onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
-              required
-            />
-            <button
-              type="button"
-              className="absolute right-3 top-8 text-gray-400 hover:text-gray-600"
-              onClick={() => togglePasswordVisibility('confirm')}
+          {/* Mobile-Optimized Button Layout */}
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-100">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPasswordMode(false);
+                setPasswordData({
+                  currentPassword: "",
+                  newPassword: "",
+                  confirmPassword: "",
+                });
+              }}
+              className="flex-1 h-12 text-base font-medium rounded-xl border-2 border-gray-200 hover:border-gray-300 order-2 sm:order-1"
             >
-              {showPasswords.confirm ? (
-                <EyeSlashIcon className="h-5 w-5" />
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handlePasswordChange}
+              disabled={
+                isSubmitting ||
+                !passwordData.currentPassword ||
+                !passwordData.newPassword ||
+                !passwordData.confirmPassword ||
+                passwordData.newPassword !== passwordData.confirmPassword
+              }
+              className="flex-1 h-12 text-base font-medium rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 order-1 sm:order-2"
+            >
+              {isSubmitting ? (
+                <div className="flex items-center justify-center">
+                  <Loader />
+                  <span className="ml-2">Updating...</span>
+                </div>
               ) : (
-                <EyeIcon className="h-5 w-5" />
+                "Update Password"
               )}
-            </button>
+            </Button>
           </div>
-        </div>
-
-        <div className="flex justify-end space-x-3 mt-6">
-          <Button
-            onClick={() => setShowPasswordModal(false)}
-            variant="outline"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handlePasswordUpdate}
-            disabled={!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
-          >
-            Update Password
-          </Button>
         </div>
       </Modal>
     </div>

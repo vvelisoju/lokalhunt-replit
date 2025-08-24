@@ -43,7 +43,7 @@ class SubscriptionController {
       // Determine target employer based on role and parameters
       let employer;
       const targetEmployerId = req.targetEmployerId || targetEmployerIdFromBody;
-      
+
       if (req.user.role === 'BRANCH_ADMIN' && targetEmployerId) {
         // Branch Admin accessing specific employer
         employer = await (req.prisma || prisma).employer.findUnique({
@@ -152,7 +152,7 @@ class SubscriptionController {
 
       // Determine target employer ID based on role and parameters
       let targetEmployerId = employerId || employerIdFromQuery;
-      
+
       if (!targetEmployerId) {
         // If no employerId provided, use current user's employer
         const employer = await (req.prisma || prisma).employer.findUnique({

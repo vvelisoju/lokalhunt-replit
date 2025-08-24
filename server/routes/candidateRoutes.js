@@ -35,6 +35,7 @@ router.delete('/profile/photo', candidateController.removeProfilePhoto);
 // File upload routes
 router.get('/upload-url', candidateController.getUploadUrl);
 router.get('/profile-image-upload-url', candidateController.getProfileImageUploadUrl);
+router.get('/cover-image-upload-url', candidateController.getCoverImageUploadUrl);
 router.post('/resume/upload', candidateController.uploadResume);
 router.get('/resume', candidateController.getResume);
 router.delete('/resume', candidateController.deleteResume);

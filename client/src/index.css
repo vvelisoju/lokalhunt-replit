@@ -88,3 +88,39 @@ html {
   color: white;
   padding: 10px;
 }
+
+.recharts-cartesian-grid-horizontal line,
+  .recharts-cartesian-grid-vertical line {
+    stroke: theme('colors.gray.300');
+  }
+
+  /* Print styles for public candidate profile */
+  @media print {
+    .print\:hidden {
+      display: none !important;
+    }
+
+    body {
+      background: white !important;
+    }
+
+    .bg-gray-50 {
+      background: white !important;
+    }
+
+    .shadow-sm,
+    .shadow-md,
+    .shadow-lg,
+    .shadow-xl {
+      box-shadow: none !important;
+    }
+
+    .border {
+      border: 1px solid #e5e7eb !important;
+    }
+
+    .rounded-lg,
+    .rounded-xl {
+      border-radius: 8px !important;
+    }
+  }

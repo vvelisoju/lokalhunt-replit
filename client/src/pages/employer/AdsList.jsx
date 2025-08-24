@@ -199,12 +199,15 @@ const AdsList = () => {
 
   return (
     <div>
-      <div className="py-8">
+      <div>
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Job Ads</h1>
-            <p className="text-gray-600 mt-1">
+            <h1 className="text-3xl font-bold text-gray-900"></h1>
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
+              Job Ads
+            </h1>
+            <p className="text-gray-600 mt-1 text-xs">
               {isAdminView()
                 ? "Employer job postings - Admin view"
                 : "Manage your job postings"}
@@ -221,7 +224,7 @@ const AdsList = () => {
               >
                 <Button>
                   <PlusIcon className="h-4 w-4 mr-2" />
-                  Create New Ad
+                  Add
                 </Button>
               </Link>
             )}
@@ -278,7 +281,10 @@ const AdsList = () => {
                 <JobCard
                   key={ad.id}
                   job={{
-                    employerId: ad.employerId || ad.employer?.id || getCurrentEmployerId(),
+                    employerId:
+                      ad.employerId ||
+                      ad.employer?.id ||
+                      getCurrentEmployerId(),
                     id: ad.id,
                     title: ad.title,
                     description: ad.description,

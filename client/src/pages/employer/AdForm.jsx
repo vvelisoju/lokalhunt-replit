@@ -35,7 +35,7 @@ const AdForm = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  
+
   // Extract 'from' parameter from URL to determine redirect destination
   const searchParams = new URLSearchParams(location.search);
   const fromParam = searchParams.get('from');
@@ -219,7 +219,7 @@ const AdForm = () => {
       const companiesResult = await getCompanies();
       let defaultCompanyId = "";
       let companiesOptions = [];
-      
+
       if (companiesResult.success) {
         console.log("Companies loaded for dropdown:", companiesResult.data);
         const companiesList = companiesResult.data.data || [];
@@ -228,7 +228,7 @@ const AdForm = () => {
           label: company.name,
         }));
         setCompanies(companiesOptions);
-        
+
         // Set first company as default for new ads
         if (!isEditing && companiesOptions.length > 0) {
           defaultCompanyId = companiesOptions[0].value;
@@ -252,7 +252,7 @@ const AdForm = () => {
       // Process cities
       let defaultCityId = "";
       let citiesOptions = [];
-      
+
       if (citiesResult.success) {
         console.log("Cities loaded successfully:", citiesResult.data);
         citiesOptions = citiesResult.data.map((city) => ({
@@ -260,7 +260,7 @@ const AdForm = () => {
           label: `${city.name}, ${city.state}`,
         }));
         setCities(citiesOptions);
-        
+
         // Set first city as default for new ads
         if (!isEditing && citiesOptions.length > 0) {
           defaultCityId = citiesOptions[0].value;
@@ -330,7 +330,7 @@ const AdForm = () => {
   const loadAdData = async () => {
     try {
       console.log("Loading ad data for adId:", adId);
-      
+
       // Use different endpoint for Branch Admin
       let response;
       if (isBranchAdminEdit) {
@@ -434,7 +434,7 @@ const AdForm = () => {
 
   const handleChange = (e, fieldName = null) => {
     let name, value;
-    
+
     // Handle direct value calls (from Select components)
     if (fieldName) {
       name = fieldName;
@@ -447,7 +447,7 @@ const AdForm = () => {
     } else {
       return;
     }
-    
+
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
@@ -655,6 +655,28 @@ const AdForm = () => {
     }
   };
 
+  const handleCancel = () => {
+    // Use same redirection logic as submit handler for cancel button
+    if (isBranchAdminEdit) {
+      if (fromParam === 'approval') {
+        navigate('/branch-admin/ads');
+      } else if (fromParam === 'employer') {
+        navigate(`/branch-admin/employers/${employerId}/ads`);
+      } else {
+        // Fallback: check sessionStorage for backward compatibility
+        const redirectUrl = sessionStorage.getItem('redirectAfterEdit');
+        if (redirectUrl) {
+          sessionStorage.removeItem('redirectAfterEdit');
+          navigate(redirectUrl);
+        } else {
+          navigate('/branch-admin/ads');
+        }
+      }
+    } else {
+      navigate('/employer/ads');
+    }
+  };
+
   if (isPageLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -680,7 +702,7 @@ const AdForm = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-4 sm:gap-6">
               <FormInput
                 label="Job Title"
                 name="title"
@@ -758,7 +780,7 @@ const AdForm = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-4 sm:gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Employment Type <span className="text-red-500">*</span>
@@ -1035,11 +1057,10 @@ const AdForm = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
-        {/* Header */}
+      <div className="max-w-4xl mx-auto p-3 sm:p-6 bg-white rounded-lg shadow-sm">
         <div className="mb-4 md:mb-8">
           <div className="flex items-center justify-between mb-4">
-            <div>
+            <div className="flex-1">
               <h1 className="text-xl md:text-2xl font-bold text-gray-900">
                 {isEditing ? "Edit Job Posting" : "Create Job Posting"}
               </h1>
@@ -1048,6 +1069,16 @@ const AdForm = () => {
                   ? "Update your job posting details"
                   : "Create a compelling job posting to attract the best candidates"}
               </p>
+            </div>
+            {/* Mobile step indicator */}
+            <div className="sm:hidden flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-500">Step</span>
+              <span className="text-lg font-bold text-blue-600">
+                {currentStep}
+              </span>
+              <span className="text-sm font-medium text-gray-500">
+                of {steps.length}
+              </span>
             </div>
           </div>
 
@@ -1091,59 +1122,88 @@ const AdForm = () => {
               </React.Fragment>
             ))}
           </div>
-
-          {/* Mobile step indicator */}
-          <div className="md:hidden flex items-center justify-center mb-4">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium text-gray-500">Step</span>
-              <span className="text-lg font-bold text-blue-600">
-                {currentStep}
-              </span>
-              <span className="text-sm font-medium text-gray-500">
-                of {steps.length}
-              </span>
-            </div>
-          </div>
         </div>
 
         {/* Main Form */}
         <div className="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden">
-          <div className="p-4 md:p-6">{renderStepContent()}</div>
+          <div className="p-2 md:p-6">{renderStepContent()}</div>
 
           {/* Navigation Buttons */}
-          <div className="px-4 md:px-6 py-4 bg-gray-50 border-t border-gray-200">
-            <div className="flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center">
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    // Use same redirection logic as submit handler for cancel button
-                    if (isBranchAdminEdit) {
-                      if (fromParam === 'approval') {
-                        navigate('/branch-admin/ads');
-                      } else if (fromParam === 'employer') {
-                        navigate(`/branch-admin/employers/${employerId}/ads`);
-                      } else {
-                        // Fallback: check sessionStorage for backward compatibility
-                        const redirectUrl = sessionStorage.getItem('redirectAfterEdit');
-                        if (redirectUrl) {
-                          sessionStorage.removeItem('redirectAfterEdit');
-                          navigate(redirectUrl);
-                        } else {
-                          navigate('/branch-admin/ads');
-                        }
-                      }
-                    } else {
-                      navigate('/employer/ads');
-                    }
-                  }}
-                  disabled={isLoading}
-                  className="sm:w-auto"
-                >
-                  Cancel
-                </Button>
+          <div className="pt-6 border-t">
+            {/* Mobile Layout - 2 buttons per row */}
+            <div className="sm:hidden px-2 pb-4">
+              {currentStep < 3 ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCancel}
+                    disabled={isLoading}
+                    className="w-full"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleNextStep}
+                    disabled={isLoading}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center"
+                  >
+                    Next
+                    <ArrowRightIcon className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* First row - Cancel and Save as Draft */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCancel}
+                      disabled={isLoading}
+                      className="w-full"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleSubmit("save")}
+                      disabled={isLoading}
+                      className="w-full"
+                    >
+                      Save as Draft
+                    </Button>
+                  </div>
+                  
+                  {/* Second row - Submit for Approval (full width if available) */}
+                  {(!isEditing || (isEditing && currentJobStatus === "DRAFT")) && (
+                    <Button
+                      type="button"
+                      onClick={() => handleSubmit("submit")}
+                      disabled={isLoading}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Submit for Approval
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
 
+            {/* Desktop Layout - Original layout */}
+            <div className="hidden sm:flex justify-between px-6 pb-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancel}
+                disabled={isLoading}
+                className="sm:w-auto"
+              >
+                Cancel
+              </Button>
+              <div className="flex space-x-3">
                 {currentStep > 1 && (
                   <Button
                     type="button"
@@ -1156,26 +1216,6 @@ const AdForm = () => {
                     Back
                   </Button>
                 )}
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3">
-                {/* Save Draft button - only available on step 3 */}
-                {currentStep === 3 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleSubmit("save")}
-                    disabled={isLoading}
-                    className="sm:w-auto"
-                  >
-                    {isEditing
-                      ? currentJobStatus === "PENDING_APPROVAL"
-                        ? "Update"
-                        : "Update Draft"
-                      : "Save as Draft"}
-                  </Button>
-                )}
-
                 {currentStep < 3 ? (
                   <Button
                     type="button"
@@ -1188,6 +1228,16 @@ const AdForm = () => {
                   </Button>
                 ) : (
                   <>
+                    {/* Save as Draft button */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleSubmit("save")}
+                      disabled={isLoading}
+                      className="sm:w-auto"
+                    >
+                      Save as Draft
+                    </Button>
                     {/* Submit for Approval button for new jobs or draft jobs */}
                     {(!isEditing ||
                       (isEditing && currentJobStatus === "DRAFT")) && (
@@ -1204,20 +1254,19 @@ const AdForm = () => {
                 )}
               </div>
             </div>
-
-            {/* Show info for non-draft jobs when editing */}
-            {isEditing && currentJobStatus && currentJobStatus !== "DRAFT" && (
-              <p className="text-sm text-gray-600 mt-2 text-center sm:text-right">
-                {currentJobStatus === "PENDING_APPROVAL" &&
-                  "This job is pending approval and cannot be submitted again."}
-                {currentJobStatus === "APPROVED" &&
-                  "This job has been approved and cannot be modified."}
-                {currentJobStatus === "ARCHIVED" &&
-                  "This job is archived and cannot be modified."}
-              </p>
-            )}
           </div>
         </div>
+        {/* Show info for non-draft jobs when editing */}
+        {isEditing && currentJobStatus && currentJobStatus !== "DRAFT" && (
+          <p className="text-sm text-gray-600 mt-2 text-center sm:text-right px-6">
+            {currentJobStatus === "PENDING_APPROVAL" &&
+              "This job is pending approval and cannot be submitted again."}
+            {currentJobStatus === "APPROVED" &&
+              "This job has been approved and cannot be modified."}
+            {currentJobStatus === "ARCHIVED" &&
+              "This job is archived and cannot be modified."}
+          </p>
+        )}
       </div>
     </div>
   );

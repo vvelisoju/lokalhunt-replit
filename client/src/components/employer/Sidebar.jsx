@@ -44,7 +44,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: t('employer.sidebar.dashboard', 'Dashboard'), href: `${routeBase}/dashboard`, icon: HomeIcon },
     { name: t('employer.sidebar.myAds', 'My Ads'), href: `${routeBase}/ads`, icon: MegaphoneIcon },
     { name: t('employer.sidebar.candidates', 'Candidates'), href: `${routeBase}/candidates`, icon: UsersIcon },
-    { name: t('employer.sidebar.companies', 'Companies'), href: isAdminView() ? `${routeBase}/companies` : "/employer/company-profile", icon: BuildingOfficeIcon },
+    { name: t('employer.sidebar.companies', 'Companies'), href: `${routeBase}/companies`, icon: BuildingOfficeIcon },
     { name: t('employer.sidebar.subscription', 'Subscription'), href: `${routeBase}/subscription`, icon: CreditCardIcon },
     // { name: t('employer.sidebar.mou', 'MOU Management'), href: `${routeBase}/mou`, icon: DocumentTextIcon },
   ];
@@ -80,7 +80,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             <img 
               src={logoImage} 
               alt="LokalHunt" 
-              className="h-10 w-auto object-contain"
+              className="h-14 w-auto object-contain"
             />
           </Link>
         </div>

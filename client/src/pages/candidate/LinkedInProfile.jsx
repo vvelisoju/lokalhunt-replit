@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react'
 import { 
   PencilIcon, 
@@ -22,7 +23,7 @@ import EditSkillsModal from '../../components/profile/EditSkillsModal'
 import EditPreferencesModal from '../../components/profile/EditPreferencesModal'
 import EditProfileModal from '../../components/profile/EditProfileModal'
 import FileUploadModal from '../../components/ui/FileUploadModal'
-import { ObjectUploader } from '../../components/ObjectUploader'
+import { ObjectUploader } from '../../components/ObjectUploader.jsx'
 import axios from 'axios'
 
 const LinkedInProfile = () => {
@@ -63,8 +64,6 @@ const LinkedInProfile = () => {
     }
   }, [profileData?.profileData?.openToWork])
 
-
-
   // Upload handlers for ObjectUploader
   const handleGetUploadParameters = async () => {
     try {
@@ -85,23 +84,89 @@ const LinkedInProfile = () => {
     }
   }
 
+  const handleGetProfileImageUploadParameters = async () => {
+    try {
+      console.log('🖼️ [PROFILE IMAGE] Getting upload parameters...')
+      const response = await candidateApi.getProfileImageUploadUrl()
+      console.log('🖼️ [PROFILE IMAGE] Upload URL API response:', response)
+      
+      if (!response?.data?.data?.uploadURL) {
+        console.error('🖼️ [PROFILE IMAGE] Missing uploadURL in response:', response)
+        throw new Error('Failed to get profile image upload URL from response')
+      }
+      
+      const uploadURL = response.data.data.uploadURL
+      const publicURL = response.data.data.publicURL
+      
+      console.log('📡 [PROFILE IMAGE] Generated upload URL:', uploadURL)
+      console.log('🌐 [PROFILE IMAGE] Expected public URL after upload:', publicURL)
+      
+      // Store public URL in global scope for use after upload
+      window._profileImagePublicURL = publicURL
+      
+      return uploadURL
+    } catch (error) {
+      console.error('💥 [PROFILE IMAGE] Error getting upload parameters:', error)
+      console.error('💥 [PROFILE IMAGE] Full error details:', error.response || error)
+      throw error
+    }
+  }
+
+  const handleGetCoverImageUploadParameters = async () => {
+    try {
+      console.log('🎨 [COVER IMAGE] Getting upload parameters...')
+      const response = await candidateApi.getCoverImageUploadUrl()
+      console.log('🎨 [COVER IMAGE] Upload URL API response:', response)
+      
+      if (!response?.data?.data?.uploadURL) {
+        console.error('🎨 [COVER IMAGE] Missing uploadURL in response:', response)
+        throw new Error('Failed to get cover image upload URL from response')
+      }
+      
+      const uploadURL = response.data.data.uploadURL
+      const publicURL = response.data.data.publicURL
+      
+      console.log('📡 [COVER IMAGE] Generated upload URL:', uploadURL)
+      console.log('🌐 [COVER IMAGE] Expected public URL after upload:', publicURL)
+      
+      // Store public URL in global scope for use after upload
+      window._coverImagePublicURL = publicURL
+      
+      return uploadURL
+    } catch (error) {
+      console.error('💥 [COVER IMAGE] Error getting upload parameters:', error)
+      console.error('💥 [COVER IMAGE] Full error details:', error.response || error)
+      throw error
+    }
+  }
+
   const handleProfilePhotoComplete = async (result) => {
     try {
-      console.log('Profile photo upload complete:', result)
+      console.log('🖼️ PROFILE PHOTO UPLOAD COMPLETE - Full result:', JSON.stringify(result, null, 2))
       
       if (result.successful && result.successful.length > 0) {
         const uploadedFile = result.successful[0]
-        const photoURL = uploadedFile.uploadURL.split('?')[0] // Remove query parameters
-        console.log('Profile photo URL:', photoURL)
+        console.log('📁 Uploaded file details:', JSON.stringify(uploadedFile, null, 2))
+        
+        // Use the stored public URL from when we got the upload parameters
+        let photoURL = window._profileImagePublicURL
+        
+        // Fallback to constructing URL from upload URL if public URL not available
+        if (!photoURL) {
+          photoURL = uploadedFile.uploadURL?.split('?')[0] // Remove query parameters
+        }
+        
+        console.log('🌐 PUBLIC PROFILE PHOTO URL (FINAL):', photoURL)
+        console.log('📋 Profile photo URL (copy this to test):', photoURL)
         
         // Update profile with the photo URL
         const updateResponse = await candidateApi.updateProfilePhoto({ photoURL })
-        console.log('Profile update response:', updateResponse)
+        console.log('✅ Profile update API response:', updateResponse)
         
         // Update local state immediately for smooth transition
         setProfileData(prev => ({
           ...prev,
-          profilePhoto: photoURL.split('?')[0]
+          profilePhoto: photoURL
         }))
         
         // Clear the cached profile state and refresh
@@ -112,33 +177,46 @@ const LinkedInProfile = () => {
           fetchProfile()
         }, 100) // Small delay for smooth transition
         
-        console.log('Profile photo upload completed successfully')
+        console.log('🎉 Profile photo upload completed successfully - PUBLIC URL:', photoURL)
+        
+        // Clean up the global variable
+        delete window._profileImagePublicURL
       } else {
-        console.error('No successful upload found in result')
+        console.error('❌ No successful upload found in result:', result)
       }
     } catch (error) {
-      console.error('Error completing profile photo upload:', error)
+      console.error('💥 Error completing profile photo upload:', error)
       // Don't show alert, just log the error
     }
   }
 
   const handleCoverPhotoComplete = async (result) => {
     try {
-      console.log('Cover photo upload complete:', result)
+      console.log('🎨 COVER PHOTO UPLOAD COMPLETE - Full result:', JSON.stringify(result, null, 2))
       
       if (result.successful && result.successful.length > 0) {
         const uploadedFile = result.successful[0]
-        const photoURL = uploadedFile.uploadURL.split('?')[0] // Remove query parameters
-        console.log('Cover photo URL:', photoURL)
+        console.log('📁 Uploaded file details:', JSON.stringify(uploadedFile, null, 2))
+        
+        // Use the stored public URL from when we got the upload parameters
+        let photoURL = window._coverImagePublicURL
+        
+        // Fallback to constructing URL from upload URL if public URL not available
+        if (!photoURL) {
+          photoURL = uploadedFile.uploadURL?.split('?')[0] // Remove query parameters
+        }
+        
+        console.log('🌐 PUBLIC COVER PHOTO URL (FINAL):', photoURL)
+        console.log('📋 Cover photo URL (copy this to test):', photoURL)
         
         // Update profile with the photo URL
         const updateResponse = await candidateApi.updateCoverPhoto({ photoURL })
-        console.log('Cover update response:', updateResponse)
+        console.log('✅ Cover update API response:', updateResponse)
         
         // Update local state immediately for smooth transition
         setProfileData(prev => ({
           ...prev,
-          coverPhoto: photoURL.split('?')[0]
+          coverPhoto: photoURL
         }))
         
         // Clear the cached profile state and refresh
@@ -149,12 +227,15 @@ const LinkedInProfile = () => {
           fetchProfile()
         }, 100) // Small delay for smooth transition
         
-        console.log('Cover photo upload completed successfully')
+        console.log('🎉 Cover photo upload completed successfully - PUBLIC URL:', photoURL)
+        
+        // Clean up the global variable
+        delete window._coverImagePublicURL
       } else {
-        console.error('No successful upload found in result')
+        console.error('❌ No successful upload found in result:', result)
       }
     } catch (error) {
-      console.error('Error completing cover photo upload:', error)
+      console.error('💥 Error completing cover photo upload:', error)
       // Don't show alert, just log the error
     }
   }
@@ -165,6 +246,10 @@ const LinkedInProfile = () => {
       console.log('Profile user data:', profile?.user)
       console.log('Profile profileData field:', profile?.profileData)
       console.log('Job preferences structure:', profile?.profileData?.jobPreferences)
+      console.log('Profile photo URL:', profile?.profilePhoto)
+      console.log('Cover photo URL:', profile?.coverPhoto)
+      console.log('Processed profile photo URL:', getImageUrl(profile?.profilePhoto))
+      console.log('Processed cover photo URL:', getImageUrl(profile?.coverPhoto))
       setProfileData(profile)
       // Set openToWork status from the fetched profile data
       const openToWorkStatus = profile?.openToWork || profile?.profileData?.openToWork || false
@@ -180,6 +265,60 @@ const LinkedInProfile = () => {
   const handleGenerateResume = () => {
     // TODO: Implement resume generation
     console.log('Generate resume from profile data')
+  }
+
+  // Resume upload handlers
+  const handleGetResumeUploadParameters = async () => {
+    try {
+      const response = await candidateApi.getUploadUrl()
+      console.log('Resume upload URL response:', response)
+      
+      if (!response?.data?.data?.uploadURL) {
+        throw new Error('Failed to get resume upload URL from response')
+      }
+      
+      return response.data.data.uploadURL
+    } catch (error) {
+      console.error('Error getting resume upload parameters:', error)
+      throw error
+    }
+  }
+
+  const handleResumeUploadComplete = async (result) => {
+    try {
+      console.log('📄 RESUME UPLOAD COMPLETE - Full result:', JSON.stringify(result, null, 2))
+      
+      if (result.successful && result.successful.length > 0) {
+        const uploadedFile = result.successful[0]
+        console.log('📁 Uploaded file details:', JSON.stringify(uploadedFile, null, 2))
+        
+        const resumeURL = uploadedFile.uploadURL.split('?')[0] // Remove query parameters
+        console.log('🌐 PUBLIC RESUME URL:', resumeURL)
+        console.log('📋 Resume URL (copy this):', resumeURL)
+        
+        // Update profile with the resume URL
+        const updateData = { 
+          resumeUrl: resumeURL, 
+          resumeFileName: uploadedFile.name || 'resume.pdf' 
+        }
+        const updateResponse = await candidateApi.updateProfile(updateData)
+        console.log('✅ Resume update API response:', updateResponse)
+        
+        // Refresh profile data
+        if (dispatch) {
+          dispatch({ type: 'CLEAR_PROFILE' })
+        }
+        setTimeout(() => {
+          fetchProfile()
+        }, 100)
+        
+        console.log('🎉 Resume upload completed successfully - PUBLIC URL:', resumeURL)
+      } else {
+        console.error('❌ No successful upload found in result:', result)
+      }
+    } catch (error) {
+      console.error('💥 Error completing resume upload:', error)
+    }
   }
 
   // About section handlers
@@ -449,127 +588,135 @@ const LinkedInProfile = () => {
     )
   }
 
-
-
   return (
-    <div className="max-w-4xl mx-auto bg-gray-50 min-h-screen">
-      {/* Profile Header Banner */}
-      <div className="bg-white shadow-sm overflow-hidden mb-4">
-        {/* Cover Banner */}
-        <div className="h-48 relative overflow-hidden border-b-4 border-white shadow-lg">
+    <div className="min-h-screen bg-gray-50">
+      {/* Mobile-First Profile Header */}
+      <div className="bg-white shadow-sm overflow-hidden">
+        {/* Cover Banner - Mobile Optimized */}
+        <div className="h-32 sm:h-48 relative overflow-hidden">
           {profileData?.coverPhoto ? (
             <img 
               src={getImageUrl(profileData.coverPhoto)} 
               alt="Cover" 
               className="w-full h-full object-cover transition-all duration-500"
-              key={profileData.coverPhoto} // Force re-render when cover photo changes
+              key={profileData.coverPhoto}
             />
           ) : (
             <div className="h-full bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 transition-all duration-500"></div>
           )}
-          <div className="absolute top-4 right-4">
+          <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
             <ObjectUploader
               maxNumberOfFiles={1}
               maxFileSize={10485760}
-              onGetUploadParameters={handleGetUploadParameters}
+              onGetUploadParameters={handleGetCoverImageUploadParameters}
               onComplete={handleCoverPhotoComplete}
-              buttonClassName="bg-white bg-opacity-20 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-opacity-30 transition-all duration-200"
+              buttonClassName="bg-white bg-opacity-90 backdrop-blur-sm text-gray-700 px-2 py-1 sm:px-3 sm:py-2 rounded-full text-xs sm:text-sm font-medium hover:bg-opacity-100 transition-all duration-200 shadow-lg"
             >
-              📷 Enhance cover image
+              <span className="hidden sm:inline">📷 Enhance cover</span>
+              <span className="sm:hidden">📷</span>
             </ObjectUploader>
           </div>
         </div>
 
-        {/* Profile Section */}
-        <div className="px-6 pb-4">
+        {/* Profile Section - Mobile Optimized */}
+        <div className="px-3 sm:px-6 pb-3 sm:pb-4">
           {/* Profile Picture and Basic Info */}
-          <div className="flex items-end gap-6 -mt-20 mb-4">
-            {/* Profile Picture with Hiring Badge */}
-            <div className="relative">
+          <div className="flex items-end gap-3 sm:gap-6 -mt-12 sm:-mt-20 mb-3 sm:mb-4">
+            {/* Profile Picture */}
+            <div className="relative flex-shrink-0">
               {profileData?.profilePhoto ? (
                 <img 
                   src={getImageUrl(profileData.profilePhoto)} 
                   alt="Profile" 
-                  className="w-40 h-40 rounded-full border-4 border-white object-cover shadow-xl ring-2 ring-gray-200"
+                  className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-full border-4 border-white object-cover shadow-xl ring-2 ring-gray-200"
                   key={profileData.profilePhoto}
                 />
               ) : (
-                <div className="w-40 h-40 rounded-full border-4 border-white bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-4xl font-bold text-white shadow-xl ring-2 ring-gray-200">
+                <div className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-full border-4 border-white bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-2xl sm:text-3xl lg:text-4xl font-bold text-white shadow-xl ring-2 ring-gray-200">
                   {profileData?.firstName?.[0] || profileData?.user?.firstName?.[0] || profileData?.profileData?.firstName?.[0] || profileData?.user?.name?.charAt(0).toUpperCase() || user?.name?.charAt(0).toUpperCase() || 'U'}
                 </div>
               )}
-              
-
               
               {/* Camera Icon */}
               <ObjectUploader
                 maxNumberOfFiles={1}
                 maxFileSize={10485760}
-                onGetUploadParameters={handleGetUploadParameters}
+                onGetUploadParameters={handleGetProfileImageUploadParameters}
                 onComplete={handleProfilePhotoComplete}
-                buttonClassName="absolute bottom-2 right-2 bg-white p-2 rounded-full shadow-lg hover:shadow-xl transition-all"
+                buttonClassName="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 bg-white p-1.5 sm:p-2 rounded-full shadow-lg hover:shadow-xl transition-all"
+                allowedFileTypes={['image/*']}
+                uploadType="image"
               >
-                <CameraIcon className="h-4 w-4 text-gray-600" />
+                <CameraIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600" />
               </ObjectUploader>
             </div>
-
-
           </div>
 
-          {/* Name and Title */}
+          {/* Name and Title - Mobile Optimized */}
           <div className="mb-3">
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-bold text-gray-900">
-                {profileData?.firstName && profileData?.lastName
-                  ? `${profileData.firstName} ${profileData.lastName}`
-                  : profileData?.user?.firstName && profileData?.user?.lastName
-                    ? `${profileData.user.firstName} ${profileData.user.lastName}`
-                    : profileData?.profileData?.firstName && profileData?.profileData?.lastName
-                      ? `${profileData.profileData.firstName} ${profileData.profileData.lastName}`
-                      : profileData?.user?.name || user?.name || 'Your Name'
-                }
-              </h1>
+            <div className="flex items-start justify-between mb-1">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">
+                  {profileData?.firstName && profileData?.lastName
+                    ? `${profileData.firstName} ${profileData.lastName}`
+                    : profileData?.user?.firstName && profileData?.user?.lastName
+                      ? `${profileData.user.firstName} ${profileData.user.lastName}`
+                      : profileData?.profileData?.firstName && profileData?.profileData?.lastName
+                        ? `${profileData.profileData.firstName} ${profileData.profileData.lastName}`
+                        : profileData?.user?.name || user?.name || 'Your Name'
+                  }
+                </h1>
+                <p className="text-base sm:text-lg text-gray-700 mb-2 leading-tight">
+                  {profileData?.profileData?.headline || 
+                   profileData?.headline || 
+                   profileData?.profileData?.jobTitle || 
+                   profileData?.jobTitle || 
+                   profileData?.profileData?.currentRole ||
+                   'Your Professional Title'}
+                </p>
+              </div>
               <button 
                 onClick={() => setShowEditProfileModal(true)}
-                className="text-gray-500 hover:text-blue-600 transition-all duration-200 p-2 hover:bg-blue-50 rounded-full"
+                className="text-gray-500 hover:text-blue-600 transition-all duration-200 p-2 hover:bg-blue-50 rounded-full ml-2 flex-shrink-0"
                 title="Edit Profile"
               >
-                <PencilIcon className="h-5 w-5 transition-transform duration-200 hover:scale-110" />
+                <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200 hover:scale-110" />
               </button>
             </div>
-            <p className="text-lg text-gray-700 mb-2">
-              {profileData?.profileData?.headline || 
-               profileData?.headline || 
-               profileData?.profileData?.jobTitle || 
-               profileData?.jobTitle || 
-               profileData?.profileData?.currentRole ||
-               'Your Professional Title'}
-            </p>
 
-            <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-              <span>
-                {profileData?.profileData?.location || 
-                 profileData?.location || 
-                 profileData?.city || 
-                 profileData?.user?.location ||
-                 'Your Location'}
-              </span>
+            {/* Contact Info - Mobile Stack */}
+            <div className="space-y-1 text-sm text-gray-600 mb-3">
+              <div className="flex items-center">
+                <MapPinIcon className="h-4 w-4 mr-2 text-purple-600 flex-shrink-0" />
+                <span className="truncate">
+                  {profileData?.profileData?.location || 
+                   profileData?.location || 
+                   profileData?.city || 
+                   profileData?.user?.location ||
+                   'Your Location'}
+                </span>
+              </div>
               {(profileData?.email || profileData?.user?.email) && (
-                <span>{profileData?.email || profileData?.user?.email}</span>
+                <div className="flex items-center">
+                  <span className="w-4 h-4 mr-2 flex-shrink-0 text-xs">📧</span>
+                  <span className="truncate">{profileData?.email || profileData?.user?.email}</span>
+                </div>
               )}
               {(profileData?.profileData?.phone || profileData?.phone) && (
-                <span>{profileData?.profileData?.phone || profileData?.phone}</span>
+                <div className="flex items-center">
+                  <span className="w-4 h-4 mr-2 flex-shrink-0 text-xs">📱</span>
+                  <span className="truncate">{profileData?.profileData?.phone || profileData?.phone}</span>
+                </div>
               )}
             </div>
-
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-3 mb-4">
+          {/* Action Buttons - Mobile Optimized */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mb-3">
             <Button 
               variant={openToWork ? "outline" : "primary"}
               onClick={handleToggleOpenToWork}
-              className={`px-6 py-2 rounded-full font-medium transition-all duration-200 ${
+              className={`px-4 sm:px-6 py-2 rounded-full font-medium transition-all duration-200 text-sm sm:text-base ${
                 openToWork 
                   ? "border-red-300 text-red-600 hover:bg-red-50" 
                   : "bg-blue-600 text-white hover:bg-blue-700"
@@ -578,42 +725,42 @@ const LinkedInProfile = () => {
               {openToWork ? 'Remove Open to Work' : 'Set Open to Work'}
             </Button>
             {openToWork && (
-              <span className="bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full">
-                Open to Work
+              <span className="bg-green-100 text-green-800 text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full self-start sm:self-center">
+                🟢 Open to Work
               </span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="space-y-4 p-4">
+      {/* Main Content - Mobile Optimized */}
+      <div className="px-2 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4 max-w-4xl mx-auto">
         
         {/* About Section */}
         <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow duration-200">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+          <div className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center">
                 About
-                <div className="ml-3 w-8 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded"></div>
+                <div className="ml-2 w-6 sm:w-8 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded"></div>
               </h2>
               <button 
                 onClick={() => setShowAboutModal(true)}
-                className="text-gray-500 hover:text-blue-600 transition-all duration-200 p-2 hover:bg-blue-50 rounded-full"
+                className="text-gray-500 hover:text-blue-600 transition-all duration-200 p-1.5 sm:p-2 hover:bg-blue-50 rounded-full"
                 title="Edit About"
               >
                 <PencilIcon className="h-4 w-4 transition-transform duration-200 hover:scale-110" />
               </button>
             </div>
-            <div className="text-gray-700 leading-relaxed">
+            <div className="text-gray-700 leading-relaxed text-sm sm:text-base">
               {profileData?.profileData?.summary ? (
                 <div className="whitespace-pre-wrap">{profileData.profileData.summary}</div>
               ) : (
                 <button 
                   onClick={() => setShowAboutModal(true)}
-                  className="text-gray-500 hover:text-blue-600 cursor-pointer text-left transition-colors"
+                  className="text-gray-500 hover:text-blue-600 cursor-pointer text-left transition-colors text-sm"
                 >
-                  Add a summary about yourself, your experience, and career goals. This section helps recruiters understand your background and what you're looking for.
+                  Add a summary about yourself, your experience, and career goals. This helps recruiters understand your background.
                 </button>
               )}
             </div>
@@ -622,58 +769,56 @@ const LinkedInProfile = () => {
 
         {/* Experience Section */}
         <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow duration-200">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center">
                 Experience
-                <div className="ml-3 w-6 h-0.5 bg-gradient-to-r from-orange-500 to-red-500 rounded"></div>
+                <div className="ml-2 w-5 sm:w-6 h-0.5 bg-gradient-to-r from-orange-500 to-red-500 rounded"></div>
               </h2>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={handleAddExperience}
-                  className="text-gray-500 hover:text-blue-600 transition-all duration-200 p-2 hover:bg-blue-50 rounded-full"
-                  title="Add Experience"
-                >
-                  <PlusIcon className="h-4 w-4 transition-transform duration-200 hover:scale-110" />
-                </button>
-              </div>
+              <button 
+                onClick={handleAddExperience}
+                className="text-gray-500 hover:text-blue-600 transition-all duration-200 p-1.5 sm:p-2 hover:bg-blue-50 rounded-full"
+                title="Add Experience"
+              >
+                <PlusIcon className="h-4 w-4 transition-transform duration-200 hover:scale-110" />
+              </button>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {profileData?.experience?.length > 0 ? (
                 profileData.experience.map((exp, index) => (
-                  <div key={index} className="flex gap-3 group">
-                    <div className="w-10 h-10 bg-blue-100 rounded flex items-center justify-center flex-shrink-0">
-                      <BuildingOfficeIcon className="h-5 w-5 text-blue-600" />
+                  <div key={index} className="flex gap-2 sm:gap-3 group">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded flex items-center justify-center flex-shrink-0">
+                      <BuildingOfficeIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900">{exp.role}</h3>
-                          <p className="text-blue-600 font-medium">{exp.company} • {exp.employmentType || 'Full-time'}</p>
-                          <p className="text-gray-600 text-sm">{exp.duration}</p>
-                          <p className="text-gray-600 text-sm flex items-center mt-1">
-                            <MapPinIcon className="h-4 w-4 mr-1" />
-                            {exp.location || user?.city?.name || 'Location'}
-                          </p>
+                        <div className="flex-1 min-w-0 pr-2">
+                          <h3 className="font-semibold text-gray-900 text-sm sm:text-base leading-tight">{exp.role}</h3>
+                          <p className="text-blue-600 font-medium text-sm truncate">{exp.company} • {exp.employmentType || 'Full-time'}</p>
+                          <p className="text-gray-600 text-xs sm:text-sm">{exp.duration}</p>
+                          <div className="flex items-center text-gray-600 text-xs sm:text-sm mt-1">
+                            <MapPinIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+                            <span className="truncate">{exp.location || user?.city?.name || 'Location'}</span>
+                          </div>
                           {exp.description && (
-                            <p className="text-gray-700 mt-2 leading-relaxed">{exp.description}</p>
+                            <p className="text-gray-700 mt-2 leading-relaxed text-sm line-clamp-3">{exp.description}</p>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                           <button 
                             onClick={() => handleEditExperience(exp, index)}
-                            className="text-gray-500 hover:text-blue-600 transition-colors"
+                            className="text-gray-500 hover:text-blue-600 transition-colors p-1"
                             title="Edit Experience"
                           >
-                            <PencilIcon className="h-4 w-4" />
+                            <PencilIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                           </button>
                           <button 
                             onClick={() => handleDeleteExperience(index)}
-                            className="text-gray-500 hover:text-red-600 transition-colors"
+                            className="text-gray-500 hover:text-red-600 transition-colors p-1"
                             title="Delete Experience"
                           >
-                            <TrashIcon className="h-4 w-4" />
+                            <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                           </button>
                         </div>
                       </div>
@@ -681,10 +826,10 @@ const LinkedInProfile = () => {
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <BuildingOfficeIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p>No experience added yet</p>
-                  <Button variant="outline" className="mt-3" onClick={handleAddExperience}>
+                <div className="text-center py-6 text-gray-500">
+                  <BuildingOfficeIcon className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-sm">No experience added yet</p>
+                  <Button variant="outline" className="mt-3 text-sm" onClick={handleAddExperience}>
                     <PlusIcon className="h-4 w-4 mr-2" />
                     Add Experience
                   </Button>
@@ -696,53 +841,51 @@ const LinkedInProfile = () => {
 
         {/* Education Section */}
         <div className="bg-white rounded-lg shadow-sm border">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold text-gray-900">Education</h2>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={handleAddEducation}
-                  className="text-gray-500 hover:text-gray-700 transition-colors"
-                  title="Add Education"
-                >
-                  <PlusIcon className="h-5 w-5" />
-                </button>
-              </div>
+              <button 
+                onClick={handleAddEducation}
+                className="text-gray-500 hover:text-gray-700 transition-colors p-1.5 sm:p-2"
+                title="Add Education"
+              >
+                <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              </button>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {profileData?.education?.length > 0 ? (
                 profileData.education.map((edu, index) => (
-                  <div key={index} className="flex gap-3 group">
-                    <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
-                      <AcademicCapIcon className="h-5 w-5 text-gray-600" />
+                  <div key={index} className="flex gap-2 sm:gap-3 group">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
+                      <AcademicCapIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900">{edu.institution}</h3>
-                          <p className="text-gray-700">{edu.degree}{edu.field ? ` - ${edu.field}` : ''}</p>
-                          <p className="text-gray-600 text-sm">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <h3 className="font-semibold text-gray-900 text-sm sm:text-base leading-tight">{edu.institution}</h3>
+                          <p className="text-gray-700 text-sm">{edu.degree}{edu.field ? ` - ${edu.field}` : ''}</p>
+                          <p className="text-gray-600 text-xs sm:text-sm">
                             {edu.startYear && edu.endYear ? `${edu.startYear} - ${edu.endYear}` : edu.year}
                           </p>
                           {edu.grade && (
-                            <p className="text-gray-600 text-sm">Grade: {edu.grade}</p>
+                            <p className="text-gray-600 text-xs sm:text-sm">Grade: {edu.grade}</p>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                           <button 
                             onClick={() => handleEditEducation(edu, index)}
-                            className="text-gray-500 hover:text-blue-600 transition-colors"
+                            className="text-gray-500 hover:text-blue-600 transition-colors p-1"
                             title="Edit Education"
                           >
-                            <PencilIcon className="h-4 w-4" />
+                            <PencilIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                           </button>
                           <button 
                             onClick={() => handleDeleteEducation(index)}
-                            className="text-gray-500 hover:text-red-600 transition-colors"
+                            className="text-gray-500 hover:text-red-600 transition-colors p-1"
                             title="Delete Education"
                           >
-                            <TrashIcon className="h-4 w-4" />
+                            <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                           </button>
                         </div>
                       </div>
@@ -750,10 +893,10 @@ const LinkedInProfile = () => {
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <AcademicCapIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p>No education added yet</p>
-                  <Button variant="outline" className="mt-3" onClick={handleAddEducation}>
+                <div className="text-center py-6 text-gray-500">
+                  <AcademicCapIcon className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-sm">No education added yet</p>
+                  <Button variant="outline" className="mt-3 text-sm" onClick={handleAddEducation}>
                     <PlusIcon className="h-4 w-4 mr-2" />
                     Add Education
                   </Button>
@@ -763,30 +906,28 @@ const LinkedInProfile = () => {
           </div>
         </div>
 
-        {/* Skills Section */}
+        {/* Skills Section - Mobile Grid */}
         <div className="bg-white rounded-lg shadow-sm border">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold text-gray-900">Skills</h2>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => setShowSkillsModal(true)}
-                  className="text-gray-500 hover:text-gray-700 transition-colors"
-                  title="Edit Skills"
-                >
-                  <PencilIcon className="h-5 w-5" />
-                </button>
-              </div>
+              <button 
+                onClick={() => setShowSkillsModal(true)}
+                className="text-gray-500 hover:text-gray-700 transition-colors p-1.5 sm:p-2"
+                title="Edit Skills"
+              >
+                <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              </button>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-2 sm:gap-3">
               {(profileData?.skills?.length > 0 || (profileData?.ratings && Object.keys(profileData.ratings).length > 0)) ? (
                 <>
                   {/* Display skills array if available */}
                   {profileData?.skills?.map((skill, index) => (
-                    <div key={index} className="p-3 bg-gray-50 rounded-lg border">
+                    <div key={index} className="p-2 sm:p-3 bg-gray-50 rounded-lg border">
                       <div className="flex items-center justify-between">
-                        <h3 className="font-medium text-gray-900 text-sm">{skill.name}</h3>
+                        <h3 className="font-medium text-gray-900 text-xs sm:text-sm">{skill.name}</h3>
                         <span className="text-xs text-gray-600">{skill.rating}/5</span>
                       </div>
                       <div className="mt-1">
@@ -803,9 +944,9 @@ const LinkedInProfile = () => {
                   {/* Display ratings object if skills array is not available */}
                   {(!profileData?.skills || profileData.skills.length === 0) && profileData?.ratings && 
                     Object.entries(profileData.ratings).map(([skill, rating]) => (
-                      <div key={skill} className="p-3 bg-gray-50 rounded-lg border">
+                      <div key={skill} className="p-2 sm:p-3 bg-gray-50 rounded-lg border">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-medium text-gray-900 text-sm">{skill}</h3>
+                          <h3 className="font-medium text-gray-900 text-xs sm:text-sm">{skill}</h3>
                           <span className="text-xs text-gray-600">{rating}/5</span>
                         </div>
                         <div className="mt-1">
@@ -821,9 +962,9 @@ const LinkedInProfile = () => {
                   }
                 </>
               ) : (
-                <div className="text-center py-6 text-gray-500 col-span-full">
-                  <p>No skills added yet</p>
-                  <Button variant="outline" className="mt-3" onClick={() => setShowSkillsModal(true)}>
+                <div className="text-center py-6 text-gray-500">
+                  <p className="text-sm">No skills added yet</p>
+                  <Button variant="outline" className="mt-3 text-sm" onClick={() => setShowSkillsModal(true)}>
                     <PlusIcon className="h-4 w-4 mr-2" />
                     Add Skills
                   </Button>
@@ -833,31 +974,92 @@ const LinkedInProfile = () => {
           </div>
         </div>
 
-
-
-        {/* Job Preferences Section */}
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Job Preferences</h2>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => setShowPreferencesModal(true)}
-                  className="text-gray-500 hover:text-gray-700 transition-colors"
-                  title="Edit Preferences"
-                >
-                  <PencilIcon className="h-5 w-5" />
-                </button>
-              </div>
+        {/* Resume Section - Mobile Optimized */}
+        <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow duration-200">
+          <div className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center">
+                Resume
+                <div className="ml-2 w-6 sm:w-8 h-0.5 bg-gradient-to-r from-green-500 to-teal-500 rounded"></div>
+              </h2>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
+              {profileData?.resumeUrl ? (
+                <div className="flex items-center justify-between p-3 sm:p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    <DocumentArrowDownIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-gray-900 text-sm sm:text-base">Resume uploaded</p>
+                      <p className="text-xs sm:text-sm text-gray-600 truncate">
+                        {profileData.resumeFileName || 'resume.pdf'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2 flex-shrink-0">
+                    <Button 
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => window.open(profileData.resumeUrl, '_blank')}
+                      className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5"
+                    >
+                      View
+                    </Button>
+                    <ObjectUploader
+                      maxNumberOfFiles={1}
+                      maxFileSize={10485760} // 10MB
+                      onGetUploadParameters={handleGetResumeUploadParameters}
+                      onComplete={handleResumeUploadComplete}
+                      allowedFileTypes={['application/pdf', '.pdf']}
+                      uploadType="resume"
+                      buttonClassName="text-blue-600 hover:bg-blue-50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm"
+                    >
+                      Update
+                    </ObjectUploader>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-6 sm:py-8 text-gray-500">
+                  <DocumentArrowDownIcon className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 text-gray-300" />
+                  <p className="mb-4 text-sm">Upload your resume to help employers</p>
+                  <ObjectUploader
+                    maxNumberOfFiles={1}
+                    maxFileSize={10485760} // 10MB
+                    onGetUploadParameters={handleGetResumeUploadParameters}
+                    onComplete={handleResumeUploadComplete}
+                    allowedFileTypes={['application/pdf', '.pdf']}
+                    uploadType="resume"
+                    buttonClassName="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm inline-flex items-center"
+                  >
+                    <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
+                    Upload Resume
+                  </ObjectUploader>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
+        {/* Job Preferences Section - Mobile Cards */}
+        <div className="bg-white rounded-lg shadow-sm border">
+          <div className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-gray-900">Job Preferences</h2>
+              <button 
+                onClick={() => setShowPreferencesModal(true)}
+                className="text-gray-500 hover:text-gray-700 transition-colors p-1.5 sm:p-2"
+                title="Edit Preferences"
+              >
+                <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-3 sm:space-y-4">
               {(profileData?.jobPreferences || profileData?.profileData?.jobPreferences) ? (
-                <div className="grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-1 gap-2 sm:gap-3">
                   {((profileData?.jobPreferences?.jobTypes || profileData?.profileData?.jobPreferences?.jobTypes)?.length > 0) && (
-                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <h4 className="font-medium text-gray-900 mb-2 text-sm">Job Types</h4>
+                    <div className="p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <h4 className="font-medium text-gray-900 mb-2 text-xs sm:text-sm">Job Types</h4>
                       <div className="flex flex-wrap gap-1">
                         {(profileData?.jobPreferences?.jobTypes || profileData?.profileData?.jobPreferences?.jobTypes).map((type, index) => (
                           <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
@@ -869,8 +1071,8 @@ const LinkedInProfile = () => {
                   )}
                   
                   {((profileData?.jobPreferences?.preferredLocations || profileData?.profileData?.jobPreferences?.preferredLocations)?.length > 0) && (
-                    <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
-                      <h4 className="font-medium text-gray-900 mb-2 text-sm">Preferred Locations</h4>
+                    <div className="p-2 sm:p-3 bg-purple-50 rounded-lg border border-purple-200">
+                      <h4 className="font-medium text-gray-900 mb-2 text-xs sm:text-sm">Preferred Locations</h4>
                       <div className="flex flex-wrap gap-1">
                         {(profileData?.jobPreferences?.preferredLocations || profileData?.profileData?.jobPreferences?.preferredLocations).map((location, index) => (
                           <span key={index} className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full font-medium">
@@ -882,9 +1084,9 @@ const LinkedInProfile = () => {
                   )}
                   
                   {(profileData?.jobPreferences?.workType || profileData?.profileData?.jobPreferences?.workType) && (
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-3">Work Type</h4>
-                      <span className="px-3 py-2 bg-orange-100 text-orange-800 text-sm rounded-full font-medium capitalize">
+                    <div className="p-2 sm:p-3 bg-orange-50 rounded-lg border border-orange-200">
+                      <h4 className="font-medium text-gray-900 mb-2 text-xs sm:text-sm">Work Type</h4>
+                      <span className="px-2 sm:px-3 py-1 sm:py-2 bg-orange-100 text-orange-800 text-xs sm:text-sm rounded-full font-medium capitalize">
                         {profileData?.jobPreferences?.workType || profileData?.profileData?.jobPreferences?.workType}
                       </span>
                     </div>
@@ -892,32 +1094,32 @@ const LinkedInProfile = () => {
                   
                   {((profileData?.jobPreferences?.salaryRange?.min || profileData?.jobPreferences?.salaryRange?.max) || 
                     (profileData?.profileData?.jobPreferences?.salaryRange?.min || profileData?.profileData?.jobPreferences?.salaryRange?.max)) && (
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-3">Expected Salary Range</h4>
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <span className="text-lg font-semibold text-gray-800">
+                    <div className="p-2 sm:p-3 bg-gray-50 rounded-lg border">
+                      <h4 className="font-medium text-gray-900 mb-2 text-xs sm:text-sm">Expected Salary Range</h4>
+                      <div className="bg-white p-2 sm:p-3 rounded-lg border">
+                        <span className="text-sm sm:text-base font-semibold text-gray-800">
                           ₹{(profileData?.jobPreferences?.salaryRange?.min || profileData?.profileData?.jobPreferences?.salaryRange?.min) ? 
                             Number(profileData?.jobPreferences?.salaryRange?.min || profileData?.profileData?.jobPreferences?.salaryRange?.min).toLocaleString() : '0'} - 
                           ₹{(profileData?.jobPreferences?.salaryRange?.max || profileData?.profileData?.jobPreferences?.salaryRange?.max) ? 
-                            Number(profileData?.jobPreferences?.salaryRange?.max || profileData?.profileData?.jobPreferences?.salaryRange?.max).toLocaleString() : 'Open'} per month
+                            Number(profileData?.jobPreferences?.salaryRange?.max || profileData?.profileData?.jobPreferences?.salaryRange?.max).toLocaleString() : 'Open'} /month
                         </span>
                       </div>
                     </div>
                   )}
                   
                   {(profileData?.jobPreferences?.noticePeriod || profileData?.profileData?.jobPreferences?.noticePeriod) && (
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-3">Notice Period</h4>
-                      <span className="px-3 py-2 bg-yellow-100 text-yellow-800 text-sm rounded-full font-medium">
+                    <div className="p-2 sm:p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <h4 className="font-medium text-gray-900 mb-2 text-xs sm:text-sm">Notice Period</h4>
+                      <span className="px-2 sm:px-3 py-1 sm:py-2 bg-yellow-100 text-yellow-800 text-xs sm:text-sm rounded-full font-medium">
                         {profileData?.jobPreferences?.noticePeriod || profileData?.profileData?.jobPreferences?.noticePeriod}
                       </span>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <p>No job preferences added yet</p>
-                  <Button variant="outline" className="mt-3" onClick={() => setShowPreferencesModal(true)}>
+                <div className="text-center py-6 text-gray-500">
+                  <p className="text-sm">No job preferences added yet</p>
+                  <Button variant="outline" className="mt-3 text-sm" onClick={() => setShowPreferencesModal(true)}>
                     <PlusIcon className="h-4 w-4 mr-2" />
                     Add Job Preferences
                   </Button>

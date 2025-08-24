@@ -61,8 +61,23 @@ const Header = ({ onMenuClick }) => {
             </h1>
           </div>
 
-          {/* Right side - notifications and user menu */}
+          {/* Right side - Create Job + notifications and user menu */}
           <div className="flex items-center space-x-4">
+            {/* Create Job Button */}
+            <Link
+              to={
+                isAdminView()
+                  ? `/branch-admin/employers/${targetEmployer?.id}/ads/new`
+                  : "/employer/ads/new"
+              }
+              className="w-8 h-8 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center transition-colors duration-200"
+              title="Create Job"
+            >
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </Link>
+
             {/* Notifications */}
             <button
               type="button"

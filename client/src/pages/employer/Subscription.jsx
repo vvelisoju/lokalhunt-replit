@@ -1,15 +1,13 @@
-
-
-import React, { useState, useEffect } from 'react';
-import { subscriptionService } from '../../services/employer/subscription';
-import { branchAdminSubscriptionService } from '../../services/branch-admin/subscription';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
-import Badge from '../../components/ui/Badge';
-import Modal from '../../components/ui/Modal';
-import { 
-  CheckIcon, 
-  XMarkIcon, 
+import React, { useState, useEffect } from "react";
+import { subscriptionService } from "../../services/employer/subscription";
+import { branchAdminSubscriptionService } from "../../services/branch-admin/subscription";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import Badge from "../../components/ui/Badge";
+import Modal from "../../components/ui/Modal";
+import {
+  CheckIcon,
+  XMarkIcon,
   CreditCardIcon,
   CalendarIcon,
   UserIcon,
@@ -18,24 +16,24 @@ import {
   StarIcon,
   ClockIcon,
   HandThumbUpIcon,
-  HandThumbDownIcon
-} from '@heroicons/react/24/outline';
-import { useTranslation } from 'react-i18next';
-import { useRole } from '../../context/RoleContext';
-import { toast } from 'react-hot-toast';
+  HandThumbDownIcon,
+} from "@heroicons/react/24/outline";
+import { useTranslation } from "react-i18next";
+import { useRole } from "../../context/RoleContext";
+import { toast } from "react-hot-toast";
 
 const Subscription = () => {
   const { t } = useTranslation();
-  
+
   // Role context for Branch Admin functionality
-  const roleContext = useRole()
-  const { 
-    isAdminView = () => false, 
-    isBranchAdmin = () => false, 
-    can = () => false, 
-    targetEmployer = null, 
-    getCurrentEmployerId = () => null 
-  } = roleContext || {}
+  const roleContext = useRole();
+  const {
+    isAdminView = () => false,
+    isBranchAdmin = () => false,
+    can = () => false,
+    targetEmployer = null,
+    getCurrentEmployerId = () => null,
+  } = roleContext || {};
 
   const [plans, setPlans] = useState([]);
   const [currentSubscription, setCurrentSubscription] = useState(null);
@@ -43,13 +41,13 @@ const Subscription = () => {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [isCreatingSubscription, setIsCreatingSubscription] = useState(false);
-  const [error, setError] = useState('');
-  
+  const [error, setError] = useState("");
+
   // Branch Admin specific states
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
+  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     loadData();
@@ -60,20 +58,20 @@ const Subscription = () => {
       setIsLoading(true);
       const [plansResponse, subscriptionResponse] = await Promise.allSettled([
         subscriptionService.getPlans(),
-        subscriptionService.getCurrentSubscription()
+        subscriptionService.getCurrentSubscription(),
       ]);
 
-      if (plansResponse.status === 'fulfilled') {
+      if (plansResponse.status === "fulfilled") {
         setPlans(plansResponse.value.data || []);
       }
 
-      if (subscriptionResponse.status === 'fulfilled') {
+      if (subscriptionResponse.status === "fulfilled") {
         // Handle case where API returns successful response but no subscription data
         setCurrentSubscription(subscriptionResponse.value.data || null);
       }
     } catch (error) {
-      console.error('Error loading subscription data:', error);
-      setError('Failed to load subscription data');
+      console.error("Error loading subscription data:", error);
+      setError("Failed to load subscription data");
     } finally {
       setIsLoading(false);
     }
@@ -89,27 +87,28 @@ const Subscription = () => {
 
     try {
       setIsCreatingSubscription(true);
-      
+
       if (isBranchAdmin() && getCurrentEmployerId()) {
         // Branch admin creating subscription for employer
         await branchAdminSubscriptionService.createEmployerSubscription(
           getCurrentEmployerId(),
-          { planId: selectedPlan.id }
+          { planId: selectedPlan.id },
         );
-        toast.success('Subscription created successfully for employer');
+        toast.success("Subscription created successfully for employer");
       } else {
         // Regular employer creating own subscription
         await subscriptionService.createSubscription({
-          planId: selectedPlan.id
+          planId: selectedPlan.id,
         });
-        toast.success('Subscription created successfully');
+        toast.success("Subscription created successfully");
       }
-      
+
       setShowPlanModal(false);
       await loadData();
     } catch (error) {
-      console.error('Error creating subscription:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to create subscription';
+      console.error("Error creating subscription:", error);
+      const errorMessage =
+        error.response?.data?.message || "Failed to create subscription";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -124,43 +123,50 @@ const Subscription = () => {
       await subscriptionService.cancelSubscription();
       await loadData();
     } catch (error) {
-      console.error('Error cancelling subscription:', error);
-      setError('Failed to cancel subscription');
+      console.error("Error cancelling subscription:", error);
+      setError("Failed to cancel subscription");
     }
   };
-  
+
   // Branch Admin approve subscription
   const handleApproveSubscription = async () => {
     if (!currentSubscription?.id) return;
-    
+
     try {
       setIsApproving(true);
-      await branchAdminSubscriptionService.approveSubscription(currentSubscription.id);
-      toast.success('Subscription approved successfully');
+      await branchAdminSubscriptionService.approveSubscription(
+        currentSubscription.id,
+      );
+      toast.success("Subscription approved successfully");
       await loadData();
     } catch (error) {
-      console.error('Error approving subscription:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to approve subscription';
+      console.error("Error approving subscription:", error);
+      const errorMessage =
+        error.response?.data?.message || "Failed to approve subscription";
       toast.error(errorMessage);
     } finally {
       setIsApproving(false);
     }
   };
-  
+
   // Branch Admin reject subscription
   const handleRejectSubscription = async () => {
     if (!currentSubscription?.id || !rejectReason.trim()) return;
-    
+
     try {
       setIsRejecting(true);
-      await branchAdminSubscriptionService.rejectSubscription(currentSubscription.id, rejectReason);
-      toast.success('Subscription rejected successfully');
+      await branchAdminSubscriptionService.rejectSubscription(
+        currentSubscription.id,
+        rejectReason,
+      );
+      toast.success("Subscription rejected successfully");
       setShowRejectModal(false);
-      setRejectReason('');
+      setRejectReason("");
       await loadData();
     } catch (error) {
-      console.error('Error rejecting subscription:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to reject subscription';
+      console.error("Error rejecting subscription:", error);
+      const errorMessage =
+        error.response?.data?.message || "Failed to reject subscription";
       toast.error(errorMessage);
     } finally {
       setIsRejecting(false);
@@ -169,11 +175,11 @@ const Subscription = () => {
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      ACTIVE: { color: 'green', text: 'Active' },
-      EXPIRED: { color: 'red', text: 'Expired' },
-      CANCELLED: { color: 'gray', text: 'Cancelled' },
-      PAST_DUE: { color: 'yellow', text: 'Past Due' },
-      PENDING_APPROVAL: { color: 'yellow', text: 'Pending Approval' }
+      ACTIVE: { color: "green", text: "Active" },
+      EXPIRED: { color: "red", text: "Expired" },
+      CANCELLED: { color: "gray", text: "Cancelled" },
+      PAST_DUE: { color: "yellow", text: "Past Due" },
+      PENDING_APPROVAL: { color: "yellow", text: "Pending Approval" },
     };
 
     const config = statusConfig[status] || statusConfig.ACTIVE;
@@ -181,38 +187,43 @@ const Subscription = () => {
   };
 
   const formatPrice = (price) => {
-    if (price === null || price === undefined) return 'Free';
+    if (price === null || price === undefined) return "Free";
     return `₹${price.toLocaleString()}`;
   };
 
   const isPlanActive = (plan) => {
-    return currentSubscription && 
-           currentSubscription.planId === plan.id && 
-           (currentSubscription.status === 'ACTIVE' || currentSubscription.status === 'PENDING_APPROVAL');
+    return (
+      currentSubscription &&
+      currentSubscription.planId === plan.id &&
+      (currentSubscription.status === "ACTIVE" ||
+        currentSubscription.status === "PENDING_APPROVAL")
+    );
   };
 
   const canSelectPlan = (plan) => {
     // Branch admins can always select Self-Service plans for employers
-    if (isBranchAdmin() && plan.name === 'Self-Service') {
+    if (isBranchAdmin() && plan.name === "Self-Service") {
       return !isPlanActive(plan);
     }
-    
+
     // If no current subscription, can select any plan
     if (!currentSubscription) return true;
-    
+
     // If HR-Assist is pending approval, disable Self-Service plan selection (except for branch admin)
-    if (currentSubscription.plan?.name === 'HR-Assist' && 
-        currentSubscription.status === 'PENDING_APPROVAL' && 
-        plan.name === 'Self-Service' && 
-        !isBranchAdmin()) {
+    if (
+      currentSubscription.plan?.name === "HR-Assist" &&
+      currentSubscription.status === "PENDING_APPROVAL" &&
+      plan.name === "Self-Service" &&
+      !isBranchAdmin()
+    ) {
       return false;
     }
-    
+
     // If current plan is free (Self-Service), allow selecting any other plan
-    if (currentSubscription.plan?.name === 'Self-Service') {
-      return plan.name !== 'Self-Service';
+    if (currentSubscription.plan?.name === "Self-Service") {
+      return plan.name !== "Self-Service";
     }
-    
+
     // For paid plans, only allow if not currently active
     return !isPlanActive(plan);
   };
@@ -226,14 +237,17 @@ const Subscription = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          {t('employer.subscription.title', 'Subscription Plans')}
+          {t("employer.subscription.title", "Subscription Plans")}
         </h1>
-        <p className="text-gray-600">
-          {t('employer.subscription.subtitle', 'Select the perfect plan for your hiring needs. Upgrade or downgrade anytime.')}
+        <p className="text-gray-600 text-xs">
+          {t(
+            "employer.subscription.subtitle",
+            "Select the perfect plan for your hiring needs. Upgrade or downgrade anytime.",
+          )}
         </p>
       </div>
 
@@ -250,11 +264,13 @@ const Subscription = () => {
 
       {/* Current Subscription - Compact Version */}
       {currentSubscription && (
-        <Card className={`mb-8 ${
-          currentSubscription.status === 'ACTIVE' 
-            ? 'bg-gradient-to-r from-green-50 to-blue-50 border-green-200'
-            : 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-300'
-        }`}>
+        <Card
+          className={`mb-8 ${
+            currentSubscription.status === "ACTIVE"
+              ? "bg-gradient-to-r from-green-50 to-blue-50 border-green-200"
+              : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-300"
+          }`}
+        >
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -263,47 +279,54 @@ const Subscription = () => {
               </h3>
               {getStatusBadge(currentSubscription.status)}
             </div>
-            
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <p className="text-gray-500">Start Date</p>
-                <p className="font-medium">{new Date(currentSubscription.startDate).toLocaleDateString()}</p>
+                <p className="font-medium">
+                  {new Date(currentSubscription.startDate).toLocaleDateString()}
+                </p>
               </div>
               <div>
                 <p className="text-gray-500">Hired</p>
-                <p className="font-bold text-lg text-green-600">{currentSubscription.totalCandidatesHired || 0}</p>
+                <p className="font-bold text-lg text-green-600">
+                  {currentSubscription.totalCandidatesHired || 0}
+                </p>
               </div>
               <div>
                 <p className="text-gray-500">Amount Due</p>
-                <p className="font-bold text-lg">{formatPrice(currentSubscription.totalAmountDue)}</p>
+                <p className="font-bold text-lg">
+                  {formatPrice(currentSubscription.totalAmountDue)}
+                </p>
               </div>
               <div className="flex items-center">
-                {currentSubscription.status === 'ACTIVE' && currentSubscription.plan?.name !== 'Self-Service' && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleCancelSubscription}
-                    className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
-                  >
-                    Cancel
-                  </Button>
-                )}
+                {currentSubscription.status === "ACTIVE" &&
+                  currentSubscription.plan?.name !== "Self-Service" && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleCancelSubscription}
+                      className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                    >
+                      Cancel
+                    </Button>
+                  )}
               </div>
             </div>
 
-            {currentSubscription.status === 'PENDING_APPROVAL' && (
+            {currentSubscription.status === "PENDING_APPROVAL" && (
               <div className="mt-4 space-y-3">
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center">
                     <InformationCircleIcon className="h-4 w-4 text-blue-600 mr-2" />
                     <p className="text-blue-800 text-sm">
-                      {isBranchAdmin() 
-                        ? 'This subscription is pending approval. You can approve or reject it below.' 
-                        : 'Branch admin will connect you soon to complete MOU process.'}
+                      {isBranchAdmin()
+                        ? "This subscription is pending approval. You can approve or reject it below."
+                        : "Branch admin will connect you soon to complete MOU process."}
                     </p>
                   </div>
                 </div>
-                
+
                 {/* Branch Admin Approval Actions */}
                 {isBranchAdmin() && (
                   <div className="flex gap-3">
@@ -314,7 +337,7 @@ const Subscription = () => {
                       className="bg-green-600 hover:bg-green-700 text-white flex items-center"
                     >
                       <HandThumbUpIcon className="h-4 w-4 mr-1" />
-                      {isApproving ? 'Approving...' : 'Approve'}
+                      {isApproving ? "Approving..." : "Approve"}
                     </Button>
                     <Button
                       onClick={() => setShowRejectModal(true)}
@@ -335,31 +358,39 @@ const Subscription = () => {
 
       {/* Available Plans */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Available Plans</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">
+          Available Plans
+        </h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {plans.map((plan) => (
-            <Card 
-              key={plan.id} 
+            <Card
+              key={plan.id}
               className={`relative transform transition-all duration-200 hover:scale-105 ${
-                isPlanActive(plan) 
-                  ? 'ring-4 ring-green-500 border-green-200 shadow-2xl' 
-                  : plan.name === 'HR-Assist' 
-                  ? 'ring-2 ring-blue-200 border-blue-200 shadow-lg' 
-                  : 'border-gray-200 shadow-md hover:shadow-lg'
+                isPlanActive(plan)
+                  ? "ring-4 ring-green-500 border-green-200 shadow-2xl"
+                  : plan.name === "HR-Assist"
+                    ? "ring-2 ring-blue-200 border-blue-200 shadow-lg"
+                    : "border-gray-200 shadow-md hover:shadow-lg"
               }`}
             >
               {isPlanActive(plan) && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <Badge color="green" className="px-4 py-2 text-sm font-semibold">
+                  <Badge
+                    color="green"
+                    className="px-4 py-2 text-sm font-semibold"
+                  >
                     <StarIcon className="w-4 h-4 mr-1" />
                     Current Plan
                   </Badge>
                 </div>
               )}
 
-              {plan.name === 'HR-Assist' && !isPlanActive(plan) && (
+              {plan.name === "HR-Assist" && !isPlanActive(plan) && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <Badge color="blue" className="px-4 py-2 text-sm font-semibold">
+                  <Badge
+                    color="blue"
+                    className="px-4 py-2 text-sm font-semibold"
+                  >
                     <StarIcon className="w-4 h-4 mr-1" />
                     Most Popular
                   </Badge>
@@ -368,26 +399,37 @@ const Subscription = () => {
 
               <div className="p-6">
                 <div className="text-center mb-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                  <p className="text-gray-600 mb-4 text-sm min-h-[2.5rem]">{plan.description}</p>
-                  
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    {plan.name}
+                  </h3>
+                  <p className="text-gray-600 mb-4 text-sm min-h-[2.5rem]">
+                    {plan.description}
+                  </p>
+
                   <div className="space-y-1 mb-4">
                     {plan.priceMonthly === 0 ? (
-                      <div className="text-4xl font-bold text-green-600">Free</div>
+                      <div className="text-4xl font-bold text-green-600">
+                        Free
+                      </div>
                     ) : (
                       <>
                         {plan.pricePerCandidate !== null && (
                           <div className="text-4xl font-bold text-gray-900">
                             {formatPrice(plan.pricePerCandidate)}
-                            <span className="text-lg font-normal text-gray-500">/hire</span>
+                            <span className="text-lg font-normal text-gray-500">
+                              /hire
+                            </span>
                           </div>
                         )}
-                        {plan.priceMonthly !== null && plan.priceMonthly > 0 && (
-                          <div className="text-lg text-gray-700">
-                            {formatPrice(plan.priceMonthly)}
-                            <span className="text-sm text-gray-500">/month</span>
-                          </div>
-                        )}
+                        {plan.priceMonthly !== null &&
+                          plan.priceMonthly > 0 && (
+                            <div className="text-lg text-gray-700">
+                              {formatPrice(plan.priceMonthly)}
+                              <span className="text-sm text-gray-500">
+                                /month
+                              </span>
+                            </div>
+                          )}
                       </>
                     )}
                   </div>
@@ -417,12 +459,14 @@ const Subscription = () => {
                           </>
                         )}
                       </div>
-                      
+
                       <div className="flex items-center text-sm">
                         {plan.maxShortlists ? (
                           <>
                             <CheckIcon className="h-5 w-5 text-green-500 mr-3" />
-                            <span>{plan.maxShortlists} candidate shortlists</span>
+                            <span>
+                              {plan.maxShortlists} candidate shortlists
+                            </span>
                           </>
                         ) : (
                           <>
@@ -436,30 +480,38 @@ const Subscription = () => {
                 </div>
 
                 {/* Special advantages for HR-Assist */}
-                {plan.name === 'HR-Assist' && (
+                {plan.name === "HR-Assist" && (
                   <div className="mb-8 space-y-3">
                     <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                       <div className="flex items-center mb-2">
                         <CheckIcon className="h-4 w-4 text-green-600 mr-2" />
-                        <span className="text-sm font-semibold text-green-800">Quality Guarantee</span>
+                        <span className="text-sm font-semibold text-green-800">
+                          Quality Guarantee
+                        </span>
                       </div>
                       <p className="text-xs text-green-700">
-                        Unlimited replacement within 2 months if hired candidate doesn't work out
+                        Unlimited replacement within 2 months if hired candidate
+                        doesn't work out
                       </p>
                     </div>
                     <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                       <div className="flex items-center mb-2">
                         <ClockIcon className="h-4 w-4 text-blue-600 mr-2" />
-                        <span className="text-sm font-semibold text-blue-800">Emergency Support</span>
+                        <span className="text-sm font-semibold text-blue-800">
+                          Emergency Support
+                        </span>
                       </div>
                       <p className="text-xs text-blue-700">
-                        Fast-track recruitment in 24-48 hours for urgent positions
+                        Fast-track recruitment in 24-48 hours for urgent
+                        positions
                       </p>
                     </div>
                     <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
                       <div className="flex items-center mb-2">
                         <StarIcon className="h-4 w-4 text-orange-600 mr-2" />
-                        <span className="text-sm font-semibold text-orange-800">Best Value</span>
+                        <span className="text-sm font-semibold text-orange-800">
+                          Best Value
+                        </span>
                       </div>
                       <p className="text-xs text-orange-700">
                         Pay only ₹3,000 per successful hire - lowest market rate
@@ -472,37 +524,39 @@ const Subscription = () => {
                   <Button
                     onClick={() => handleSelectPlan(plan)}
                     className={`w-full py-3 text-lg font-semibold ${
-                      plan.name === 'HR-Assist'
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-green-600 hover:bg-green-700 text-white'
+                      plan.name === "HR-Assist"
+                        ? "bg-blue-600 hover:bg-blue-700 text-white"
+                        : "bg-green-600 hover:bg-green-700 text-white"
                     }`}
                   >
-                    {isPlanActive(plan) 
-                      ? 'Current Plan Active' 
-                      : isBranchAdmin() 
-                      ? `Select Plan for Employer`
-                      : 'Select Plan'}
+                    {isPlanActive(plan)
+                      ? "Current Plan Active"
+                      : isBranchAdmin()
+                        ? `Select Plan for Employer`
+                        : "Select Plan"}
                   </Button>
                 )}
 
                 {!canSelectPlan(plan) && (
-                  <div className={`w-full py-3 text-center rounded-lg font-semibold ${
-                    // Special case for Self-Service when HR-Assist is pending
-                    (currentSubscription?.plan?.name === 'HR-Assist' && 
-                     currentSubscription?.status === 'PENDING_APPROVAL' && 
-                     plan.name === 'Self-Service')
-                      ? 'bg-gray-100 text-gray-500 border border-gray-200'
-                      : currentSubscription?.status === 'PENDING_APPROVAL'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {(currentSubscription?.plan?.name === 'HR-Assist' && 
-                      currentSubscription?.status === 'PENDING_APPROVAL' && 
-                      plan.name === 'Self-Service')
-                      ? 'Unavailable during HR-Assist approval'
-                      : currentSubscription?.status === 'PENDING_APPROVAL' 
-                      ? 'Pending Approval' 
-                      : 'Current Active Plan'}
+                  <div
+                    className={`w-full py-3 text-center rounded-lg font-semibold ${
+                      // Special case for Self-Service when HR-Assist is pending
+                      currentSubscription?.plan?.name === "HR-Assist" &&
+                      currentSubscription?.status === "PENDING_APPROVAL" &&
+                      plan.name === "Self-Service"
+                        ? "bg-gray-100 text-gray-500 border border-gray-200"
+                        : currentSubscription?.status === "PENDING_APPROVAL"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-green-100 text-green-800"
+                    }`}
+                  >
+                    {currentSubscription?.plan?.name === "HR-Assist" &&
+                    currentSubscription?.status === "PENDING_APPROVAL" &&
+                    plan.name === "Self-Service"
+                      ? "Unavailable during HR-Assist approval"
+                      : currentSubscription?.status === "PENDING_APPROVAL"
+                        ? "Pending Approval"
+                        : "Current Active Plan"}
                   </div>
                 )}
               </div>
@@ -520,44 +574,54 @@ const Subscription = () => {
           {selectedPlan && (
             <div className="mb-6">
               <p className="text-gray-600 mb-4">
-                You are about to subscribe to the <strong>{selectedPlan.name}</strong> plan.
+                You are about to subscribe to the{" "}
+                <strong>{selectedPlan.name}</strong> plan.
               </p>
-              
-              {selectedPlan.name === 'HR-Assist' && (
+
+              {selectedPlan.name === "HR-Assist" && (
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center">
                     <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-2" />
                     <p className="text-blue-800 text-sm">
-                      This plan requires branch admin approval. A branch admin will connect you soon to complete the MOU process.
+                      This plan requires branch admin approval. A branch admin
+                      will connect you soon to complete the MOU process.
                     </p>
                   </div>
                 </div>
               )}
-              
+
               <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                 <div className="flex justify-between">
                   <span className="font-medium">Plan:</span>
                   <span className="font-semibold">{selectedPlan.name}</span>
                 </div>
-                {selectedPlan.priceMonthly !== null && selectedPlan.priceMonthly > 0 && (
-                  <div className="flex justify-between">
-                    <span>Monthly Price:</span>
-                    <span className="font-medium">{formatPrice(selectedPlan.priceMonthly)}</span>
-                  </div>
-                )}
+                {selectedPlan.priceMonthly !== null &&
+                  selectedPlan.priceMonthly > 0 && (
+                    <div className="flex justify-between">
+                      <span>Monthly Price:</span>
+                      <span className="font-medium">
+                        {formatPrice(selectedPlan.priceMonthly)}
+                      </span>
+                    </div>
+                  )}
                 {selectedPlan.pricePerCandidate !== null && (
                   <div className="flex justify-between">
                     <span>Per Hire:</span>
-                    <span className="font-medium">{formatPrice(selectedPlan.pricePerCandidate)}</span>
+                    <span className="font-medium">
+                      {formatPrice(selectedPlan.pricePerCandidate)}
+                    </span>
                   </div>
                 )}
-                
+
                 {selectedPlan.features && selectedPlan.features.length > 0 && (
                   <div className="pt-3 border-t border-gray-200">
                     <span className="font-medium mb-2 block">Features:</span>
                     <ul className="space-y-1">
                       {selectedPlan.features.map((feature, index) => (
-                        <li key={index} className="text-sm text-gray-600 flex items-center">
+                        <li
+                          key={index}
+                          className="text-sm text-gray-600 flex items-center"
+                        >
                           <CheckIcon className="h-4 w-4 text-green-500 mr-2" />
                           {feature}
                         </li>
@@ -568,7 +632,7 @@ const Subscription = () => {
               </div>
             </div>
           )}
-          
+
           <div className="flex space-x-3">
             <Button
               variant="secondary"
@@ -582,12 +646,12 @@ const Subscription = () => {
               isLoading={isCreatingSubscription}
               className="flex-1"
             >
-              {isCreatingSubscription ? 'Creating...' : 'Subscribe'}
+              {isCreatingSubscription ? "Creating..." : "Subscribe"}
             </Button>
           </div>
         </div>
       </Modal>
-      
+
       {/* Reject Subscription Modal */}
       <Modal isOpen={showRejectModal} onClose={() => setShowRejectModal(false)}>
         <div className="p-6">
@@ -597,7 +661,7 @@ const Subscription = () => {
           <p className="text-gray-600 mb-4">
             Please provide a reason for rejecting this subscription:
           </p>
-          
+
           <textarea
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
@@ -606,13 +670,13 @@ const Subscription = () => {
             rows={4}
             required
           />
-          
+
           <div className="flex space-x-3 mt-6">
             <Button
               variant="secondary"
               onClick={() => {
                 setShowRejectModal(false);
-                setRejectReason('');
+                setRejectReason("");
               }}
               className="flex-1"
             >
@@ -624,7 +688,7 @@ const Subscription = () => {
               disabled={!rejectReason.trim()}
               className="flex-1 bg-red-600 hover:bg-red-700 text-white"
             >
-              {isRejecting ? 'Rejecting...' : 'Reject Subscription'}
+              {isRejecting ? "Rejecting..." : "Reject Subscription"}
             </Button>
           </div>
         </div>
@@ -634,4 +698,3 @@ const Subscription = () => {
 };
 
 export default Subscription;
-

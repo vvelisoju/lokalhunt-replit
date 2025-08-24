@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { authService } from '../services/authService'
+import { profileService } from '../services/profileService'
 
 const AuthContext = createContext({})
 
@@ -48,9 +49,9 @@ export const AuthProvider = ({ children }) => {
       if (response && (response.success || response.data)) {
         const responseData = response.data || response
         const { user, token } = responseData
-        
+
         console.log('AuthContext: Extracted data:', { user, token: token ? 'present' : 'missing' })
-        
+
         if (token && user) {
           localStorage.setItem('token', token)
           setUser(user)
@@ -69,12 +70,12 @@ export const AuthProvider = ({ children }) => {
       console.error('AuthContext: Login error:', error)
 
       let errorMessage = 'Login failed'
-      
+
       if (error.response) {
         // Server responded with error
         const { status, data } = error.response
         console.log('AuthContext: Server error response:', { status, data })
-        
+
         if (data?.message) {
           errorMessage = data.message
         } else if (status === 401) {
@@ -133,13 +134,27 @@ export const AuthProvider = ({ children }) => {
     sessionStorage.removeItem('token') // Also clear sessionStorage just in case
     setUser(null)
     setIsAuthenticated(false)
-    
+
     // Don't reload the page - let the component handle navigation
     console.log('Logout completed - user state cleared')
   }
 
   const updateUser = (userData) => {
     setUser(userData);
+  };
+
+  const refreshUser = async () => {
+    try {
+      const response = await profileService.getProfile();
+      if (response && response.success) {
+        const userData = response.data?.data ? response.data.data.user : response.data;
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        return userData;
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
   };
 
   // Role-aware navigation helper
@@ -179,7 +194,8 @@ export const AuthProvider = ({ children }) => {
     updateUser,
     getDefaultDashboard,
     hasRole,
-    canAccessEmployerFeatures
+    canAccessEmployerFeatures,
+    refreshUser
   }
 
   return (

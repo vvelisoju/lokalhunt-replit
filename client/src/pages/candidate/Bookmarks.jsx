@@ -273,7 +273,9 @@ const Bookmarks = () => {
               skills: bookmark.ad?.categorySpecificFields?.requiredSkills || [],
               postedAt: bookmark.ad?.createdAt,
               createdAt: bookmark.ad?.createdAt,
-              applicationCount: bookmark.ad?.candidatesCount || 0,
+              candidatesCount: bookmark.ad?.candidatesCount || bookmark.ad?.applicationCount || bookmark.ad?._count?.allocations || 0,
+              applicationCount: bookmark.ad?.candidatesCount || bookmark.ad?.applicationCount || bookmark.ad?._count?.allocations || 0,
+              bookmarkedCount: bookmark.ad?.bookmarkedCount || bookmark.ad?._count?.bookmarks || 0,
               isBookmarked: true, // Always true for bookmarks page
               hasApplied:
                 bookmark.hasApplied || bookmark.ad?.hasApplied || false,
@@ -288,9 +290,13 @@ const Bookmarks = () => {
                 variant="bookmark"
                 bookmarkDate={bookmark.createdAt}
                 showBookmarkDate={true}
+                showCandidatesCount={true}
+                showBookmarkedCount={false}
                 onApply={(jobId) => handleApplyToJob(jobId)}
                 onRemoveBookmark={(jobId) => handleRemoveBookmark(jobId)}
-                onClick={() => handleJobCardClick(jobData.id)}
+                onClick={() => {
+                        navigate(`/candidate/jobs/${bookmark.ad.id}?from=bookmarks`);
+                      }}
                 loading={{
                   apply: actionLoading.apply === jobData.id,
                   bookmark: actionLoading.remove === jobData.id,

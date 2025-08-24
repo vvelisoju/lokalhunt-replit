@@ -937,35 +937,8 @@ class EmployerController {
           );
       }
 
-      // Check if status transition is valid
-      const validTransitions = {
-        APPLIED: ["SHORTLISTED", "REJECTED"],
-        SHORTLISTED: ["INTERVIEW_SCHEDULED", "HIRED", "HOLD", "REJECTED"],
-        INTERVIEW_SCHEDULED: [
-          "INTERVIEW_COMPLETED",
-          "HIRED",
-          "HOLD",
-          "REJECTED",
-        ],
-        INTERVIEW_COMPLETED: ["HIRED", "HOLD", "REJECTED"],
-        HOLD: ["HIRED", "REJECTED", "INTERVIEW_SCHEDULED"],
-        HIRED: [], // Final state
-        REJECTED: [], // Final state
-      };
-
+      // Allow any status transition - employers can update to any status
       const currentStatus = allocation.status;
-      const allowedNextStatuses = validTransitions[currentStatus] || [];
-
-      if (currentStatus !== status && !allowedNextStatuses.includes(status)) {
-        return res
-          .status(400)
-          .json(
-            createErrorResponse(
-              `Cannot transition from ${currentStatus} to ${status}. Allowed transitions: ${allowedNextStatuses.join(", ") || "None"}`,
-              400,
-            ),
-          );
-      }
 
       console.log(
         `[STATUS UPDATE] Updating allocation ${allocationId} from ${currentStatus} to ${status}`,
@@ -1401,7 +1374,74 @@ class EmployerController {
   // CANDIDATE SEARCH & MANAGEMENT (NEW)
   // =======================
 
-  // Get all candidates for the employer (only those who applied to employer's approved ads)
+  // Get candidate profile for employers
+  async getCandidateProfile(req, res, next) {
+    try {
+      const { candidateId } = req.params;
+
+      const employer = await req.prisma.employer.findUnique({
+        where: { userId: req.user.userId },
+      });
+
+      if (!employer) {
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
+      }
+
+      const candidate = await req.prisma.candidate.findUnique({
+        where: { id: candidateId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              profileImage: true,
+              createdAt: true,
+              city: {
+                select: { name: true, state: true }
+              }
+            },
+          },
+          allocations: {
+            where: {
+              ad: {
+                employerId: employer.id
+              }
+            },
+            include: {
+              ad: {
+                select: { id: true, title: true }
+              }
+            }
+          }
+        },
+      });
+
+      if (!candidate) {
+        return res
+          .status(404)
+          .json(createErrorResponse("Candidate not found", 404));
+      }
+
+      // Check if employer has access to this candidate (through job applications)
+      if (candidate.allocations.length === 0) {
+        return res
+          .status(403)
+          .json(createErrorResponse("Access denied - candidate has not applied to your jobs", 403));
+      }
+
+      res.json(createResponse("Candidate profile retrieved successfully", candidate));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Get all candidates allocated to this employer's ads or available candidates
   async getAllCandidates(req, res, next) {
     try {
       const { page = 1, limit = 20, search, skills, minRating, cityId } = req.query;

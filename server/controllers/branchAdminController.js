@@ -1989,6 +1989,74 @@ class BranchAdminController {
     }
   }
 
+  // Get candidate profile for branch admins
+  async getCandidateProfile(req, res, next) {
+    try {
+      const { candidateId } = req.params;
+
+      const branchAdmin = await req.prisma.branchAdmin.findUnique({
+        where: { userId: req.user.id },
+        include: {
+          assignedCity: true
+        }
+      });
+
+      if (!branchAdmin) {
+        return res
+          .status(404)
+          .json({ error: "Branch admin profile not found" });
+      }
+
+      const candidate = await req.prisma.candidate.findUnique({
+        where: { id: candidateId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              profileImage: true,
+              createdAt: true,
+              city: {
+                select: { name: true, state: true }
+              }
+            },
+          },
+          allocations: {
+            include: {
+              ad: {
+                select: { id: true, title: true },
+                include: {
+                  employer: {
+                    include: {
+                      user: {
+                        select: { name: true }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+      });
+
+      if (!candidate) {
+        return res
+          .status(404)
+          .json({ error: "Candidate not found" });
+      }
+
+      res.json(candidate);
+    } catch (error) {
+      console.error("Error fetching candidate profile:", error);
+      res.status(500).json({ error: "Failed to fetch candidate profile" });
+    }
+  }
+
   // Get admin profile
   async getProfile(req, res, next) {
     try {

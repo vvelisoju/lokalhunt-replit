@@ -35,9 +35,9 @@ const EmployerNavbar = () => {
     },
     { 
       name: 'Company', 
-      href: '/employer/company-profile', 
+      href: '/employer/companies', 
       icon: BuildingOfficeIcon,
-      current: location.pathname === '/employer/company-profile' 
+      current: location.pathname === '/employer/companies' 
     },
     { 
       name: 'MOU & Fees', 

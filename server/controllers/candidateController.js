@@ -513,6 +513,12 @@ class CandidateController {
               include: {
                 company: true,
                 location: true,
+                _count: {
+                  select: {
+                    allocations: true,
+                    bookmarks: true
+                  },
+                },
               },
             },
           },
@@ -521,7 +527,7 @@ class CandidateController {
         prisma.bookmark.count({ where: { candidateId: candidate.id } }),
       ]);
 
-      // Check application status for each bookmarked job
+      // Check application status for each bookmarked job and include counts
       const bookmarksWithStatus = await Promise.all(
         bookmarks.map(async (bookmark) => {
           const application = await prisma.allocation.findFirst({
@@ -534,6 +540,12 @@ class CandidateController {
           return {
             ...bookmark,
             hasApplied: !!application,
+            ad: {
+              ...bookmark.ad,
+              candidatesCount: bookmark.ad?._count?.allocations || 0,
+              applicationCount: bookmark.ad?._count?.allocations || 0,
+              bookmarkedCount: bookmark.ad?._count?.bookmarks || 0,
+            },
           };
         }),
       );
@@ -688,36 +700,59 @@ class CandidateController {
           .json(createErrorResponse("Resume URL is required", 400));
       }
 
-      // Check if object storage is configured
-      if (!process.env.PRIVATE_OBJECT_DIR) {
-        return res
-          .status(400)
-          .json(
-            createErrorResponse(
-              "File upload service not configured. Please set PRIVATE_OBJECT_DIR in .env file.",
-              400,
-            ),
-          );
+      const objectStorageService = new ObjectStorageService();
+
+      // Get current candidate to check for existing resume
+      const currentCandidate = await prisma.candidate.findUnique({
+        where: { userId: req.user.userId },
+        select: { resumeUrl: true, profileData: true },
+      });
+
+      // Delete old resume if it exists
+      if (currentCandidate?.resumeUrl) {
+        const oldFilePath = objectStorageService.extractFilePathFromUrl(currentCandidate.resumeUrl);
+        if (oldFilePath) {
+          console.log(`🗑️  Deleting old resume: ${oldFilePath}`);
+          await objectStorageService.deleteFile(oldFilePath);
+        }
       }
 
-      // Normalize the resume URL to internal path format
-      const objectStorageService = new ObjectStorageService();
-      const normalizedPath =
-        objectStorageService.normalizeObjectEntityPath(resumeUrl);
+      // Extract the file path from the Google Cloud Storage URL
+      const filePath = objectStorageService.extractFilePathFromUrl(resumeUrl);
+
+      // Create server URL for serving the resume
+      const serverResumeUrl = `/api/public/files/${filePath}`;
+      console.log("Storing server resume URL:", serverResumeUrl);
+
+      // Store resume metadata in profileData
+      const currentProfileData = currentCandidate?.profileData || {};
+      const updatedProfileData = {
+        ...currentProfileData,
+        resumeMetadata: {
+          fileName: fileName || "resume.pdf",
+          fileSize: fileSize || 0,
+          uploadedAt: new Date().toISOString(),
+          originalUrl: resumeUrl
+        }
+      };
 
       const updatedCandidate = await prisma.candidate.update({
         where: { userId: req.user.userId },
-        data: { resumeUrl: normalizedPath },
+        data: { 
+          resumeUrl: serverResumeUrl,
+          profileData: updatedProfileData
+        },
       });
 
       // Return resume data in the format expected by frontend
       const resumeData = {
-        url: normalizedPath,
+        url: serverResumeUrl,
         fileName: fileName || "resume.pdf",
         fileSize: fileSize || 0,
         uploadedAt: new Date().toISOString(),
       };
 
+      console.log("Resume uploaded with metadata:", resumeData);
       res.json(createResponse("Resume uploaded successfully", resumeData));
     } catch (error) {
       console.error("Upload resume error:", error);
@@ -729,7 +764,7 @@ class CandidateController {
     try {
       const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
-        select: { resumeUrl: true, updatedAt: true },
+        select: { resumeUrl: true, updatedAt: true, profileData: true },
       });
 
       if (!candidate?.resumeUrl) {
@@ -738,16 +773,74 @@ class CandidateController {
           .json(createErrorResponse("No resume found", 404));
       }
 
-      // Return resume data in the format expected by frontend
+      // Get resume metadata from profileData
+      const resumeMetadata = candidate.profileData?.resumeMetadata || {};
+
+      // If we have stored metadata, use it, otherwise try to get file size from storage
+      let fileSize = resumeMetadata.fileSize || 0;
+      let fileName = resumeMetadata.fileName || "resume.pdf";
+      let uploadedAt = resumeMetadata.uploadedAt || candidate.updatedAt.toISOString();
+
+      // If no file size in metadata, try to get it from object storage
+      if (fileSize === 0 && candidate.resumeUrl) {
+        try {
+          const objectStorageService = new ObjectStorageService();
+          
+          // Extract the actual storage path from the server URL
+          let filePath = null;
+          if (candidate.resumeUrl.includes('/api/public/files/')) {
+            // Extract the path after /api/public/files/
+            filePath = candidate.resumeUrl.split('/api/public/files/')[1];
+          } else {
+            filePath = objectStorageService.extractFilePathFromUrl(candidate.resumeUrl);
+          }
+          
+          console.log("Trying to get file size for path:", filePath);
+          
+          if (filePath) {
+            const file = objectStorageService.bucket.file(filePath);
+            const [exists] = await file.exists();
+            
+            if (exists) {
+              const [metadata] = await file.getMetadata();
+              fileSize = metadata.size || 0;
+              console.log("Got file size from storage:", fileSize);
+              
+              // Update the stored metadata with the real file size
+              if (fileSize > 0) {
+                const updatedProfileData = {
+                  ...(candidate.profileData || {}),
+                  resumeMetadata: {
+                    ...resumeMetadata,
+                    fileSize: fileSize
+                  }
+                };
+                
+                await prisma.candidate.update({
+                  where: { userId: req.user.userId },
+                  data: { profileData: updatedProfileData },
+                });
+              }
+            } else {
+              console.log("File does not exist in storage:", filePath);
+            }
+          }
+        } catch (error) {
+          console.log("Could not fetch file size from storage:", error.message);
+        }
+      }
+
       const resumeData = {
         url: candidate.resumeUrl,
-        fileName: "resume.pdf", // Could be stored separately in future
-        fileSize: 0, // Could be stored separately in future
-        uploadedAt: candidate.updatedAt.toISOString(),
+        fileName: fileName,
+        fileSize: fileSize,
+        uploadedAt: uploadedAt,
       };
 
+      console.log("Retrieved resume data:", resumeData);
       res.json(createResponse("Resume retrieved successfully", resumeData));
     } catch (error) {
+      console.error("Get resume error:", error);
       next(error);
     }
   }
@@ -1649,14 +1742,13 @@ class CandidateController {
   // FILE UPLOAD MANAGEMENT
   // =======================
 
-  // Get upload URL for profile/cover photos
+  // Get upload URL for resumes
   async getUploadUrl(req, res, next) {
     try {
       console.log(
-        "Getting upload URL for user:",
+        "Getting resume upload URL for user:",
         req.user?.userId || req.user?.id,
       );
-      console.log("Full user object:", req.user);
 
       // Use userId if available, fallback to id
       const userId = req.user?.userId || req.user?.id;
@@ -1681,11 +1773,11 @@ class CandidateController {
         },
       });
     } catch (error) {
-      console.error("Get upload URL error:", error);
+      console.error("Get resume upload URL error:", error);
       res.status(500).json({
         success: false,
         message:
-          "Failed to generate upload URL. Please ensure Object Storage is configured properly.",
+          "Failed to generate resume upload URL. Please ensure Object Storage is configured properly.",
         error: error.message,
       });
     }
@@ -1708,26 +1800,72 @@ class CandidateController {
       }
 
       const objectStorageService = new ObjectStorageService();
-      const uploadURL =
-        await objectStorageService.getProfileImageUploadURL(userId);
+      const uploadData = await objectStorageService.getProfileImageUploadURL(userId);
 
       console.log(
         "Generated profile image upload URL successfully for user:",
         userId,
+        "Upload URL:", uploadData.signedUrl,
+        "Public URL:", uploadData.publicUrl
       );
 
-      res.json({
-        success: true,
-        data: {
-          uploadURL,
-        },
-      });
+      res.json(
+        createResponse("Profile image upload URL generated successfully", {
+          uploadURL: uploadData.signedUrl,
+          publicURL: uploadData.publicUrl,
+          fileName: uploadData.fileName
+        })
+      );
     } catch (error) {
       console.error("Get profile image upload URL error:", error);
       res.status(500).json({
         success: false,
         message:
           "Failed to generate profile image upload URL. Please ensure Object Storage is configured properly.",
+        error: error.message,
+      });
+    }
+  }
+
+  // Get cover image upload URL
+  async getCoverImageUploadUrl(req, res) {
+    try {
+      // Use userId if available, fallback to id
+      const userId = req.user?.userId || req.user?.id;
+
+      console.log("Getting cover image upload URL for user:", userId);
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "User authentication required. Please log in again.",
+          error: "User ID not found in request",
+        });
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      const uploadData = await objectStorageService.getCoverImageUploadURL(userId);
+
+      console.log(
+        "Generated cover image upload URL successfully for user:",
+        userId,
+        "Upload URL:", uploadData.signedUrl,
+        "Public URL:", uploadData.publicUrl
+      );
+
+      res.json(
+        createResponse("Cover image upload URL generated successfully", {
+          uploadURL: uploadData.signedUrl,
+          publicURL: uploadData.publicUrl,
+          fileName: uploadData.fileName
+        })
+      );
+    } catch (error) {
+      console.error("Get cover image upload URL error:", error);
+      res.status(500).json({
+        success: false,
+        message:
+          "Failed to generate cover image upload URL. Please ensure Object Storage is configured properly.",
         error: error.message,
       });
     }
@@ -1744,35 +1882,36 @@ class CandidateController {
           .json(createErrorResponse("Photo URL is required", 400));
       }
 
-      // Check if object storage is configured
-      if (!process.env.PRIVATE_OBJECT_DIR) {
-        return res
-          .status(400)
-          .json(
-            createErrorResponse(
-              "File upload service not configured. Please set PRIVATE_OBJECT_DIR in .env file.",
-              400,
-            ),
-          );
-      }
-
       const objectStorageService = new ObjectStorageService();
       console.log("Received photoURL:", photoURL);
 
-      // First, normalize the path to see what we get
-      const normalizedPath =
-        objectStorageService.normalizeObjectEntityPath(photoURL);
-      console.log("Normalized path:", normalizedPath);
+      // Get current candidate to check for existing profile photo
+      const currentCandidate = await prisma.candidate.findUnique({
+        where: { userId: req.user.userId },
+        select: { profilePhoto: true },
+      });
 
-      // For now, let's skip the ACL setting and just update the database
-      // This will allow photo uploads to work while we debug the ACL issue
-      // const objectPath = normalizedPath;
+      // Delete old profile photo if it exists
+      if (currentCandidate?.profilePhoto) {
+        const oldFilePath = objectStorageService.extractFilePathFromUrl(currentCandidate.profilePhoto);
+        if (oldFilePath) {
+          console.log(`🗑️  Deleting old profile photo: ${oldFilePath}`);
+          await objectStorageService.deleteFile(oldFilePath);
+        }
+      }
 
-      // Update candidate profile with new photo path
+      // Extract the file path from the Google Cloud Storage URL
+      const filePath = objectStorageService.extractFilePathFromUrl(photoURL);
+
+      // Create server URL for serving the image
+      const serverImageUrl = `/api/public/images/${filePath}`;
+      console.log("Storing server image URL:", serverImageUrl);
+
+      // Update candidate profile with server URL instead of direct GCS URL
       const updatedCandidate = await prisma.candidate.update({
         where: { userId: req.user.userId },
         data: {
-          profilePhoto: normalizedPath,
+          profilePhoto: serverImageUrl,
         },
         include: {
           user: {
@@ -1783,11 +1922,10 @@ class CandidateController {
               lastName: true,
               email: true,
               phone: true,
-              cityId: true, // Changed from city to cityId
+              cityId: true,
               isActive: true,
               createdAt: true,
               city: {
-                // Added city to include city details
                 select: {
                   id: true,
                   name: true,
@@ -1821,31 +1959,36 @@ class CandidateController {
           .json(createErrorResponse("Photo URL is required", 400));
       }
 
-      // Check if object storage is configured
-      if (!process.env.PRIVATE_OBJECT_DIR) {
-        return res
-          .status(400)
-          .json(
-            createErrorResponse(
-              "File upload service not configured. Please set PRIVATE_OBJECT_DIR in .env file.",
-              400,
-            ),
-          );
-      }
-
       const objectStorageService = new ObjectStorageService();
       console.log("Received cover photoURL:", photoURL);
 
-      // Normalize the path for cover photo
-      const normalizedPath =
-        objectStorageService.normalizeObjectEntityPath(photoURL);
-      console.log("Normalized cover path:", normalizedPath);
+      // Get current candidate to check for existing cover photo
+      const currentCandidate = await prisma.candidate.findUnique({
+        where: { userId: req.user.userId },
+        select: { coverPhoto: true },
+      });
 
-      // Update candidate profile with new cover photo path
+      // Delete old cover photo if it exists
+      if (currentCandidate?.coverPhoto) {
+        const oldFilePath = objectStorageService.extractFilePathFromUrl(currentCandidate.coverPhoto);
+        if (oldFilePath) {
+          console.log(`🗑️  Deleting old cover photo: ${oldFilePath}`);
+          await objectStorageService.deleteFile(oldFilePath);
+        }
+      }
+
+      // Extract the file path from the Google Cloud Storage URL
+      const filePath = objectStorageService.extractFilePathFromUrl(photoURL);
+
+      // Create server URL for serving the image
+      const serverImageUrl = `/api/public/images/${filePath}`;
+      console.log("Storing server cover photo URL:", serverImageUrl);
+
+      // Update candidate profile with server URL instead of direct GCS URL
       const updatedCandidate = await prisma.candidate.update({
         where: { userId: req.user.userId },
         data: {
-          coverPhoto: normalizedPath,
+          coverPhoto: serverImageUrl,
         },
         include: {
           user: {
@@ -1856,11 +1999,10 @@ class CandidateController {
               lastName: true,
               email: true,
               phone: true,
-              cityId: true, // Changed from city to cityId
+              cityId: true,
               isActive: true,
               createdAt: true,
               city: {
-                // Added city to include city details
                 select: {
                   id: true,
                   name: true,

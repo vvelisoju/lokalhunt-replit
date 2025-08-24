@@ -19,6 +19,7 @@ import {
   XMarkIcon,
   UserGroupIcon, // Added for candidate count
   BookmarkIcon, // Added for bookmarked count
+  UserIcon, // Added for gender preference
 } from "@heroicons/react/24/outline";
 import {
   BookmarkIcon as BookmarkSolidIcon,
@@ -70,23 +71,23 @@ const JobCard = ({
 
   // Handle approve confirmation
   const handleApproveConfirm = async () => {
-    setInternalLoading(prev => ({ ...prev, approve: true }));
+    setInternalLoading((prev) => ({ ...prev, approve: true }));
     try {
       const result = await approveAd(job.id);
       if (result.success) {
-        toast.success('Job ad approved successfully');
+        toast.success("Job ad approved successfully");
         setShowApproveModal(false);
         if (onRefresh) {
           onRefresh();
         }
       } else {
-        toast.error(result.error || 'Failed to approve job ad');
+        toast.error(result.error || "Failed to approve job ad");
       }
     } catch (error) {
-      console.error('Error approving job ad:', error);
-      toast.error(error.response?.data?.message || 'Failed to approve job ad');
+      console.error("Error approving job ad:", error);
+      toast.error(error.response?.data?.message || "Failed to approve job ad");
     } finally {
-      setInternalLoading(prev => ({ ...prev, approve: false }));
+      setInternalLoading((prev) => ({ ...prev, approve: false }));
     }
   };
 
@@ -103,28 +104,28 @@ const JobCard = ({
   // Handle reject confirmation
   const handleRejectConfirm = async () => {
     if (!rejectReason.trim()) {
-      toast.error('Please provide a reason for rejection');
+      toast.error("Please provide a reason for rejection");
       return;
     }
 
-    setInternalLoading(prev => ({ ...prev, reject: true }));
+    setInternalLoading((prev) => ({ ...prev, reject: true }));
     try {
       const result = await rejectAd(job.id, rejectReason);
       if (result.success) {
-        toast.success('Job ad rejected successfully');
+        toast.success("Job ad rejected successfully");
         setShowRejectModal(false);
         setRejectReason("");
         if (onRefresh) {
           onRefresh();
         }
       } else {
-        toast.error(result.error || 'Failed to reject job ad');
+        toast.error(result.error || "Failed to reject job ad");
       }
     } catch (error) {
-      console.error('Error rejecting job ad:', error);
-      toast.error(error.response?.data?.message || 'Failed to reject job ad');
+      console.error("Error rejecting job ad:", error);
+      toast.error(error.response?.data?.message || "Failed to reject job ad");
     } finally {
-      setInternalLoading(prev => ({ ...prev, reject: false }));
+      setInternalLoading((prev) => ({ ...prev, reject: false }));
     }
   };
 
@@ -170,53 +171,29 @@ const JobCard = ({
     if (!status) return null;
 
     const baseClasses =
-      "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
+      "inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide";
 
     switch (status?.toLowerCase()) {
-      case "applied":
-      case "pending":
-        return (
-          <span className={`${baseClasses} bg-yellow-100 text-yellow-800`}>
-            Applied
-          </span>
-        );
-      case "screened":
-      case "reviewed":
-        return (
-          <span className={`${baseClasses} bg-blue-100 text-blue-800`}>
-            Under Review
-          </span>
-        );
-      case "rated":
-      case "interview":
-        return (
-          <span className={`${baseClasses} bg-purple-100 text-purple-800`}>
-            Interview
-          </span>
-        );
-      case "allocated":
-      case "shortlisted":
-      case "approved":
-        return (
-          <span className={`${baseClasses} bg-green-100 text-green-800`}>
-            Shortlisted
-          </span>
-        );
       case "hired":
         return (
-          <span className={`${baseClasses} bg-emerald-100 text-emerald-800`}>
+          <span className={`${baseClasses} bg-green-100 text-green-800`}>
             Hired
           </span>
         );
+      case "applied":
+      case "pending":
+      case "screened":
+      case "reviewed":
+      case "rated":
+      case "interview":
+      case "interview_scheduled":
+      case "allocated":
+      case "shortlisted":
+      case "approved":
       case "rejected":
-        return (
-          <span className={`${baseClasses} bg-red-100 text-red-800`}>
-            Rejected
-          </span>
-        );
       default:
         return (
-          <span className={`${baseClasses} bg-gray-100 text-gray-800`}>
+          <span className={`${baseClasses} bg-amber-100 text-amber-800`}>
             Applied
           </span>
         );
@@ -231,12 +208,20 @@ const JobCard = ({
       case "application":
         // Applied Jobs page actions
         actions.push(
-          <Link key="view" to={getJobRoute(job.id, job.status)}>
-            <Button variant="outline" size="sm" className="flex items-center">
-              <EyeIcon className="w-4 h-4 mr-1" />
-              View Job
-            </Button>
-          </Link>,
+          <Button
+            key="view-job"
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Navigate to candidate job view with context from applications page
+              navigate(`/candidate/jobs/${job.id}?from=applications`);
+            }}
+            className="flex items-center touch-manipulation"
+          >
+            <EyeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+            <span className="text-xs sm:text-sm">View Job</span>
+          </Button>,
         );
         if (applicationStatus === "APPLIED") {
           actions.push(
@@ -244,14 +229,17 @@ const JobCard = ({
               key="withdraw"
               variant="ghost"
               size="sm"
-              className="text-red-600 hover:text-red-700"
+              className="bg-red-600 hover:bg-red-700 text-white flex items-center touch-manipulation"
               onClick={(e) => {
                 e.stopPropagation();
                 onWithdraw?.(job.id);
               }}
               disabled={loading.withdraw}
             >
-              {loading.withdraw ? "Withdrawing..." : "Withdraw"}
+              <XMarkIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+              <span className="text-xs sm:text-sm">
+                {loading.withdraw ? "Withdrawing..." : "Withdraw"}
+              </span>
             </Button>,
           );
         }
@@ -260,12 +248,14 @@ const JobCard = ({
       case "bookmark":
         // Bookmarks page actions
         actions.push(
-          <Link key="view" to={getJobRoute(job.id, job.status)}>
-            <Button variant="outline" size="sm" className="flex items-center">
-              <EyeIcon className="w-4 h-4 mr-1" />
-              View Details
-            </Button>
-          </Link>,
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center touch-manipulation"
+          >
+            <EyeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+            <span className="text-xs sm:text-sm">View</span>
+          </Button>,
         );
         if (!job.hasApplied) {
           actions.push(
@@ -277,34 +267,29 @@ const JobCard = ({
                 onApply?.(job.id);
               }}
               disabled={loading.apply}
+              className="flex items-center touch-manipulation"
             >
-              {loading.apply ? "Applying..." : "Apply Now"}
+              <BriefcaseIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+              <span className="text-xs sm:text-sm">
+                {loading.apply ? "Applying..." : "Apply"}
+              </span>
             </Button>,
           );
         } else {
           actions.push(
-            <Button key="applied" size="sm" variant="outline" disabled>
-              Applied
+            <Button
+              key="applied"
+              size="sm"
+              variant="outline"
+              disabled
+              className="flex items-center"
+            >
+              <CheckBadgeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+              <span className="text-xs sm:text-sm">Applied</span>
             </Button>,
           );
         }
 
-        // Remove bookmark button
-        actions.push(
-          <Button
-            key="remove-bookmark"
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemoveBookmark?.(job.id);
-            }}
-            disabled={loading.bookmark}
-            className="text-red-600 hover:text-red-700"
-          >
-            {loading.bookmark ? "Removing..." : "Remove"}
-          </Button>,
-        );
         break;
 
       case "employer":
@@ -319,32 +304,46 @@ const JobCard = ({
               onClick={(e) => {
                 e.stopPropagation();
                 // Updated the edit link for Branch Admin
-                if (user?.role === "BRANCH_ADMIN" || userRole === "BRANCH_ADMIN") {
+                if (
+                  user?.role === "BRANCH_ADMIN" ||
+                  userRole === "BRANCH_ADMIN"
+                ) {
                   // Get employerId from job object, with fallback checks
-                  const employerId = job.employerId || job.employer?.id || job.company?.employerId;
+                  const employerId =
+                    job.employerId ||
+                    job.employer?.id ||
+                    job.company?.employerId;
 
                   if (employerId) {
-                    console.log('Navigating to Branch Admin edit route:', `/branch-admin/employers/${employerId}/ads/${job.id}/edit`);
+                    console.log(
+                      "Navigating to Branch Admin edit route:",
+                      `/branch-admin/employers/${employerId}/ads/${job.id}/edit`,
+                    );
                     // Determine the from parameter based on current location
                     const currentPath = location.pathname;
-                    let fromParam = 'approval'; // default for ads approval page
+                    let fromParam = "approval"; // default for ads approval page
 
-                    if (currentPath.includes('/branch-admin/employers/')) {
-                      fromParam = 'employer';
+                    if (currentPath.includes("/branch-admin/employers/")) {
+                      fromParam = "employer";
                     }
 
-                    navigate(`/branch-admin/employers/${employerId}/ads/${job.id}/edit?from=${fromParam}`);
+                    navigate(
+                      `/branch-admin/employers/${employerId}/ads/${job.id}/edit?from=${fromParam}`,
+                    );
                   } else {
-                    console.error('No employerId found in job object:', job);
-                    toast.error('Cannot edit this job - employer information missing');
+                    console.error("No employerId found in job object:", job);
+                    toast.error(
+                      "Cannot edit this job - employer information missing",
+                    );
                   }
                 } else {
                   navigate(`/employer/ads/${job.id}/edit`);
                 }
               }}
-              className="flex items-center"
+              className="flex items-center touch-manipulation"
             >
-              <PencilIcon className="w-4 h-4 mr-1" />
+              <PencilIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+              <span className="text-xs sm:text-sm">Edit</span>
             </Button>,
           );
         }
@@ -363,9 +362,10 @@ const JobCard = ({
                 e.stopPropagation();
                 navigate(`/jobs/${job.id}/preview?from=employer-ads`);
               }}
-              className="text-blue-600 hover:text-blue-700 flex items-center"
+              className="text-blue-600 hover:text-blue-700 flex items-center touch-manipulation"
             >
-              <EyeIcon className="w-4 h-4 mr-1" />
+              <EyeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+              <span className="text-xs sm:text-sm">Preview</span>
             </Button>,
           );
         } else {
@@ -378,9 +378,10 @@ const JobCard = ({
                 e.stopPropagation();
                 navigate(`/jobs/${job.id}?from=employer-ads`);
               }}
-              className="text-blue-600 hover:text-blue-700 flex items-center"
+              className="text-blue-600 hover:text-blue-700 flex items-center touch-manipulation"
             >
-              <EyeIcon className="w-4 h-4 mr-1" />
+              <EyeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+              <span className="text-xs sm:text-sm">View</span>
             </Button>,
           );
         }
@@ -395,8 +396,12 @@ const JobCard = ({
                 onSubmit?.(job.id);
               }}
               disabled={loading.submit}
+              className="flex items-center touch-manipulation"
             >
-              {loading.submit ? "Submitting..." : "Submit for Approval"}
+              <CheckBadgeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+              <span className="text-xs sm:text-sm">
+                {loading.submit ? "Submitting..." : "Submit"}
+              </span>
             </Button>,
           );
         }
@@ -412,15 +417,21 @@ const JobCard = ({
                 onArchive?.(job.id);
               }}
               disabled={loading.archive}
-              className="text-red-600 hover:text-red-700"
+              className="bg-red-600 hover:bg-red-700 text-white flex items-center touch-manipulation"
             >
-              {loading.archive ? "Closing..." : "Close Job"}
+              <XMarkIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+              <span className="text-xs sm:text-sm">
+                {loading.archive ? "Closing..." : "Close Job"}
+              </span>
             </Button>,
           );
         }
 
         // Branch Admin specific actions for pending approval jobs
-        if ((userRole === "BRANCH_ADMIN" || user?.role === "BRANCH_ADMIN") && applicationStatus === "PENDING_APPROVAL") {
+        if (
+          (userRole === "BRANCH_ADMIN" || user?.role === "BRANCH_ADMIN") &&
+          applicationStatus === "PENDING_APPROVAL"
+        ) {
           actions.push(
             <Button
               key="approve"
@@ -435,10 +446,14 @@ const JobCard = ({
                 }
               }}
               disabled={loading?.approve || internalLoading.approve}
-              className="bg-green-600 hover:bg-green-700 text-white flex items-center"
+              className="bg-green-600 hover:bg-green-700 text-white flex items-center touch-manipulation"
             >
-              <CheckBadgeIcon className="w-4 h-4 mr-1" />
-              {(loading?.approve || internalLoading.approve) ? "Approving..." : "Approve"}
+              <CheckBadgeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+              <span className="text-xs sm:text-sm">
+                {loading?.approve || internalLoading.approve
+                  ? "Approving..."
+                  : "Approve"}
+              </span>
             </Button>,
           );
 
@@ -457,10 +472,14 @@ const JobCard = ({
                 }
               }}
               disabled={loading?.reject || internalLoading.reject}
-              className="text-red-600 hover:text-red-700 flex items-center"
+              className="text-red-600 hover:text-red-700 flex items-center touch-manipulation"
             >
-              <XMarkIcon className="w-4 h-4 mr-1" />
-              {(loading?.reject || internalLoading.reject) ? "Rejecting..." : "Reject"}
+              <XMarkIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+              <span className="text-xs sm:text-sm">
+                {loading?.reject || internalLoading.reject
+                  ? "Rejecting..."
+                  : "Reject"}
+              </span>
             </Button>,
           );
         }
@@ -469,14 +488,30 @@ const JobCard = ({
       case "default":
       default:
         // Jobs page actions
-        // View Job button - route based on job status
+        // View Job button - route based on user role and job status
         actions.push(
-          <Link key="view" to={getJobRoute(job.id, job.status)}>
-            <Button variant="outline" size="sm" className="flex items-center">
-              <EyeIcon className="w-4 h-4 mr-1" />
-              View Job
-            </Button>
-          </Link>,
+          <Button
+            key="view-job"
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Check if user is a candidate and route accordingly
+              if (user?.role === "CANDIDATE") {
+                // For candidates, navigate to candidate job view with context
+                const fromParam = location.pathname.includes("/candidate/") ? "jobs" : "public";
+                navigate(`/candidate/jobs/${job.id}?from=${fromParam}`);
+              } else {
+                // For public users or other roles, navigate to public job detail page
+                const jobRoute = getJobRoute(job.id, job.status || applicationStatus);
+                navigate(jobRoute);
+              }
+            }}
+            className="flex items-center touch-manipulation"
+          >
+            <EyeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+            <span className="text-xs sm:text-sm">View Job</span>
+          </Button>,
         );
 
         // Show application button for all jobs when onApply handler is provided
@@ -491,41 +526,31 @@ const JobCard = ({
                   onApply(job.id);
                 }}
                 disabled={loading.apply}
+                className="flex items-center touch-manipulation"
               >
-                {loading.apply ? "Applying..." : "Apply Now"}
+                <BriefcaseIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+                <span className="text-xs sm:text-sm">
+                  {loading.apply ? "Applying..." : "Apply Now"}
+                </span>
               </Button>,
             );
           } else {
             actions.push(
-              <Button key="applied" size="sm" variant="outline" disabled>
-                Applied
+              <Button
+                key="applied"
+                size="sm"
+                variant="outline"
+                disabled
+                className="flex items-center"
+              >
+                <CheckBadgeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+                <span className="text-xs sm:text-sm">Applied</span>
               </Button>,
             );
           }
         }
 
-        // Show bookmark functionality when onBookmark is provided
-        if (onBookmark) {
-          actions.push(
-            <Button
-              key="bookmark"
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onBookmark(job.id);
-              }}
-              disabled={loading.bookmark}
-              className="text-gray-600 hover:text-blue-600"
-            >
-              {job.isBookmarked ? (
-                <BookmarkSolidIcon className="h-5 w-5 text-blue-500" />
-              ) : (
-                <BookmarkOutlineIcon className="h-5 w-5" />
-              )}
-            </Button>,
-          );
-        }
+        // Love/Bookmark functionality is now handled in the top-right area for default variant
         break;
     }
 
@@ -543,11 +568,14 @@ const JobCard = ({
       >
         <div className="space-y-4">
           <p className="text-gray-600">
-            Are you sure you want to approve this job advertisement? Once approved, it will be published and visible to candidates.
+            Are you sure you want to approve this job advertisement? Once
+            approved, it will be published and visible to candidates.
           </p>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h4 className="font-medium text-blue-900 mb-2">{job.title}</h4>
-            <p className="text-blue-700 text-sm">{job.company?.name || job.companyName}</p>
+            <p className="text-blue-700 text-sm">
+              {job.company?.name || job.companyName}
+            </p>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button
@@ -577,7 +605,8 @@ const JobCard = ({
       >
         <div className="space-y-4">
           <p className="text-gray-600">
-            Please provide a reason for rejecting this job advertisement. This will help the employer understand what needs to be improved.
+            Please provide a reason for rejecting this job advertisement. This
+            will help the employer understand what needs to be improved.
           </p>
           <TextArea
             label="Rejection Reason"
@@ -607,217 +636,312 @@ const JobCard = ({
       </Modal>
 
       <div
-        className={`bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow ${onClick ? "cursor-pointer" : ""} ${className}`}
+        className={`bg-white border-0 rounded-2xl shadow-sm hover:shadow-lg active:shadow-md transition-all duration-200 ${onClick ? "cursor-pointer active:scale-[0.98]" : ""} ${className}`}
         onClick={onClick}
+        style={{
+          boxShadow:
+            "0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.08)",
+        }}
       >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1 min-w-0 pr-3">
-          <h3 className="text-lg font-semibold text-gray-900 truncate mb-1">
-            {typeof job.title === "string" ? job.title : "Job Title"}
-          </h3>
-          <p className="text-gray-600 text-sm font-medium">
-            {job.company?.name || job.companyName || "Company Name"}
-          </p>
-          {job.company?.industry && (
-            <p className="text-gray-500 text-xs mt-0.5">
-              {job.company.industry}
-            </p>
-          )}
-        </div>
-        <div className="flex flex-col items-end space-y-1.5">
-          {applicationStatus && variant === "employer" && (
-            <div className="flex flex-col items-end space-y-1">
-              <span
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  applicationStatus === "DRAFT"
-                    ? "bg-gray-100 text-gray-800"
-                    : applicationStatus === "PENDING_APPROVAL"
-                      ? "bg-yellow-100 text-yellow-800"
-                      : applicationStatus === "APPROVED"
-                        ? "bg-green-100 text-green-800"
-                        : applicationStatus === "ARCHIVED"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-gray-100 text-gray-800"
-                }`}
-              >
-                {applicationStatus === "PENDING_APPROVAL"
-                  ? "Pending"
-                  : applicationStatus.replace("_", " ")}
-              </span>
-            </div>
-          )}
-          {applicationStatus &&
-            variant !== "employer" &&
-            getStatusBadge(applicationStatus)}
-          {variant === "bookmark" && onRemoveBookmark && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemoveBookmark(job.id);
-              }}
-              className="text-red-600 hover:text-red-700 p-1"
-              disabled={loading.bookmark}
-            >
-              <HeartSolidIcon className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Job Details */}
-      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 mb-3">
-        <div className="flex items-center">
-          <MapPinIcon className="w-3.5 h-3.5 mr-1.5 text-gray-500" />
-          <span className="truncate">
-            {typeof job.location === "string"
-              ? job.location
-              : job.locationName
-                ? `${job.locationName}, ${job.locationState || ""}`
-                    .trim()
-                    .replace(/,$/, "")
-                : job.location?.name
-                  ? `${job.location.name}, ${job.location.state || ""}`
-                      .trim()
-                      .replace(/,$/, "")
-                  : "Location not specified"}
-          </span>
-        </div>
-        <div className="flex items-center">
-          <BriefcaseIcon className="w-3.5 h-3.5 mr-1.5 text-gray-500" />
-          <span>{job.jobType || job.employmentType || "Full Time"}</span>
-        </div>
-        {(job.salary || job.salaryRange) && (
-          <div className="flex items-center">
-            <CurrencyRupeeIcon className="w-3.5 h-3.5 mr-1.5 text-gray-500" />
-            <span className="font-medium text-green-600">
-              {typeof job.salary === "string"
-                ? job.salary
-                : job.salary && typeof job.salary === "object"
-                  ? job.salary.min && job.salary.max
-                    ? `₹${job.salary.min.toLocaleString()} - ₹${job.salary.max.toLocaleString()}`
-                    : job.salary.min
-                      ? `₹${job.salary.min.toLocaleString()}+`
-                      : "Salary not disclosed"
-                  : job.salaryRange?.min && job.salaryRange?.max
-                    ? `₹${job.salaryRange.min.toLocaleString()} - ₹${job.salaryRange.max.toLocaleString()}`
-                    : "Salary not disclosed"}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Description */}
-      {job.description && typeof job.description === "string" && (
-        <p className="text-gray-700 text-sm line-clamp-2 mb-3">
-          {job.description}
-        </p>
-      )}
-
-      {/* Skills */}
-      {Array.isArray(job.skills) && job.skills.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          {job.skills.slice(0, 4).map((skill, index) => (
-            <span
-              key={index}
-              className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
-            >
-              {typeof skill === "string" ? skill : String(skill)}
-            </span>
-          ))}
-          {job.skills.length > 4 && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-              +{job.skills.length - 4}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-        <div className="text-xs text-gray-500 flex-1 min-w-0">
-          {showApplicationDate && applicationDate ? (
-            <div className="flex flex-col">
-              <span>Applied {getTimeAgo(applicationDate)}</span>
-              {(job.candidatesCount !== undefined ||
-                job.applicationCount !== undefined) && (
-                <span className="text-blue-600 font-medium">
-                  {job.candidatesCount || job.applicationCount || 0}{" "}
-                  {(job.candidatesCount || job.applicationCount) === 1
-                    ? "applicant"
-                    : "applicants"}
-                </span>
+        {/* Header - Mobile Optimized */}
+        <div className="p-4 sm:p-4 pb-2 sm:pb-3">
+          <div className="flex items-start justify-between mb-2 sm:mb-3">
+            <div className="flex-1 min-w-0 pr-2 sm:pr-3">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight mb-1 sm:mb-2 line-clamp-2">
+                {typeof job.title === "string" ? job.title : "Job Title"}
+              </h3>
+              <div className="flex items-center mb-1">
+                <p className="text-gray-700 text-sm sm:text-base font-semibold truncate">
+                  {job.company?.name || job.companyName || "Company Name"}
+                </p>
+              </div>
+              {job.company?.industry && (
+                <p className="text-gray-500 text-xs sm:text-sm truncate">
+                  {job.company.industry}
+                </p>
               )}
             </div>
-          ) : showBookmarkDate && bookmarkDate ? (
-            <div className="flex flex-col">
-              <span>Saved {getTimeAgo(bookmarkDate)}</span>
-              {(job.candidatesCount !== undefined ||
-                job.applicationCount !== undefined) && (
-                <span className="text-blue-600 font-medium">
-                  {job.candidatesCount || job.applicationCount || 0}{" "}
-                  {(job.candidatesCount || job.applicationCount) === 1
-                    ? "applicant"
-                    : "applicants"}
-                </span>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col">
-              <span>Posted {getTimeAgo(job.postedAt || job.createdAt)}</span>
-              {/* Candidates count display for non-employer variants */}
-              {(job.candidatesCount !== undefined || job.applicationCount !== undefined) && (
-                <span className="text-blue-600 font-medium">
-                  {job.candidatesCount || job.applicationCount || 0}{" "}
-                  {(job.candidatesCount || job.applicationCount) === 1
-                    ? "applicant"
-                    : "applicants"}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-        {/* Conditionally render employer stats or actions */}
-        {variant === "employer" ? (
-          <div className="flex flex-col items-end">
-            {/* Candidates count and stats for employer variant */}
-            <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
-              {/* Candidates count with click handler */}
-              {(showCandidatesCount || job.candidatesCount !== undefined || job.applicationCount !== undefined) && (
-                <button
-                  onClick={() => {
-                    if (onViewCandidates) onViewCandidates(job.id);
-                  }}
-                  className="flex items-center text-blue-600 hover:text-blue-700 font-medium transition-colors cursor-pointer"
-                  title="View candidates for this job"
+            <div className="flex flex-col items-end space-y-1 sm:space-y-2 flex-shrink-0">
+              {applicationStatus && variant === "employer" && (
+                <span
+                  className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-bold uppercase tracking-wide whitespace-nowrap ${
+                    applicationStatus === "DRAFT"
+                      ? "bg-gray-100 text-gray-800"
+                      : applicationStatus === "PENDING_APPROVAL"
+                        ? "bg-amber-100 text-amber-800"
+                        : applicationStatus === "APPROVED"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : applicationStatus === "ARCHIVED"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-gray-100 text-gray-800"
+                  }`}
                 >
-                  <UserGroupIcon className="h-4 w-4 mr-1.5" />
-                  {job.candidatesCount || job.applicationCount || 0}{" "}
-                  {(job.candidatesCount || job.applicationCount) === 1
-                    ? "candidate"
-                    : "candidates"}
+                  {applicationStatus === "PENDING_APPROVAL"
+                    ? "Pending"
+                    : applicationStatus.replace("_", " ")}
+                </span>
+              )}
+              {applicationStatus &&
+                variant !== "employer" &&
+                getStatusBadge(applicationStatus)}
+
+              {/* Application Count for Employer Variant - moved under status */}
+              {variant === "employer" &&
+                (showCandidatesCount ||
+                  job.candidatesCount !== undefined ||
+                  job.applicationCount !== undefined) && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onViewCandidates) onViewCandidates(job.id);
+                    }}
+                    className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 active:bg-blue-300 transition-colors touch-manipulation text-xs font-semibold"
+                    title="View candidates for this job"
+                  >
+                    <UserGroupIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+                    <span className="whitespace-nowrap">
+                      {job.candidatesCount || job.applicationCount || 0}
+                    </span>
+                  </button>
+                )}
+
+              {/* Application Count for Application Variant - show under status */}
+              {variant === "application" &&
+                (job.candidatesCount !== undefined ||
+                  job.applicationCount !== undefined) && (
+                  <div className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                    <UserGroupIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+                    <span className="whitespace-nowrap">
+                      {job.candidatesCount || job.applicationCount || 0}
+                    </span>
+                  </div>
+                )}
+
+              {/* Bookmarked Count for Application Variant - show under candidate count */}
+              {variant === "application" &&
+                job.bookmarkedCount !== undefined && (
+                  <div className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">
+                    <BookmarkIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 text-gray-500 flex-shrink-0" />
+                    <span className="whitespace-nowrap">
+                      {job.bookmarkedCount || 0}
+                    </span>
+                  </div>
+                )}
+
+              {/* Candidate Count for Bookmark Variant - show candidate count only */}
+              {variant === "bookmark" &&
+                (job.candidatesCount !== undefined ||
+                  job.applicationCount !== undefined) && (
+                  <div className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                    <UserGroupIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+                    <span className="whitespace-nowrap">
+                      {job.candidatesCount || job.applicationCount || 0}
+                    </span>
+                  </div>
+                )}
+
+              {/* Application Count for Default Variant (Public Jobs) - show in top-right */}
+              {variant === "default" &&
+                (job.candidatesCount !== undefined ||
+                  job.applicationCount !== undefined) && (
+                  <div className="flex flex-col items-end space-y-1">
+                    <div className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                      <UserGroupIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+                      <span className="whitespace-nowrap">
+                        {job.candidatesCount || job.applicationCount || 0}
+                      </span>
+                    </div>
+                    {/* Love/Bookmark button for default variant */}
+                    {onBookmark && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onBookmark(job.id);
+                        }}
+                        disabled={loading.bookmark}
+                        className="p-1.5 sm:p-2 rounded-full bg-gray-50 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors touch-manipulation"
+                      >
+                        {job.isBookmarked ? (
+                          <HeartSolidIcon className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
+                        ) : (
+                          <HeartOutlineIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+              {/* Bookmarked Count for Employer Variant - moved under status */}
+              {variant === "employer" &&
+                (showBookmarkedCount || job.bookmarkedCount !== undefined) && (
+                  <div className="flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">
+                    <BookmarkIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 text-gray-500 flex-shrink-0" />
+                    <span className="whitespace-nowrap">
+                      {job.bookmarkedCount || 0}
+                    </span>
+                  </div>
+                )}
+
+              {variant === "bookmark" && onRemoveBookmark && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveBookmark(job.id);
+                  }}
+                  className="p-1.5 sm:p-2 rounded-full bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-200 transition-colors touch-manipulation"
+                  disabled={loading.bookmark}
+                >
+                  <HeartSolidIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               )}
+            </div>
+          </div>
 
-              {/* Bookmarked count */}
-              {(showBookmarkedCount || job.bookmarkedCount !== undefined) && (
-                <div className="flex items-center text-gray-600">
-                  <BookmarkIcon className="h-4 w-4 mr-1.5 text-gray-400" />
-                  <span>
-                    {job.bookmarkedCount || 0} bookmarked
-                  </span>
-                </div>
+          {/* Job Details - Mobile Optimized Compact Layout */}
+          <div className="grid grid-cols-1 gap-1.5 sm:gap-2 mb-3 sm:mb-4">
+            <div className="flex items-center">
+              <MapPinIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 mr-2 flex-shrink-0" />
+              <span className="text-gray-700 font-medium text-xs sm:text-sm truncate">
+                {typeof job.location === "string"
+                  ? job.location
+                  : job.locationName
+                    ? `${job.locationName}, ${job.locationState || ""}`
+                        .trim()
+                        .replace(/,$/, "")
+                    : job.location?.name
+                      ? `${job.location.name}, ${job.location.state || ""}`
+                          .trim()
+                          .replace(/,$/, "")
+                      : "Location not specified"}
+              </span>
+            </div>
+            <div className="flex items-center">
+              <BriefcaseIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 mr-2 flex-shrink-0" />
+              <span className="text-gray-700 font-medium text-xs sm:text-sm">
+                {job.jobType || job.employmentType || "Full Time"}
+              </span>
+            </div>
+            {(job.salary || job.salaryRange) && (
+              <div className="flex items-center">
+                <CurrencyRupeeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600 mr-2 flex-shrink-0" />
+                <span className="font-semibold text-green-700 text-xs sm:text-sm truncate">
+                  {typeof job.salary === "string"
+                    ? job.salary
+                    : job.salary && typeof job.salary === "object"
+                      ? job.salary.min && job.salary.max
+                        ? `₹${job.salary.min.toLocaleString()} - ₹${job.salary.max.toLocaleString()}`
+                        : job.salary.min
+                          ? `₹${job.salary.min.toLocaleString()}+`
+                          : "Salary not disclosed"
+                      : job.salaryRange?.min && job.salaryRange?.max
+                        ? `₹${job.salaryRange.min.toLocaleString()} - ₹${job.salaryRange.max.toLocaleString()}`
+                        : "Salary not disclosed"}
+                </span>
+              </div>
+            )}
+            {job.gender && (
+              <div className="flex items-center">
+                <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 mr-2 flex-shrink-0" />
+                <span className="text-gray-700 font-medium text-xs sm:text-sm capitalize">
+                  {job.gender} preferred
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Description - Mobile Optimized */}
+          {job.description && typeof job.description === "string" && (
+            <p className="text-gray-600 text-xs sm:text-sm leading-relaxed line-clamp-2 sm:line-clamp-3 mb-3 sm:mb-4">
+              {job.description}
+            </p>
+          )}
+
+          {/* Skills - Mobile Optimized */}
+          {Array.isArray(job.skills) && job.skills.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
+              {job.skills.slice(0, 4).map((skill, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800"
+                >
+                  {typeof skill === "string" ? skill : String(skill)}
+                </span>
+              ))}
+              {job.skills.length > 4 && (
+                <span className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+                  +{job.skills.length - 4}
+                </span>
               )}
             </div>
-            <div className="flex space-x-1.5">{renderActions()}</div>
+          )}
+        </div>
+
+        {/* Footer - Mobile Optimized */}
+        <div className="px-4 sm:px-4 py-3 sm:py-3 bg-gray-50 rounded-b-2xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+            {/* Time and Stats Info */}
+            <div className="flex items-center justify-between sm:justify-start sm:flex-1 sm:min-w-0">
+              <div className="flex items-center">
+                <ClockIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-400 mr-1.5 flex-shrink-0" />
+                <span className="text-xs text-gray-500 font-medium">
+                  {showApplicationDate && applicationDate
+                    ? `Applied ${getTimeAgo(applicationDate)}`
+                    : showBookmarkDate && bookmarkDate
+                      ? `Saved ${getTimeAgo(bookmarkDate)}`
+                      : `Posted ${getTimeAgo(job.postedAt || job.createdAt)}`}
+                </span>
+              </div>
+            </div>
+
+            {/* Actions - Mobile Optimized with 2 buttons per row for all variants */}
+            <div className="w-full sm:w-auto">
+              {(() => {
+                const actions = renderActions();
+
+                // For default variant, ensure full width buttons in 2-column layout
+                if (variant === "default") {
+                  return (
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3 w-full sm:w-auto">
+                      {actions.map((action, index) => (
+                        <div key={index} className="sm:flex-none">
+                          {React.cloneElement(action, {
+                            className: `${action.props.className || ""} w-full justify-center`,
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+
+                // For other variants, use existing pairing logic
+                const actionPairs = [];
+                for (let i = 0; i < actions.length; i += 2) {
+                  actionPairs.push(actions.slice(i, i + 2));
+                }
+
+                return (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+                    {actionPairs.map((pair, index) => (
+                      <div
+                        key={index}
+                        className="grid grid-cols-2 gap-2 sm:flex sm:gap-3"
+                      >
+                        {pair.map((action, actionIndex) => (
+                          <div key={actionIndex} className="sm:flex-none">
+                            {React.cloneElement(action, {
+                              className: `${action.props.className || ""} w-full justify-center`,
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
-        ) : (
-          <div className="flex space-x-1.5 ml-3">{renderActions()}</div>
-        )}
+        </div>
       </div>
-    </div>
     </>
   );
 };

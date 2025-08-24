@@ -123,20 +123,18 @@ const CompanyProfile = () => {
 
   return (
     <div>
-      <div className="py-8">
+      <div className="py-2">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Company Profile
-            </h1>
-            <p className="text-gray-600 mt-1">
+            <h1 className="text-2xl font-bold text-gray-900">Companies</h1>
+            <p className="text-gray-600 mt-1 text-xs">
               Manage your company information
             </p>
           </div>
           <Button onClick={() => setShowForm(true)}>
             <PlusIcon className="h-4 w-4 mr-2" />
-            Add Company
+            Add
           </Button>
         </div>
 

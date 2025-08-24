@@ -83,219 +83,167 @@ const JobView = ({
   );
 
   return (
-    <div className="space-y-6">
-      {/* Job Header */}
-      <div className="bg-white rounded-lg shadow-sm p-8">
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex-1 min-w-0 mb-6 lg:mb-0">
-            <div className="flex items-start">
-              {job.company?.logo && (
-                <img
-                  src={job.company.logo}
-                  alt={job.company?.name}
-                  className="w-16 h-16 rounded-lg object-cover mr-4 flex-shrink-0"
-                />
-              )}
-              <div className="flex-1 min-w-0">
-                <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-                  {job.title}
-                </h1>
-                <div className="flex flex-wrap items-center gap-4 text-gray-600 mb-4">
-                  <div className="flex items-center">
-                    <BuildingOfficeIcon className="h-5 w-5 mr-2" />
-                    {job.company?.name || "Company Name"}
-                  </div>
-                  <div className="flex items-center">
-                    <MapPinIcon className="h-5 w-5 mr-2" />
-                    {job.location?.name ||
-                      job.location ||
-                      "Location not specified"}
-                  </div>
-                  <div className="flex items-center">
-                    <ClockIcon className="h-5 w-5 mr-2" />
-                    {formatDate(job.postedAt || job.createdAt)}
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${jobTypeBadge.class}`}
-                  >
-                    <BriefcaseIcon className="h-4 w-4 mr-1" />
-                    {jobTypeBadge.label}
-                  </span>
-                  {job.experienceLevel && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                      {job.experienceLevel}
-                    </span>
-                  )}
-                  {job.gender && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                      {job.gender}
-                    </span>
-                  )}
-                  {job.educationQualification?.name && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
-                      {job.educationQualification.name}
-                    </span>
-                  )}
-                  {job.vacancies && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                      <UserGroupIcon className="h-4 w-4 mr-1" />
-                      {job.vacancies}{" "}
-                      {job.vacancies === 1 ? "Position" : "Positions"}
-                    </span>
-                  )}
-                </div>
+    <div className="space-y-3 sm:space-y-6">
+      {/* Job Header - Mobile Optimized */}
+      <div className="bg-white rounded-xl sm:rounded-lg shadow-sm border border-gray-100 p-4 sm:p-8">
+        {/* Company Logo and Basic Info - Mobile First */}
+        <div className="flex items-start space-x-3 sm:space-x-4 mb-4 sm:mb-6">
+          {job.company?.logo && (
+            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl overflow-hidden flex-shrink-0 border border-gray-200">
+              <img
+                src={job.company.logo}
+                alt={job.company?.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight mb-2">
+              {job.title}
+            </h1>
+            <div className="space-y-1 sm:space-y-2">
+              <div className="flex items-center text-gray-700">
+                <BuildingOfficeIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-blue-600 flex-shrink-0" />
+                <span className="font-medium text-sm sm:text-base truncate">
+                  {job.company?.name || "Company Name"}
+                </span>
+              </div>
+              <div className="flex items-center text-gray-600">
+                <MapPinIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-purple-600 flex-shrink-0" />
+                <span className="text-sm sm:text-base">
+                  {job.location?.name || job.location || "Location not specified"}
+                </span>
+              </div>
+              <div className="flex items-center text-gray-500">
+                <ClockIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-gray-500 flex-shrink-0" />
+                <span className="text-sm">
+                  {formatDate(job.postedAt || job.createdAt)}
+                </span>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Action Buttons */}
-          {showActions && (
-            <div className="flex flex-col sm:flex-row gap-3 lg:ml-6">
-              {user?.role === "CANDIDATE" && (
-                <>
-                  <Button
-                    onClick={onBookmark}
-                    variant="outline"
-                    disabled={bookmarking || !isAuthenticated}
-                    className={`flex items-center transition-all duration-200 ${isBookmarked ? "border-yellow-400 bg-yellow-50" : ""}`}
-                  >
-                    {isBookmarked ? (
-                      <StarSolidIcon className="h-5 w-5 mr-2 text-yellow-500" />
-                    ) : (
-                      <StarOutlineIcon className="h-5 w-5 mr-2" />
-                    )}
-                    {bookmarking
-                      ? "Saving..."
-                      : isBookmarked
-                        ? "Bookmarked"
-                        : "Bookmark"}
-                  </Button>
-
-                  <Button
-                    onClick={onApply}
-                    disabled={applying || hasApplied || !isAuthenticated}
-                    className={`flex items-center px-6 py-3 text-lg font-medium transition-all duration-200 ${
-                      hasApplied
-                        ? "bg-green-600 hover:bg-green-700"
-                        : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                    }`}
-                  >
-                    {applying ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        Applying...
-                      </>
-                    ) : hasApplied ? (
-                      <>
-                        <svg
-                          className="h-5 w-5 mr-2"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        Applied
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          className="h-5 w-5 mr-2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                          />
-                        </svg>
-                        Apply Now
-                      </>
-                    )}
-                  </Button>
-                </>
-              )}
-
-              {!isAuthenticated && (
-                <p className="text-sm text-gray-500 mt-2">
-                  Please{" "}
-                  <span className="text-primary-600 font-medium">sign in</span>{" "}
-                  to apply or bookmark jobs
-                </p>
-              )}
-            </div>
+        {/* Job Tags - Mobile Optimized */}
+        <div className="flex flex-wrap items-center gap-2 mb-4 sm:mb-6">
+          <span
+            className={`inline-flex items-center px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium ${jobTypeBadge.class}`}
+          >
+            <BriefcaseIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+            {jobTypeBadge.label}
+          </span>
+          {job.experienceLevel && (
+            <span className="inline-flex items-center px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium bg-gray-100 text-gray-800">
+              {job.experienceLevel}
+            </span>
+          )}
+          {job.gender && (
+            <span className="inline-flex items-center px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium bg-blue-100 text-blue-800">
+              {job.gender}
+            </span>
+          )}
+          {job.educationQualification?.name && (
+            <span className="inline-flex items-center px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium bg-purple-100 text-purple-800">
+              {job.educationQualification.name}
+            </span>
+          )}
+          {job.vacancies && (
+            <span className="inline-flex items-center px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium bg-green-100 text-green-800">
+              <UserGroupIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+              {job.vacancies} {job.vacancies === 1 ? "Position" : "Positions"}
+            </span>
           )}
         </div>
 
-        {/* Job Stats and Info */}
-        <div className="border-t border-gray-200 mt-6 pt-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
-              <div className="flex items-center">
-                <CurrencyRupeeIcon className="h-6 w-6 text-green-600 mr-2" />
-                <div>
-                  <p className="text-xs text-green-600 font-medium">Salary</p>
-                  <p className="font-bold text-green-800 text-lg">{salary}</p>
-                </div>
+        {/* Key Stats - Compact Mobile Layout */}
+        <div className="grid grid-cols-2 gap-3 mb-4 sm:mb-6">
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 sm:p-4 border border-green-200">
+            <div className="flex items-center">
+              <CurrencyRupeeIcon className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 mr-2 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-green-600 font-medium">Salary</p>
+                <p className="font-bold text-green-800 text-sm sm:text-lg leading-tight">{salary}</p>
               </div>
             </div>
+          </div>
 
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
-              <div className="flex items-center">
-                <UserGroupIcon className="h-6 w-6 text-blue-600 mr-2" />
-                <div>
-                  <p className="text-xs text-blue-600 font-medium">
-                    Applications
-                  </p>
-                  <p className="font-bold text-blue-800 text-lg">
-                    {job.applicationCount || 0}
-                  </p>
-                </div>
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 sm:p-4 border border-blue-200">
+            <div className="flex items-center">
+              <UserGroupIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 mr-2 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-blue-600 font-medium">Applications</p>
+                <p className="font-bold text-blue-800 text-lg leading-tight">
+                  {job.applicationCount || 0}
+                </p>
               </div>
             </div>
-
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
-              <div className="flex items-center">
-                <CalendarIcon className="h-6 w-6 text-purple-600 mr-2" />
-                <div>
-                  <p className="text-xs text-purple-600 font-medium">Posted</p>
-                  <p className="font-bold text-purple-800 text-sm">
-                    {formatDate(job.postedAt || job.createdAt)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {job.categorySpecificFields?.experienceLevel && (
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
-                <div className="flex items-center">
-                  <BriefcaseIcon className="h-6 w-6 text-orange-600 mr-2" />
-                  <div>
-                    <p className="text-xs text-orange-600 font-medium">
-                      Experience
-                    </p>
-                    <p className="font-bold text-orange-800 text-sm">
-                      {job.categorySpecificFields.experienceLevel}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
+
+        {/* Action Buttons - Mobile Optimized */}
+        {showActions && (
+          <div className="space-y-3 sm:flex sm:space-y-0 sm:space-x-3 sm:justify-end">
+            {user?.role === "CANDIDATE" && (
+              <>
+                <Button
+                  onClick={onBookmark}
+                  variant="outline"
+                  disabled={bookmarking || !isAuthenticated}
+                  className={`w-full sm:w-auto flex items-center justify-center py-3 sm:py-2 text-sm font-medium transition-all duration-200 ${isBookmarked ? "border-yellow-400 bg-yellow-50 text-yellow-800" : "hover:bg-gray-50"}`}
+                >
+                  {isBookmarked ? (
+                    <StarSolidIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-yellow-500" />
+                  ) : (
+                    <StarOutlineIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                  )}
+                  {bookmarking ? "Saving..." : isBookmarked ? "Bookmarked" : "Bookmark"}
+                </Button>
+
+                <Button
+                  onClick={onApply}
+                  disabled={applying || hasApplied || !isAuthenticated}
+                  className={`w-full sm:w-auto flex items-center justify-center py-3 sm:py-2 text-sm sm:text-base font-medium transition-all duration-200 ${
+                    hasApplied
+                      ? "bg-green-600 hover:bg-green-700"
+                      : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  }`}
+                >
+                  {applying ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white mr-2"></div>
+                      Applying...
+                    </>
+                  ) : hasApplied ? (
+                    <>
+                      <svg className="h-4 w-4 sm:h-5 sm:w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      Applied
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-4 w-4 sm:h-5 sm:w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      Apply Now
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+
+            {!isAuthenticated && (
+              <p className="text-sm text-gray-500 text-center sm:text-left">
+                Please <span className="text-primary-600 font-medium">sign in</span> to apply or bookmark jobs
+              </p>
+            )}
+          </div>
+        )}
       </div>
-      {/* Job Description */}
-      <div className="bg-white rounded-lg shadow-lg border border-gray-100 p-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-          <div className="w-1 h-8 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full mr-4"></div>
+      {/* Job Description - Mobile Optimized */}
+      <div className="bg-white rounded-xl sm:rounded-lg shadow-sm border border-gray-100 p-4 sm:p-8">
+        <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
+          <div className="w-1 h-6 sm:h-8 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full mr-3 sm:mr-4"></div>
           Job Description
         </h2>
         <div className="prose max-w-none text-gray-700 leading-relaxed">
@@ -373,19 +321,19 @@ const JobView = ({
           )}
         </div>
       </div>
-      {/* Skills and Requirements */}
+      {/* Skills and Requirements - Mobile Optimized */}
       {job.categorySpecificFields?.skills &&
         job.categorySpecificFields.skills.length > 0 && (
-          <div className="bg-white rounded-lg shadow-lg border border-gray-100 p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-              <div className="w-1 h-8 bg-gradient-to-b from-green-500 to-emerald-600 rounded-full mr-4"></div>
+          <div className="bg-white rounded-xl sm:rounded-lg shadow-sm border border-gray-100 p-4 sm:p-8">
+            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
+              <div className="w-1 h-6 sm:h-8 bg-gradient-to-b from-green-500 to-emerald-600 rounded-full mr-3 sm:mr-4"></div>
               Required Skills
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               {job.categorySpecificFields.skills.map((skill, index) => (
                 <div
                   key={index}
-                  className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg px-4 py-3 text-center hover:shadow-md transition-all duration-200"
+                  className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg px-3 py-2 sm:px-4 sm:py-3 hover:shadow-md transition-all duration-200"
                 >
                   <span className="text-sm font-semibold text-blue-800">
                     {skill}
@@ -395,17 +343,17 @@ const JobView = ({
             </div>
           </div>
         )}
-      {/* Company Information */}
+      {/* Company Information - Mobile Optimized */}
       {job.company && (
-        <div className="bg-white rounded-lg shadow-lg border border-gray-100 p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-            <div className="w-1 h-8 bg-gradient-to-b from-purple-500 to-pink-600 rounded-full mr-4"></div>
+        <div className="bg-white rounded-xl sm:rounded-lg shadow-sm border border-gray-100 p-4 sm:p-8">
+          <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
+            <div className="w-1 h-6 sm:h-8 bg-gradient-to-b from-purple-500 to-pink-600 rounded-full mr-3 sm:mr-4"></div>
             About the Company
           </h2>
-          <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-6 border border-gray-200">
-            <div className="flex items-start">
+          <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-4 sm:p-6 border border-gray-200">
+            <div className="flex items-start space-x-3 sm:space-x-4 mb-4 sm:mb-6">
               {job.company.logo && (
-                <div className="w-20 h-20 rounded-xl overflow-hidden mr-6 flex-shrink-0 shadow-lg border-2 border-white">
+                <div className="w-12 h-12 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 shadow-lg border-2 border-white">
                   <img
                     src={job.company.logo}
                     alt={job.company.name}
@@ -413,63 +361,63 @@ const JobView = ({
                   />
                 </div>
               )}
-              <div className="flex-1">
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-3">
                   {job.company.name}
                 </h3>
                 {job.company.description && (
-                  <p className="text-gray-700 mb-6 leading-relaxed">
+                  <p className="text-gray-700 text-sm sm:text-base leading-relaxed">
                     {job.company.description}
                   </p>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {job.company.industry && (
-                    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                      <span className="block text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">
-                        Industry
-                      </span>
-                      <span className="text-gray-900 font-semibold">
-                        {job.company.industry}
-                      </span>
-                    </div>
-                  )}
-                  {job.company.size && (
-                    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                      <span className="block text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">
-                        Company Size
-                      </span>
-                      <span className="text-gray-900 font-semibold">
-                        {job.company.size}
-                      </span>
-                    </div>
-                  )}
-                  {job.company.website && (
-                    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                      <span className="block text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">
-                        Website
-                      </span>
-                      <a
-                        href={job.company.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary-600 hover:text-primary-700 font-semibold break-all"
-                      >
-                        {job.company.website}
-                      </a>
-                    </div>
-                  )}
-                  {job.company.location && (
-                    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                      <span className="block text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">
-                        Location
-                      </span>
-                      <span className="text-gray-900 font-semibold">
-                        {job.company.location}
-                      </span>
-                    </div>
-                  )}
-                </div>
               </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {job.company.industry && (
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100">
+                  <span className="block text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">
+                    Industry
+                  </span>
+                  <span className="text-gray-900 font-semibold text-sm sm:text-base">
+                    {job.company.industry}
+                  </span>
+                </div>
+              )}
+              {job.company.size && (
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100">
+                  <span className="block text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">
+                    Company Size
+                  </span>
+                  <span className="text-gray-900 font-semibold text-sm sm:text-base">
+                    {job.company.size}
+                  </span>
+                </div>
+              )}
+              {job.company.website && (
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100">
+                  <span className="block text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">
+                    Website
+                  </span>
+                  <a
+                    href={job.company.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-600 hover:text-primary-700 font-semibold text-sm sm:text-base break-all"
+                  >
+                    {job.company.website}
+                  </a>
+                </div>
+              )}
+              {job.company.location && (
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100">
+                  <span className="block text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">
+                    Location
+                  </span>
+                  <span className="text-gray-900 font-semibold text-sm sm:text-base">
+                    {job.company.location}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Bars3Icon, BellIcon, GlobeAltIcon } from "@heroicons/react/24/outline";
 import { useCandidateAuth } from "../../hooks/useCandidateAuth";
 import { useTranslation } from "react-i18next";
@@ -32,8 +33,29 @@ const Header = ({ onMenuClick }) => {
           </h1>
         </div>
 
-        {/* Right side - Language + Notifications + User menu */}
+        {/* Right side - Apply Job + Language + Notifications + User menu */}
         <div className="flex items-center space-x-3">
+          {/* Browse Jobs Button */}
+          <Link
+            to="/candidate/jobs"
+            className="w-8 h-8 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center transition-colors duration-200"
+            title="Browse Jobs"
+          >
+            <svg
+              className="w-5 h-5 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m-8 0V6a2 2 0 00-2 2v6.341"
+              />
+            </svg>
+          </Link>
+
           {/* Language Switcher */}
           <div className="relative">
             <button

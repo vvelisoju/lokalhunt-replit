@@ -139,7 +139,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             <img
               src={logoImage}
               alt="LokalHunt"
-              className="h-10 w-auto object-contain"
+              className="h-14 w-auto object-contain"
             />
           </Link>
         </div>
