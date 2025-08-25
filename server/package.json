@@ -41,7 +41,8 @@
     "groq-sdk": "^0.30.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
-    "path": "^0.12.7"
+    "path": "^0.12.7",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "eslint": "^9.33.0",

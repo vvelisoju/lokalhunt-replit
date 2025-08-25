@@ -1,6 +1,23 @@
 const express = require('express');
-const candidateController = require('../controllers/candidateController');
+const multer = require('multer');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const candidateController = require('../controllers/candidateController');
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept images only
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  },
+});
 
 const router = express.Router();
 
@@ -29,7 +46,7 @@ router.patch('/profile/open-to-work', candidateController.updateOpenToWorkStatus
 router.get('/profile/open-to-work', candidateController.getOpenToWorkStatus);
 
 // Profile photo management
-router.post('/profile/photo', candidateController.uploadProfilePhoto);
+router.post('/profile/photo', upload.single('profilePhoto'), candidateController.uploadProfilePhoto);
 router.delete('/profile/photo', candidateController.removeProfilePhoto);
 
 // File upload routes
@@ -187,7 +204,7 @@ router.get('/stats/profile-views', candidateController.getProfileViews);
 router.get('/insights/market', candidateController.getMarketInsights);
 
 // =======================
-// LEGACYROUTES (keeping for backward compatibility)
+// LEGACY ROUTES (keeping for backward compatibility)
 // =======================
 
 // Legacy apply route (deprecated - use POST /applications instead)

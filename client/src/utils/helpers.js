@@ -1,18 +1,18 @@
 // Format currency
 export const formatCurrency = (amount, currency = 'INR') => {
   if (!amount) return 'Not disclosed'
-  
+
   const formatter = new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   })
-  
+
   if (amount >= 100000) {
     return `${formatter.format(amount / 100000)} Lakhs`
   }
-  
+
   return formatter.format(amount)
 }
 
@@ -21,11 +21,11 @@ export const formatSalaryRange = (salaryRange) => {
   if (!salaryRange || !salaryRange.min || !salaryRange.max) {
     return 'Salary not disclosed'
   }
-  
+
   const { min, max, currency } = salaryRange
   const minFormatted = formatCurrency(min, currency)
   const maxFormatted = formatCurrency(max, currency)
-  
+
   return `${minFormatted} - ${maxFormatted}`
 }
 
@@ -35,7 +35,7 @@ export const formatRelativeDate = (dateString) => {
   const now = new Date()
   const diffTime = Math.abs(now - date)
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  
+
   if (diffDays === 1) return '1 day ago'
   if (diffDays < 7) return `${diffDays} days ago`
   if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`
@@ -50,7 +50,7 @@ export const formatDate = (dateString, options = {}) => {
     month: 'long',
     day: 'numeric'
   }
-  
+
   return new Date(dateString).toLocaleDateString('en-US', {
     ...defaultOptions,
     ...options
@@ -131,7 +131,7 @@ export const storage = {
       return defaultValue
     }
   },
-  
+
   set: (key, value) => {
     try {
       localStorage.setItem(key, JSON.stringify(value))
@@ -139,7 +139,7 @@ export const storage = {
       console.error('Failed to save to localStorage:', error)
     }
   },
-  
+
   remove: (key) => {
     try {
       localStorage.removeItem(key)
@@ -147,4 +147,40 @@ export const storage = {
       console.error('Failed to remove from localStorage:', error)
     }
   }
+}
+
+// Icon helper function
+export const trendingJobsIcon = () => {
+  return '📈'; // Simple emoji icon for trending jobs
+};
+
+// Export all utility functions
+export {
+  formatDate,
+  formatSalary,
+  formatTimeAgo,
+  truncateText,
+  getInitials,
+  formatExperience,
+  formatJobType,
+  formatEducationLevel,
+  getStatusColor,
+  getStatusIcon,
+  getPriorityColor,
+  getPriorityIcon,
+  validateEmail,
+  validatePassword,
+  formatFileSize,
+  generateSlug,
+  debounce,
+  throttle,
+  deepClone,
+  isEmpty,
+  isEmptyObject,
+  removeEmptyFields,
+  capitalizeFirstLetter,
+  parseJWT,
+  isTokenExpired,
+  getTimeRemaining,
+  trendingJobsIcon
 }

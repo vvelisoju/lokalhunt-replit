@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { BriefcaseIcon } from "@heroicons/react/24/outline";
 import SharedJobCard from "./JobCard";
@@ -16,6 +16,7 @@ const JobsList = ({
   apiEndpoint = "public",
 }) => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, isAuthenticated } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,18 +26,23 @@ const JobsList = ({
   const [jobsPerPage] = useState(12);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
-  // Filter states
-  const [filters, setFilters] = useState({
-    search: "",
-    location: "",
-    category: "",
-    jobType: [],
-    experience: [],
-    gender: "",
-    education: [],
-    salaryRange: "",
-    sortBy: "newest",
-  });
+  // Initialize filters state from URL parameters
+  const initializeFiltersFromURL = useCallback(() => {
+    const urlFilters = {
+      search: searchParams.get('search') || '',
+      location: searchParams.get('location') || '',
+      category: searchParams.get('category') || '',
+      jobType: searchParams.get('jobType') ? searchParams.get('jobType').split(',') : [],
+      experience: searchParams.get('experience') ? searchParams.get('experience').split(',') : [],
+      gender: searchParams.get('gender') || '',
+      education: searchParams.get('education') ? searchParams.get('education').split(',') : [],
+      salaryRange: searchParams.get('salaryRange') || '',
+      sortBy: searchParams.get('sortBy') || 'newest'
+    }
+    return urlFilters
+  }, [searchParams])
+
+  const [filters, setFilters] = useState(initializeFiltersFromURL)
 
   const sortOptions = [
     { value: "newest", label: "Newest First" },
@@ -70,42 +76,83 @@ const JobsList = ({
     return params;
   }, [currentPage, jobsPerPage, filters]);
 
+  const searchJobs = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      let response;
+      if (apiEndpoint === "candidate") {
+        // Use candidate-specific endpoint if available
+        response = await candidateApi.getRecommendedJobs(apiParams);
+      } else {
+        // Use public API for all users - it handles authentication internally
+        response = await publicApi.searchJobs(apiParams);
+      }
+
+      const responseData = response.data?.data || response.data || response;
+      const jobs = responseData?.jobs || [];
+      const total = responseData?.total || 0;
+
+      setJobs(jobs);
+      setTotalJobs(total);
+    } catch (error) {
+      console.error("Error loading jobs:", error);
+      setJobs([]);
+      setTotalJobs(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiEndpoint, apiParams]);
+
+
   // Load jobs when component mounts or filters change
   useEffect(() => {
-    const loadJobs = async () => {
-      try {
-        setLoading(true);
+    searchJobs();
+  }, [searchJobs]);
 
-        let response;
-        if (apiEndpoint === "candidate") {
-          // Use candidate-specific endpoint if available
-          response = await candidateApi.getRecommendedJobs(apiParams);
+  // Update URL when filters change
+  const updateURL = useCallback((newFilters) => {
+    const params = new URLSearchParams()
+
+    Object.entries(newFilters).forEach(([key, value]) => {
+      if (value && value !== '' && (!Array.isArray(value) || value.length > 0)) {
+        if (Array.isArray(value)) {
+          params.set(key, value.join(','))
         } else {
-          // Use public API for all users - it handles authentication internally
-          response = await publicApi.searchJobs(apiParams);
+          params.set(key, value)
         }
-
-        const responseData = response.data?.data || response.data || response;
-        const jobs = responseData?.jobs || [];
-        const total = responseData?.total || 0;
-
-        setJobs(jobs);
-        setTotalJobs(total);
-      } catch (error) {
-        console.error("Error loading jobs:", error);
-        setJobs([]);
-        setTotalJobs(0);
-      } finally {
-        setLoading(false);
       }
-    };
+    })
 
-    loadJobs();
-  }, [apiEndpoint, apiParams]);
+    // Add pagination
+    if (currentPage > 1) {
+      params.set('page', currentPage.toString())
+    }
+
+    setSearchParams(params, { replace: true })
+  }, [currentPage, setSearchParams])
+
+  // Update filters when URL parameters change (for back/forward navigation or direct links)
+  useEffect(() => {
+    const urlFilters = initializeFiltersFromURL()
+    setFilters(urlFilters)
+  }, [initializeFiltersFromURL])
+
+  // Initial search when component mounts with URL filters
+  useEffect(() => {
+    if (filters.search || filters.location || filters.category || filters.jobType.length > 0 ||
+        filters.experience.length > 0 || filters.gender || filters.education.length > 0 ||
+        filters.salaryRange) {
+      // If we have filters from URL, trigger search immediately
+      searchJobs();
+    }
+  }, []); // Only run once on mount
+
 
   const handleFiltersChange = (newFilters) => {
     setFilters(newFilters);
     setCurrentPage(1); // Reset page when filters change
+    updateURL(newFilters);
   };
 
   const handleJobCardClick = (jobId, status) => {

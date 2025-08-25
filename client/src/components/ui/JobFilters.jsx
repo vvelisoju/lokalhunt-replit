@@ -12,6 +12,7 @@ import { publicApi } from '../../services/publicApi'
 const JobFilters = ({ 
   filters, 
   onFiltersChange, 
+  onSearch,
   showAdvancedFilters = true,
   showApplicationFilters = false,
   statusOptions = [],
@@ -84,6 +85,12 @@ const JobFilters = ({
     onFiltersChange(updatedFilters)
   }
 
+  // Update internal state when filters prop changes (for URL navigation)
+  useEffect(() => {
+    // This ensures the component updates when filters are changed externally (like from URL)
+    // We don't need to do anything here as the parent manages the filters state
+  }, [filters])
+
   const handleSearchChange = (value) => {
     // Clear existing timeout
     if (searchTimeoutRef.current) {
@@ -120,6 +127,7 @@ const JobFilters = ({
       search: '',
       location: '',
       category: '',
+      company: '',
       jobType: [],
       experience: [],
       gender: '',
@@ -135,6 +143,7 @@ const JobFilters = ({
     if (filters.search) count++
     if (filters.location) count++
     if (filters.category) count++
+    if (filters.company) count++
     if (filters.jobType?.length > 0) count++
     if (filters.experience?.length > 0) count++
     if (filters.gender) count++
@@ -189,13 +198,15 @@ const JobFilters = ({
             </div>
           </div>
 
+          
+
           {/* Search Input */}
           <div className="flex-1">
             <div className="relative">
               <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search jobs..."
+                placeholder="Search jobs, companies..."
                 value={filters.search}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -205,7 +216,14 @@ const JobFilters = ({
 
           {/* Search Button */}
           <Button
-            className="lg:px-8 whitespace-nowrap"
+            type="button"
+            className="lg:px-8 whitespace-nowrap bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600"
+            onClick={(e) => {
+              e.preventDefault()
+              if (onSearch) {
+                onSearch(filters)
+              }
+            }}
           >
             Search
           </Button>

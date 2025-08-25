@@ -1,15 +1,40 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 import JobsList from "../components/ui/JobsList";
 import Modal from "../components/ui/Modal";
-import { useState } from "react";
 
 const Jobs = () => {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [pageTitle, setPageTitle] = useState("Find Your Dream Job");
+  const [pageSubtitle, setPageSubtitle] = useState("Discover opportunities that match your skills and preferences");
+
+  // Update page title based on URL filters
+  useEffect(() => {
+    const search = searchParams.get('search');
+    const location = searchParams.get('location');
+    const category = searchParams.get('category');
+    
+    let title = "Find Your Dream Job";
+    let subtitle = "Discover opportunities that match your skills and preferences";
+    
+    if (search || location || category) {
+      const filters = [];
+      if (search) filters.push(`"${search}"`);
+      if (category) filters.push(category);
+      if (location) filters.push(`in ${location}`);
+      
+      title = filters.length > 0 ? `Jobs ${filters.join(' ')}` : title;
+      subtitle = `Found jobs matching your search criteria`;
+    }
+    
+    setPageTitle(title);
+    setPageSubtitle(subtitle);
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -18,8 +43,8 @@ const Jobs = () => {
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4">
         <JobsList 
           showFilters={true}
-          title="Find Your Dream Job"
-          subtitle="Discover opportunities that match your skills and preferences"
+          title={pageTitle}
+          subtitle={pageSubtitle}
           apiEndpoint="public"
         />
       </div>

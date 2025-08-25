@@ -1,6 +1,7 @@
 
 const { Storage } = require("@google-cloud/storage");
 const { randomUUID } = require("crypto");
+const sharp = require("sharp");
 
 class ObjectNotFoundError extends Error {
   constructor() {
@@ -190,6 +191,147 @@ class ObjectStorageService {
     } catch (error) {
       console.error("Error generating resume upload URL:", error);
       throw new Error(`Failed to generate resume upload URL: ${error.message}`);
+    }
+  }
+
+  // Optimize image for profile use
+  async optimizeProfileImage(imageBuffer, format = 'jpeg') {
+    try {
+      console.log("Starting image optimization...");
+      
+      let sharpInstance = sharp(imageBuffer)
+        .resize(400, 400, {
+          fit: 'cover',
+          position: 'center'
+        });
+
+      // Apply format-specific optimization
+      if (format === 'webp') {
+        sharpInstance = sharpInstance.webp({
+          quality: 75,
+          effort: 4
+        });
+      } else {
+        // Default to JPEG
+        sharpInstance = sharpInstance.jpeg({
+          quality: 75,
+          progressive: true,
+          mozjpeg: true
+        });
+        format = 'jpeg';
+      }
+
+      const optimizedBuffer = await sharpInstance.toBuffer();
+      const fileSizeKB = optimizedBuffer.length / 1024;
+      
+      console.log(`Image optimized: ${fileSizeKB.toFixed(1)}KB, format: ${format}`);
+      
+      // If still too large, reduce quality further
+      if (optimizedBuffer.length > 100 * 1024) {
+        console.log("Image still too large, reducing quality...");
+        
+        sharpInstance = sharp(imageBuffer)
+          .resize(400, 400, {
+            fit: 'cover',
+            position: 'center'
+          });
+
+        if (format === 'webp') {
+          sharpInstance = sharpInstance.webp({
+            quality: 65,
+            effort: 6
+          });
+        } else {
+          sharpInstance = sharpInstance.jpeg({
+            quality: 65,
+            progressive: true,
+            mozjpeg: true
+          });
+        }
+
+        const finalBuffer = await sharpInstance.toBuffer();
+        const finalSizeKB = finalBuffer.length / 1024;
+        console.log(`Final optimized image: ${finalSizeKB.toFixed(1)}KB`);
+        
+        return {
+          buffer: finalBuffer,
+          format: format,
+          size: finalBuffer.length
+        };
+      }
+
+      return {
+        buffer: optimizedBuffer,
+        format: format,
+        size: optimizedBuffer.length
+      };
+    } catch (error) {
+      console.error("Error optimizing image:", error);
+      throw new Error(`Failed to optimize image: ${error.message}`);
+    }
+  }
+
+  // Upload optimized profile image directly
+  async uploadOptimizedProfileImage(userId, imageBuffer, originalFormat = 'jpeg') {
+    try {
+      console.log("Processing profile image upload for user:", userId);
+      
+      // Check if browser supports WebP for better compression
+      const useWebP = process.env.ENABLE_WEBP === 'true';
+      const targetFormat = useWebP ? 'webp' : 'jpeg';
+      
+      // Optimize the image
+      const optimized = await this.optimizeProfileImage(imageBuffer, targetFormat);
+      
+      // Generate filename with correct extension
+      const objectId = randomUUID();
+      const extension = optimized.format === 'webp' ? 'webp' : 'jpg';
+      const fileName = `profiles/${userId}/${objectId}.${extension}`;
+      
+      console.log(`Uploading optimized image: ${fileName}, size: ${(optimized.size / 1024).toFixed(1)}KB`);
+      
+      // Upload to Google Cloud Storage
+      const file = this.bucket.file(fileName);
+      
+      const stream = file.createWriteStream({
+        metadata: {
+          contentType: optimized.format === 'webp' ? 'image/webp' : 'image/jpeg',
+          cacheControl: 'public, max-age=31536000', // 1 year cache
+        },
+        resumable: false,
+      });
+
+      return new Promise((resolve, reject) => {
+        stream.on('error', (err) => {
+          console.error('Upload stream error:', err);
+          reject(err);
+        });
+
+        stream.on('finish', async () => {
+          try {
+            // Make the file publicly readable
+            await file.makePublic();
+            
+            const publicUrl = `https://storage.googleapis.com/${this.bucketName}/${fileName}`;
+            console.log(`Profile image uploaded successfully: ${publicUrl}`);
+            
+            resolve({
+              fileName: fileName,
+              publicUrl: publicUrl,
+              size: optimized.size,
+              format: optimized.format
+            });
+          } catch (error) {
+            console.error('Error making file public:', error);
+            reject(error);
+          }
+        });
+
+        stream.end(optimized.buffer);
+      });
+    } catch (error) {
+      console.error("Error uploading optimized profile image:", error);
+      throw new Error(`Failed to upload optimized profile image: ${error.message}`);
     }
   }
 

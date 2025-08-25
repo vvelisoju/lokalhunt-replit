@@ -8,6 +8,7 @@ import Jobs from './pages/Jobs'
 import JobDetail from './pages/JobDetail'
 import JobPreview from './pages/JobPreview'
 import Companies from './pages/Companies'
+import CareerAdvice from './pages/CareerAdvice'
 
 // Auth Pages
 import Login from './pages/Login'
@@ -94,6 +95,8 @@ function App() {
               <Route path="/jobs/:id" element={<JobDetail />} />
               <Route path="/jobs/:id/preview" element={<JobPreview />} />
               <Route path="/companies" element={<Companies />} />
+              {/* Career Advice Page */}
+              <Route path="/career-advice" element={<CareerAdvice />} />
               {/* Public Candidate Profile Route */}
               <Route path="/candidate/:candidateId/profile" element={<PublicCandidateProfile />} />
 

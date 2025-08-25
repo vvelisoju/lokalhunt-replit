@@ -123,4 +123,38 @@ html {
     .rounded-xl {
       border-radius: 8px !important;
     }
+/* Hero section filter styles */
+.hero-filters .bg-white {
+  @apply bg-white/95 backdrop-blur-sm border-0 shadow-xl;
+}
+
+.hero-filters input,
+.hero-filters select {
+  @apply bg-white/90 backdrop-blur-sm border border-white/30 focus:bg-white;
+}
+
+.hero-filters button {
+  @apply bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-bold shadow-lg transform hover:scale-105 transition-all duration-200;
+}
+
+/* Hero background image */
+.hero-bg {
+  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%23ffffff" fill-opacity="0.1" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,133.3C672,139,768,181,864,181.3C960,181,1056,139,1152,128C1248,117,1344,139,1392,149.3L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>');
+  background-repeat: no-repeat;
+  background-position: bottom;
+  background-size: cover;
+}
+
   }
+
+/* Logo styles */
+.logo {
+  height: 48px;
+  width: auto;
+}
+
+@media (min-width: 768px) {
+  .logo {
+    height: 56px;
+  }
+}

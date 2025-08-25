@@ -9,18 +9,21 @@ export function ObjectUploader({
   buttonClassName,
   children,
   allowedFileTypes = ['image/*'], // Make file types configurable
-  uploadType = 'image' // 'image' or 'resume'
+  uploadType = 'image', // 'image' or 'resume'
+  useOptimizedUpload = false, // New prop for optimized uploads
+  onDirectUpload // New prop for direct upload handler
 }) {
   const [showModal, setShowModal] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [progress, setProgress] = useState(0); // State for progress, as implied by new uploadFile logic
 
   const handleFileSelect = (event) => {
     const fileList = event.target.files;
     if (!fileList) return;
-    
+
     const files = Array.from(fileList);
-    
+
     // Validate file count
     if (files.length > maxNumberOfFiles) {
       alert(`Maximum ${maxNumberOfFiles} file(s) allowed`);
@@ -42,13 +45,59 @@ export function ObjectUploader({
         return file.type === type;
       });
     });
-    
+
     if (invalidFiles.length > 0) {
       alert(`Invalid file type. Allowed types: ${allowedFileTypes.join(', ')}`);
       return;
     }
 
     setSelectedFiles(files);
+  };
+
+  // New or modified uploadFile function
+  const uploadFile = async (file) => {
+    try {
+      console.log(`📤 Starting upload for: ${file.name}`);
+
+      // The logic for optimized vs. direct upload is handled here based on props
+      if (useOptimizedUpload && typeof onDirectUpload === 'function') {
+        console.log(`🚀 Using optimized upload for: ${file.name}`);
+        // Call the optimized upload handler
+        const result = await onDirectUpload(file);
+        console.log(`✅ Optimized upload completed for: ${file.name}`, result);
+        
+        // Return the result so it can be used in handleUpload
+        return { success: true, file, result };
+      } else {
+        // Fallback to original upload logic using signed URL
+        const uploadURL = await onGetUploadParameters();
+        console.log(`🔗 Got upload URL for ${file.name}`);
+
+        // Upload to storage, including Content-Type header as per implied changes
+        const response = await fetch(uploadURL, {
+          method: "PUT",
+          body: file,
+          headers: {
+            "Content-Type": file.type,
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'No error text available');
+          throw new Error(`Upload failed: ${response.status} ${errorText}`);
+        }
+
+        console.log(`✅ Upload completed for: ${file.name}`);
+
+        // Return the clean URL (without query parameters)
+        const cleanURL = uploadURL.split('?')[0];
+        return { success: true, file, uploadURL: cleanURL };
+      }
+
+    } catch (error) {
+      console.error(`❌ Upload failed for ${file.name}:`, error);
+      return { success: false, file, error };
+    }
   };
 
   const handleUpload = async () => {
@@ -59,52 +108,32 @@ export function ObjectUploader({
 
     try {
       for (const file of selectedFiles) {
-        console.log(`🔄 [GOOGLE CLOUD] Starting upload for: ${file.name} (${file.type})`);
-        
-        try {
-          // Get signed URL
-          const uploadUrl = await onGetUploadParameters();
-          console.log(`📡 [GOOGLE CLOUD] Got signed URL for ${file.name}:`, uploadUrl);
+        console.log(`🔄 [UPLOAD] Starting upload for: ${file.name} (${file.type})`);
 
-          // Upload directly to Google Cloud Storage without content-type header
-          const uploadResponse = await fetch(uploadUrl, {
-            method: 'PUT',
-            body: file,
-            // Remove headers entirely to avoid signature mismatch
-          });
+        // Call the uploadFile function and get the result
+        const uploadResult = await uploadFile(file);
 
-          console.log(`🔍 [GOOGLE CLOUD] Upload response status for ${file.name}:`, uploadResponse.status);
-          console.log(`🔍 [GOOGLE CLOUD] Upload response headers:`, Object.fromEntries(uploadResponse.headers.entries()));
-
-          if (uploadResponse.ok) {
-            console.log(`✅ [GOOGLE CLOUD] Upload successful for ${file.name}`);
-            results.successful.push({
-              id: file.name + Date.now(),
-              name: file.name,
-              uploadURL: uploadUrl,
-              type: file.type,
-              size: file.size
-            });
-          } else {
-            const errorText = await uploadResponse.text().catch(() => 'No error text available');
-            console.error(`❌ [GOOGLE CLOUD] Upload failed for ${file.name}:`, uploadResponse.status, errorText);
-            results.failed.push({
-              id: file.name + Date.now(),
-              name: file.name,
-              error: `Upload failed: ${uploadResponse.status} - ${uploadResponse.statusText}`
-            });
-          }
-        } catch (fileError) {
-          console.error(`💥 [GOOGLE CLOUD] Error uploading ${file.name}:`, fileError);
+        if (uploadResult.success) {
+          console.log(`✅ [UPLOAD] Success for: ${file.name}`);
+          
+          // Create upload result object for onComplete callback
+          const successResult = {
+            uploadURL: uploadResult.uploadURL || uploadResult.result?.url,
+            file: uploadResult.file,
+            result: uploadResult.result
+          };
+          
+          results.successful.push(successResult);
+        } else {
+          console.error(`❌ [UPLOAD] Failed for: ${file.name}`, uploadResult.error);
           results.failed.push({
-            id: file.name + Date.now(),
-            name: file.name,
-            error: fileError.message || 'Network error occurred'
+            file: uploadResult.file,
+            error: uploadResult.error
           });
         }
       }
 
-      console.log('🎯 [GOOGLE CLOUD] All uploads complete:', results);
+      console.log('🎯 [UPLOAD] All uploads complete:', results);
 
       if (onComplete) {
         onComplete(results);
@@ -113,9 +142,10 @@ export function ObjectUploader({
       setShowModal(false);
       setSelectedFiles([]);
     } catch (error) {
-      console.error('💥 [GOOGLE CLOUD] Upload process failed:', error);
+      console.error('💥 [UPLOAD] Upload process failed:', error);
     } finally {
       setUploading(false);
+      setProgress(0);
     }
   };
 
@@ -129,7 +159,7 @@ export function ObjectUploader({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded-lg max-w-2xl w-full mx-4">
             <h3 className="text-lg font-semibold mb-4">Upload {uploadType === 'image' ? 'Image' : 'File'}</h3>
-            
+
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-4">
               {selectedFiles.length === 0 ? (
                 <div>
@@ -163,15 +193,15 @@ export function ObjectUploader({
                       </div>
                     ))}
                   </div>
-                  
+
                   {!uploading && (
                     <Button onClick={() => setSelectedFiles([])} variant="outline" className="mr-2">
                       Clear
                     </Button>
                   )}
-                  
-                  <Button 
-                    onClick={handleUpload} 
+
+                  <Button
+                    onClick={handleUpload}
                     disabled={uploading}
                     className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
                   >

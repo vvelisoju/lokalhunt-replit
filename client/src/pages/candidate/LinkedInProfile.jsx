@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react'
 import { 
   PencilIcon, 
@@ -30,7 +29,7 @@ const LinkedInProfile = () => {
   const { user } = useCandidateAuth()
   const { profile, fetchProfile, updateProfile, loading, dispatch } = useCandidate()
   const [profileData, setProfileData] = useState(null)
-  
+
   // Modal states
   const [showAboutModal, setShowAboutModal] = useState(false)
   const [showExperienceModal, setShowExperienceModal] = useState(false)
@@ -40,13 +39,13 @@ const LinkedInProfile = () => {
   const [showEditProfileModal, setShowEditProfileModal] = useState(false)
   const [showProfilePictureModal, setShowProfilePictureModal] = useState(false)
   const [showCoverModal, setShowCoverModal] = useState(false)
-  
+
   // Edit states
   const [editingExperience, setEditingExperience] = useState(null)
   const [editingEducation, setEditingEducation] = useState(null)
   const [experienceIndex, setExperienceIndex] = useState(-1)
   const [educationIndex, setEducationIndex] = useState(-1)
-  
+
   // Open to work state - initialize from profile data
   const [openToWork, setOpenToWork] = useState(profileData?.profileData?.openToWork || false)
 
@@ -69,11 +68,11 @@ const LinkedInProfile = () => {
     try {
       const response = await candidateApi.getUploadUrl()
       console.log('Upload URL response:', response)
-      
+
       if (!response?.data?.data?.uploadURL) {
         throw new Error('Failed to get upload URL from response')
       }
-      
+
       return {
         method: 'PUT',
         url: response.data.data.uploadURL,
@@ -89,21 +88,21 @@ const LinkedInProfile = () => {
       console.log('🖼️ [PROFILE IMAGE] Getting upload parameters...')
       const response = await candidateApi.getProfileImageUploadUrl()
       console.log('🖼️ [PROFILE IMAGE] Upload URL API response:', response)
-      
+
       if (!response?.data?.data?.uploadURL) {
         console.error('🖼️ [PROFILE IMAGE] Missing uploadURL in response:', response)
         throw new Error('Failed to get profile image upload URL from response')
       }
-      
+
       const uploadURL = response.data.data.uploadURL
       const publicURL = response.data.data.publicURL
-      
+
       console.log('📡 [PROFILE IMAGE] Generated upload URL:', uploadURL)
       console.log('🌐 [PROFILE IMAGE] Expected public URL after upload:', publicURL)
-      
+
       // Store public URL in global scope for use after upload
       window._profileImagePublicURL = publicURL
-      
+
       return uploadURL
     } catch (error) {
       console.error('💥 [PROFILE IMAGE] Error getting upload parameters:', error)
@@ -117,21 +116,21 @@ const LinkedInProfile = () => {
       console.log('🎨 [COVER IMAGE] Getting upload parameters...')
       const response = await candidateApi.getCoverImageUploadUrl()
       console.log('🎨 [COVER IMAGE] Upload URL API response:', response)
-      
+
       if (!response?.data?.data?.uploadURL) {
         console.error('🎨 [COVER IMAGE] Missing uploadURL in response:', response)
         throw new Error('Failed to get cover image upload URL from response')
       }
-      
+
       const uploadURL = response.data.data.uploadURL
       const publicURL = response.data.data.publicURL
-      
+
       console.log('📡 [COVER IMAGE] Generated upload URL:', uploadURL)
       console.log('🌐 [COVER IMAGE] Expected public URL after upload:', publicURL)
-      
+
       // Store public URL in global scope for use after upload
       window._coverImagePublicURL = publicURL
-      
+
       return uploadURL
     } catch (error) {
       console.error('💥 [COVER IMAGE] Error getting upload parameters:', error)
@@ -143,32 +142,32 @@ const LinkedInProfile = () => {
   const handleProfilePhotoComplete = async (result) => {
     try {
       console.log('🖼️ PROFILE PHOTO UPLOAD COMPLETE - Full result:', JSON.stringify(result, null, 2))
-      
+
       if (result.successful && result.successful.length > 0) {
         const uploadedFile = result.successful[0]
         console.log('📁 Uploaded file details:', JSON.stringify(uploadedFile, null, 2))
-        
+
         // Use the stored public URL from when we got the upload parameters
         let photoURL = window._profileImagePublicURL
-        
+
         // Fallback to constructing URL from upload URL if public URL not available
         if (!photoURL) {
           photoURL = uploadedFile.uploadURL?.split('?')[0] // Remove query parameters
         }
-        
+
         console.log('🌐 PUBLIC PROFILE PHOTO URL (FINAL):', photoURL)
         console.log('📋 Profile photo URL (copy this to test):', photoURL)
-        
+
         // Update profile with the photo URL
         const updateResponse = await candidateApi.updateProfilePhoto({ photoURL })
         console.log('✅ Profile update API response:', updateResponse)
-        
+
         // Update local state immediately for smooth transition
         setProfileData(prev => ({
           ...prev,
           profilePhoto: photoURL
         }))
-        
+
         // Clear the cached profile state and refresh
         if (dispatch) {
           dispatch({ type: 'CLEAR_PROFILE' })
@@ -176,9 +175,9 @@ const LinkedInProfile = () => {
         setTimeout(() => {
           fetchProfile()
         }, 100) // Small delay for smooth transition
-        
+
         console.log('🎉 Profile photo upload completed successfully - PUBLIC URL:', photoURL)
-        
+
         // Clean up the global variable
         delete window._profileImagePublicURL
       } else {
@@ -193,32 +192,32 @@ const LinkedInProfile = () => {
   const handleCoverPhotoComplete = async (result) => {
     try {
       console.log('🎨 COVER PHOTO UPLOAD COMPLETE - Full result:', JSON.stringify(result, null, 2))
-      
+
       if (result.successful && result.successful.length > 0) {
         const uploadedFile = result.successful[0]
         console.log('📁 Uploaded file details:', JSON.stringify(uploadedFile, null, 2))
-        
+
         // Use the stored public URL from when we got the upload parameters
         let photoURL = window._coverImagePublicURL
-        
+
         // Fallback to constructing URL from upload URL if public URL not available
         if (!photoURL) {
           photoURL = uploadedFile.uploadURL?.split('?')[0] // Remove query parameters
         }
-        
+
         console.log('🌐 PUBLIC COVER PHOTO URL (FINAL):', photoURL)
         console.log('📋 Cover photo URL (copy this to test):', photoURL)
-        
+
         // Update profile with the photo URL
         const updateResponse = await candidateApi.updateCoverPhoto({ photoURL })
         console.log('✅ Cover update API response:', updateResponse)
-        
+
         // Update local state immediately for smooth transition
         setProfileData(prev => ({
           ...prev,
           coverPhoto: photoURL
         }))
-        
+
         // Clear the cached profile state and refresh
         if (dispatch) {
           dispatch({ type: 'CLEAR_PROFILE' })
@@ -226,9 +225,9 @@ const LinkedInProfile = () => {
         setTimeout(() => {
           fetchProfile()
         }, 100) // Small delay for smooth transition
-        
+
         console.log('🎉 Cover photo upload completed successfully - PUBLIC URL:', photoURL)
-        
+
         // Clean up the global variable
         delete window._coverImagePublicURL
       } else {
@@ -272,11 +271,11 @@ const LinkedInProfile = () => {
     try {
       const response = await candidateApi.getUploadUrl()
       console.log('Resume upload URL response:', response)
-      
+
       if (!response?.data?.data?.uploadURL) {
         throw new Error('Failed to get resume upload URL from response')
       }
-      
+
       return response.data.data.uploadURL
     } catch (error) {
       console.error('Error getting resume upload parameters:', error)
@@ -287,15 +286,15 @@ const LinkedInProfile = () => {
   const handleResumeUploadComplete = async (result) => {
     try {
       console.log('📄 RESUME UPLOAD COMPLETE - Full result:', JSON.stringify(result, null, 2))
-      
+
       if (result.successful && result.successful.length > 0) {
         const uploadedFile = result.successful[0]
         console.log('📁 Uploaded file details:', JSON.stringify(uploadedFile, null, 2))
-        
+
         const resumeURL = uploadedFile.uploadURL.split('?')[0] // Remove query parameters
         console.log('🌐 PUBLIC RESUME URL:', resumeURL)
         console.log('📋 Resume URL (copy this):', resumeURL)
-        
+
         // Update profile with the resume URL
         const updateData = { 
           resumeUrl: resumeURL, 
@@ -303,7 +302,7 @@ const LinkedInProfile = () => {
         }
         const updateResponse = await candidateApi.updateProfile(updateData)
         console.log('✅ Resume update API response:', updateResponse)
-        
+
         // Refresh profile data
         if (dispatch) {
           dispatch({ type: 'CLEAR_PROFILE' })
@@ -311,7 +310,7 @@ const LinkedInProfile = () => {
         setTimeout(() => {
           fetchProfile()
         }, 100)
-        
+
         console.log('🎉 Resume upload completed successfully - PUBLIC URL:', resumeURL)
       } else {
         console.error('❌ No successful upload found in result:', result)
@@ -371,7 +370,7 @@ const LinkedInProfile = () => {
       ...profileData,
       experience: updatedExperience
     }
-    
+
     await updateProfile(updatedProfile)
     setProfileData(updatedProfile)
   }
@@ -382,7 +381,7 @@ const LinkedInProfile = () => {
       ...profileData,
       experience: updatedExperience
     }
-    
+
     await updateProfile(updatedProfile)
     setProfileData(updatedProfile)
   }
@@ -417,7 +416,7 @@ const LinkedInProfile = () => {
       ...profileData,
       education: updatedEducation
     }
-    
+
     await updateProfile(updatedProfile)
     setProfileData(updatedProfile)
   }
@@ -428,7 +427,7 @@ const LinkedInProfile = () => {
       ...profileData,
       education: updatedEducation
     }
-    
+
     await updateProfile(updatedProfile)
     setProfileData(updatedProfile)
   }
@@ -521,7 +520,7 @@ const LinkedInProfile = () => {
       // Get upload URL from backend
       const uploadUrlResponse = await candidateApi.getUploadUrl()
       const { uploadURL } = uploadUrlResponse.data
-      
+
       // Upload file directly to object storage
       const uploadResponse = await fetch(uploadURL, {
         method: 'PUT',
@@ -530,15 +529,15 @@ const LinkedInProfile = () => {
           'Content-Type': file.type,
         },
       })
-      
+
       if (!uploadResponse.ok) {
         throw new Error('Failed to upload file to storage')
       }
-      
+
       // Update profile with the uploaded file URL
       const response = await candidateApi.updateProfilePhoto(uploadURL, file.name, file.size)
       const updatedProfile = response.data
-      
+
       setProfileData(updatedProfile)
       // Refresh profile data from context
       await fetchProfile()
@@ -553,7 +552,7 @@ const LinkedInProfile = () => {
       // Get upload URL from backend
       const uploadUrlResponse = await candidateApi.getUploadUrl()
       const { uploadURL } = uploadUrlResponse.data
-      
+
       // Upload file directly to object storage
       const uploadResponse = await fetch(uploadURL, {
         method: 'PUT',
@@ -562,15 +561,15 @@ const LinkedInProfile = () => {
           'Content-Type': file.type,
         },
       })
-      
+
       if (!uploadResponse.ok) {
         throw new Error('Failed to upload file to storage')
       }
-      
+
       // Update profile with the uploaded file URL
       const response = await candidateApi.updateCoverPhoto(uploadURL, file.name, file.size)
       const updatedProfile = response.data
-      
+
       setProfileData(updatedProfile)
       // Refresh profile data from context
       await fetchProfile()
@@ -580,7 +579,41 @@ const LinkedInProfile = () => {
     }
   }
 
-  // Remove the blocking loading check - let UI render with skeleton states
+  // New function for optimized image upload
+  const handleOptimizedProfileImageUpload = async (file) => {
+    try {
+      console.log('🚀 [OPTIMIZED UPLOAD] Starting optimized profile image upload...');
+      // Get upload URL from backend for optimized uploads
+      const uploadParams = await handleGetProfileImageUploadParameters();
+      const uploadURL = typeof uploadParams === 'string' ? uploadParams : uploadParams.url; // Adjust if parameters are returned as object
+
+      // Upload file directly to object storage with optimization
+      const uploadResponse = await fetch(uploadURL, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        console.error('🚀 [OPTIMIZED UPLOAD] File upload failed:', uploadResponse.statusText);
+        throw new Error('Failed to upload optimized file to storage');
+      }
+
+      console.log('🚀 [OPTIMIZED UPLOAD] File uploaded successfully. Calling completion handler...');
+      // The actual completion logic is handled by handleProfilePhotoComplete, which receives the result from ObjectUploader
+      // We assume ObjectUploader will call handleProfilePhotoComplete with the correct result structure after this direct upload.
+      // For now, we rely on ObjectUploader's internal handling for direct uploads.
+      return; // Indicate success
+
+    } catch (error) {
+      console.error('💥 [OPTIMIZED UPLOAD] Error during optimized profile image upload:', error);
+      // Propagate the error to be handled by onUploadError
+      throw error;
+    }
+  };
+
 
   // Skeleton component for smooth loading
   const SkeletonLine = ({ width = "w-full", height = "h-4" }) => (
@@ -633,9 +666,22 @@ const LinkedInProfile = () => {
                 <SkeletonCircle size="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40" />
               ) : profileData?.profilePhoto ? (
                 <img 
-                  src={getImageUrl(profileData.profilePhoto)} 
-                  alt="Profile" 
                   className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-full border-4 border-white object-cover shadow-xl ring-2 ring-gray-200"
+                  src={getImageUrl(profileData?.profilePhoto)}
+                  alt="Profile"
+                  onLoad={() => {
+                    console.log('✅ Profile image loaded successfully:', getImageUrl(profileData?.profilePhoto))
+                  }}
+                  onError={(e) => {
+                    console.error('❌ Profile image failed to load:', {
+                      originalSrc: e.target.src,
+                      profilePhoto: profileData?.profilePhoto,
+                      processedUrl: getImageUrl(profileData?.profilePhoto)
+                    })
+                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                      profileData?.user?.firstName || 'User'
+                    )}&size=128&background=3b82f6&color=ffffff`
+                  }}
                   key={profileData.profilePhoto}
                 />
               ) : (
@@ -643,7 +689,7 @@ const LinkedInProfile = () => {
                   {profileData?.firstName?.[0] || profileData?.user?.firstName?.[0] || profileData?.profileData?.firstName?.[0] || profileData?.user?.name?.charAt(0).toUpperCase() || user?.name?.charAt(0).toUpperCase() || 'U'}
                 </div>
               )}
-              
+
               {/* Open to Work Badge */}
               {openToWork && (
                 <div className="absolute -top-1 -right-1 sm:top-0 sm:right-0 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow-lg ring-2 ring-white">
@@ -651,7 +697,7 @@ const LinkedInProfile = () => {
                   <span className="sm:hidden">🟢</span>
                 </div>
               )}
-              
+
               {/* Camera Icon - Smaller in mobile */}
               <ObjectUploader
                 maxNumberOfFiles={1}
@@ -766,7 +812,7 @@ const LinkedInProfile = () => {
 
       {/* Main Content - Mobile Optimized */}
       <div className="px-2 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4 max-w-4xl mx-auto">
-        
+
         {/* About Section */}
         <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow duration-200">
           <div className="p-3 sm:p-4">
@@ -820,7 +866,7 @@ const LinkedInProfile = () => {
                 <PlusIcon className="h-4 w-4 transition-transform duration-200 hover:scale-110" />
               </button>
             </div>
-            
+
             <div className="space-y-3 sm:space-y-4">
               {loading && !profileData ? (
                 // Skeleton for experience items
@@ -902,7 +948,7 @@ const LinkedInProfile = () => {
                 <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
-            
+
             <div className="space-y-3 sm:space-y-4">
               {loading && !profileData ? (
                 // Skeleton for education items
@@ -981,7 +1027,7 @@ const LinkedInProfile = () => {
                 <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
-            
+
             <div className="grid grid-cols-1 gap-2 sm:gap-3">
               {loading && !profileData ? (
                 // Skeleton for skills
@@ -1013,7 +1059,7 @@ const LinkedInProfile = () => {
                       </div>
                     </div>
                   ))}
-                  
+
                   {/* Display ratings object if skills array is not available */}
                   {(!profileData?.skills || profileData.skills.length === 0) && profileData?.ratings && 
                     Object.entries(profileData.ratings).map(([skill, rating]) => (
@@ -1056,7 +1102,7 @@ const LinkedInProfile = () => {
                 <div className="ml-2 w-6 sm:w-8 h-0.5 bg-gradient-to-r from-green-500 to-teal-500 rounded"></div>
               </h2>
             </div>
-            
+
             <div className="space-y-3 sm:space-y-4">
               {loading && !profileData ? (
                 <div className="p-3 sm:p-4 bg-gray-50 rounded-lg border">
@@ -1137,7 +1183,7 @@ const LinkedInProfile = () => {
                 <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
-            
+
             <div className="space-y-3 sm:space-y-4">
               {loading && !profileData ? (
                 <div className="grid grid-cols-1 gap-2 sm:gap-3">
@@ -1164,7 +1210,7 @@ const LinkedInProfile = () => {
                       </div>
                     </div>
                   )}
-                  
+
                   {((profileData?.jobPreferences?.preferredLocations || profileData?.profileData?.jobPreferences?.preferredLocations)?.length > 0) && (
                     <div className="p-2 sm:p-3 bg-purple-50 rounded-lg border border-purple-200">
                       <h4 className="font-medium text-gray-900 mb-2 text-xs sm:text-sm">Preferred Locations</h4>
@@ -1177,7 +1223,7 @@ const LinkedInProfile = () => {
                       </div>
                     </div>
                   )}
-                  
+
                   {(profileData?.jobPreferences?.workType || profileData?.profileData?.jobPreferences?.workType) && (
                     <div className="p-2 sm:p-3 bg-orange-50 rounded-lg border border-orange-200">
                       <h4 className="font-medium text-gray-900 mb-2 text-xs sm:text-sm">Work Type</h4>
@@ -1186,7 +1232,7 @@ const LinkedInProfile = () => {
                       </span>
                     </div>
                   )}
-                  
+
                   {((profileData?.jobPreferences?.salaryRange?.min || profileData?.jobPreferences?.salaryRange?.max) || 
                     (profileData?.profileData?.jobPreferences?.salaryRange?.min || profileData?.profileData?.jobPreferences?.salaryRange?.max)) && (
                     <div className="p-2 sm:p-3 bg-gray-50 rounded-lg border">
@@ -1201,7 +1247,7 @@ const LinkedInProfile = () => {
                       </div>
                     </div>
                   )}
-                  
+
                   {(profileData?.jobPreferences?.noticePeriod || profileData?.profileData?.jobPreferences?.noticePeriod) && (
                     <div className="p-2 sm:p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                       <h4 className="font-medium text-gray-900 mb-2 text-xs sm:text-sm">Notice Period</h4>

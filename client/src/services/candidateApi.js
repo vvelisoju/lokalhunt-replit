@@ -9,8 +9,13 @@ export const getImageUrl = (path) => {
     return path;
   }
 
-  // Use environment variable or dynamically determine server URL
+  // Get the server URL (without /api suffix)
   let serverUrl = import.meta.env.VITE_API_URL;
+  
+  // If VITE_API_URL includes /api, remove it to get base server URL
+  if (serverUrl && serverUrl.endsWith('/api')) {
+    serverUrl = serverUrl.slice(0, -4);
+  }
 
   // If no environment variable is set, determine URL dynamically
   if (!serverUrl) {
@@ -187,6 +192,28 @@ export const candidateApi = {
   getCoverImageUploadUrl: () => api.get("/candidates/cover-image-upload-url"),
   updateProfilePhoto: (data) => api.put("/candidates/profile-photo", data),
   updateCoverPhoto: (data) => api.put("/candidates/cover-photo", data),
+  
+  // Optimized profile photo upload
+  uploadOptimizedProfilePhoto: async (file) => {
+    try {
+      console.log("🖼️ Starting optimized profile photo upload:", file.name, "Size:", (file.size / 1024).toFixed(1), "KB");
+
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await api.post("/candidates/profile/photo/upload", formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      console.log("✅ Optimized profile photo uploaded successfully:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("❌ Optimized profile photo upload failed:", error);
+      throw error;
+    }
+  },
 
   // Open to Work status management
   updateOpenToWorkStatus: (openToWork) =>

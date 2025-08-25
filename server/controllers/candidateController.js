@@ -1928,7 +1928,96 @@ class CandidateController {
     }
   }
 
-  // Update profile photo
+  // Upload optimized profile photo directly
+  async uploadOptimizedProfilePhoto(req, res, next) {
+    try {
+      if (!req.file) {
+        return res
+          .status(400)
+          .json(createErrorResponse("No image file provided", 400));
+      }
+
+      const userId = req.user.userId;
+      const imageBuffer = req.file.buffer;
+      
+      console.log(`Received image for optimization: ${req.file.originalname}, size: ${(imageBuffer.length / 1024).toFixed(1)}KB`);
+
+      const objectStorageService = new ObjectStorageService();
+
+      // Get current candidate to check for existing profile photo
+      const currentCandidate = await prisma.candidate.findUnique({
+        where: { userId: userId },
+        select: { profilePhoto: true },
+      });
+
+      // Delete old profile photo if it exists
+      if (currentCandidate?.profilePhoto) {
+        const oldFilePath = objectStorageService.extractFilePathFromUrl(currentCandidate.profilePhoto);
+        if (oldFilePath) {
+          console.log(`🗑️  Deleting old profile photo: ${oldFilePath}`);
+          await objectStorageService.deleteFile(oldFilePath);
+        }
+      }
+
+      // Upload optimized image
+      const uploadResult = await objectStorageService.uploadOptimizedProfileImage(
+        userId, 
+        imageBuffer
+      );
+
+      // Create server URL for serving the image
+      const serverImageUrl = `/api/public/images/${uploadResult.fileName}`;
+      console.log("Storing server image URL:", serverImageUrl);
+
+      // Update candidate profile with server URL
+      const updatedCandidate = await prisma.candidate.update({
+        where: { userId: userId },
+        data: {
+          profilePhoto: serverImageUrl,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              cityId: true,
+              isActive: true,
+              createdAt: true,
+              city: {
+                select: {
+                  id: true,
+                  name: true,
+                  state: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      res.json(
+        createResponse("Profile photo uploaded and optimized successfully", {
+          candidate: updatedCandidate,
+          imageInfo: {
+            size: uploadResult.size,
+            format: uploadResult.format,
+            url: serverImageUrl
+          }
+        }),
+      );
+    } catch (error) {
+      console.error("Upload optimized profile photo error:", error);
+      res
+        .status(500)
+        .json(createErrorResponse("Failed to upload optimized profile photo", 500));
+    }
+  }
+
+  // Update profile photo (legacy method for URL-based uploads)
   async updateProfilePhoto(req, res, next) {
     try {
       const { photoURL } = req.body;
