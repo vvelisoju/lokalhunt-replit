@@ -5,8 +5,20 @@ let API_BASE_URL = import.meta.env.VITE_API_URL
 
 if (!API_BASE_URL) {
   if (typeof window !== 'undefined') {
-    // In browser, use current origin
-    API_BASE_URL = `${window.location.origin}/api`
+    // Check if we're in Replit environment
+    const hostname = window.location.hostname
+    if (hostname.includes('.replit.dev')) {
+      // In Replit, server runs on port 5000, client on different port
+      // Remove any existing port and add port 5000
+      const baseHostname = hostname.split(':')[0]
+      API_BASE_URL = `${window.location.protocol}//${baseHostname}:5000/api`
+    } else if (hostname === 'localhost') {
+      // Local development - server on port 5000
+      API_BASE_URL = 'http://localhost:5000/api'
+    } else {
+      // Production or other environments
+      API_BASE_URL = `${window.location.origin}/api`
+    }
   } else {
     // Fallback for SSR or development
     API_BASE_URL = 'http://localhost:5000/api'
@@ -17,6 +29,15 @@ if (!API_BASE_URL) {
     API_BASE_URL = `${API_BASE_URL}/api`
   }
 }
+
+// Debug logging for API configuration
+console.log('API Configuration:', {
+  hostname: typeof window !== 'undefined' ? window.location.hostname : 'SSR',
+  port: typeof window !== 'undefined' ? window.location.port : 'N/A',
+  protocol: typeof window !== 'undefined' ? window.location.protocol : 'N/A',
+  isReplit: typeof window !== 'undefined' && window.location.hostname.includes('.replit.dev'),
+  finalApiUrl: API_BASE_URL
+})
 
 // Create axios instance with default config
 const api = axios.create({

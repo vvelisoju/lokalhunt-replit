@@ -48,6 +48,7 @@ app.use((req, res, next) => {
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://0.0.0.0:3000",
+    "http://localhost:8081", // Expo web
     "https://lokalhunt.com",
     "https://www.lokalhunt.com",
   ];

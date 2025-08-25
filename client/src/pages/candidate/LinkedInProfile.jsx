@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { 
   PencilIcon, 
   PlusIcon,
@@ -55,7 +55,7 @@ const LinkedInProfile = () => {
       console.log('Fetching profile for user:', user)
       fetchProfile()
     }
-  }, [user, profile, loading])
+  }, [user, profile, loading, fetchProfile])
 
   // Update open to work state when profile data changes
   useEffect(() => {
@@ -65,7 +65,7 @@ const LinkedInProfile = () => {
   }, [profileData?.profileData?.openToWork])
 
   // Upload handlers for ObjectUploader
-  const handleGetUploadParameters = async () => {
+  const handleGetUploadParameters = useCallback(async () => {
     try {
       const response = await candidateApi.getUploadUrl()
       console.log('Upload URL response:', response)
@@ -82,9 +82,9 @@ const LinkedInProfile = () => {
       console.error('Error getting upload parameters:', error)
       throw error
     }
-  }
+  }, [])
 
-  const handleGetProfileImageUploadParameters = async () => {
+  const handleGetProfileImageUploadParameters = useCallback(async () => {
     try {
       console.log('🖼️ [PROFILE IMAGE] Getting upload parameters...')
       const response = await candidateApi.getProfileImageUploadUrl()
@@ -110,9 +110,9 @@ const LinkedInProfile = () => {
       console.error('💥 [PROFILE IMAGE] Full error details:', error.response || error)
       throw error
     }
-  }
+  }, [])
 
-  const handleGetCoverImageUploadParameters = async () => {
+  const handleGetCoverImageUploadParameters = useCallback(async () => {
     try {
       console.log('🎨 [COVER IMAGE] Getting upload parameters...')
       const response = await candidateApi.getCoverImageUploadUrl()
@@ -138,7 +138,7 @@ const LinkedInProfile = () => {
       console.error('💥 [COVER IMAGE] Full error details:', error.response || error)
       throw error
     }
-  }
+  }, [])
 
   const handleProfilePhotoComplete = async (result) => {
     try {
@@ -241,7 +241,7 @@ const LinkedInProfile = () => {
   }
 
   useEffect(() => {
-    if (profile) {
+    if (profile && JSON.stringify(profile) !== JSON.stringify(profileData)) {
       console.log('Profile data received in component:', profile)
       console.log('Profile user data:', profile?.user)
       console.log('Profile profileData field:', profile?.profileData)
@@ -260,7 +260,7 @@ const LinkedInProfile = () => {
       })
       setOpenToWork(openToWorkStatus)
     }
-  }, [profile])
+  }, [profile, profileData])
 
   const handleGenerateResume = () => {
     // TODO: Implement resume generation
@@ -268,7 +268,7 @@ const LinkedInProfile = () => {
   }
 
   // Resume upload handlers
-  const handleGetResumeUploadParameters = async () => {
+  const handleGetResumeUploadParameters = useCallback(async () => {
     try {
       const response = await candidateApi.getUploadUrl()
       console.log('Resume upload URL response:', response)
@@ -282,7 +282,7 @@ const LinkedInProfile = () => {
       console.error('Error getting resume upload parameters:', error)
       throw error
     }
-  }
+  }, [])
 
   const handleResumeUploadComplete = async (result) => {
     try {
@@ -580,13 +580,16 @@ const LinkedInProfile = () => {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
+  // Remove the blocking loading check - let UI render with skeleton states
+
+  // Skeleton component for smooth loading
+  const SkeletonLine = ({ width = "w-full", height = "h-4" }) => (
+    <div className={`${width} ${height} bg-gray-300 rounded animate-pulse`}></div>
+  )
+
+  const SkeletonCircle = ({ size = "w-24 h-24" }) => (
+    <div className={`${size} bg-gray-300 rounded-full animate-pulse`}></div>
+  )
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -601,6 +604,8 @@ const LinkedInProfile = () => {
               className="w-full h-full object-cover transition-all duration-500"
               key={profileData.coverPhoto}
             />
+          ) : loading ? (
+            <div className="h-full bg-gray-300 animate-pulse"></div>
           ) : (
             <div className="h-full bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 transition-all duration-500"></div>
           )}
@@ -624,7 +629,9 @@ const LinkedInProfile = () => {
           <div className="flex items-end gap-3 sm:gap-6 -mt-12 sm:-mt-20 mb-3 sm:mb-4">
             {/* Profile Picture */}
             <div className="relative flex-shrink-0">
-              {profileData?.profilePhoto ? (
+              {loading && !profileData ? (
+                <SkeletonCircle size="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40" />
+              ) : profileData?.profilePhoto ? (
                 <img 
                   src={getImageUrl(profileData.profilePhoto)} 
                   alt="Profile" 
@@ -664,24 +671,35 @@ const LinkedInProfile = () => {
           <div className="mb-3">
             <div className="flex items-start justify-between mb-1">
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">
-                  {profileData?.firstName && profileData?.lastName
-                    ? `${profileData.firstName} ${profileData.lastName}`
-                    : profileData?.user?.firstName && profileData?.user?.lastName
-                      ? `${profileData.user.firstName} ${profileData.user.lastName}`
-                      : profileData?.profileData?.firstName && profileData?.profileData?.lastName
-                        ? `${profileData.profileData.firstName} ${profileData.profileData.lastName}`
-                        : profileData?.user?.name || user?.name || 'Your Name'
-                  }
-                </h1>
-                <p className="text-base sm:text-lg text-gray-700 mb-2 leading-tight">
-                  {profileData?.profileData?.headline || 
-                   profileData?.headline || 
-                   profileData?.profileData?.jobTitle || 
-                   profileData?.jobTitle || 
-                   profileData?.profileData?.currentRole ||
-                   'Your Professional Title'}
-                </p>
+                {loading && !profileData ? (
+                  <>
+                    <SkeletonLine width="w-3/4" height="h-6 sm:h-8" />
+                    <div className="mt-2">
+                      <SkeletonLine width="w-1/2" height="h-4 sm:h-5" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">
+                      {profileData?.firstName && profileData?.lastName
+                        ? `${profileData.firstName} ${profileData.lastName}`
+                        : profileData?.user?.firstName && profileData?.user?.lastName
+                          ? `${profileData.user.firstName} ${profileData.user.lastName}`
+                          : profileData?.profileData?.firstName && profileData?.profileData?.lastName
+                            ? `${profileData.profileData.firstName} ${profileData.profileData.lastName}`
+                            : profileData?.user?.name || user?.name || 'Your Name'
+                      }
+                    </h1>
+                    <p className="text-base sm:text-lg text-gray-700 mb-2 leading-tight">
+                      {profileData?.profileData?.headline || 
+                       profileData?.headline || 
+                       profileData?.profileData?.jobTitle || 
+                       profileData?.jobTitle || 
+                       profileData?.profileData?.currentRole ||
+                       'Your Professional Title'}
+                    </p>
+                  </>
+                )}
               </div>
               <button 
                 onClick={() => setShowEditProfileModal(true)}
@@ -694,27 +712,37 @@ const LinkedInProfile = () => {
 
             {/* Contact Info - Mobile Stack */}
             <div className="space-y-1 text-sm text-gray-600 mb-3">
-              <div className="flex items-center">
-                <MapPinIcon className="h-4 w-4 mr-2 text-purple-600 flex-shrink-0" />
-                <span className="truncate">
-                  {profileData?.profileData?.location || 
-                   profileData?.location || 
-                   profileData?.city || 
-                   profileData?.user?.location ||
-                   'Your Location'}
-                </span>
-              </div>
-              {(profileData?.email || profileData?.user?.email) && (
-                <div className="flex items-center">
-                  <span className="w-4 h-4 mr-2 flex-shrink-0 text-xs">📧</span>
-                  <span className="truncate">{profileData?.email || profileData?.user?.email}</span>
-                </div>
-              )}
-              {(profileData?.profileData?.phone || profileData?.phone) && (
-                <div className="flex items-center">
-                  <span className="w-4 h-4 mr-2 flex-shrink-0 text-xs">📱</span>
-                  <span className="truncate">{profileData?.profileData?.phone || profileData?.phone}</span>
-                </div>
+              {loading && !profileData ? (
+                <>
+                  <SkeletonLine width="w-2/3" height="h-4" />
+                  <SkeletonLine width="w-1/2" height="h-4" />
+                  <SkeletonLine width="w-3/5" height="h-4" />
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center">
+                    <MapPinIcon className="h-4 w-4 mr-2 text-purple-600 flex-shrink-0" />
+                    <span className="truncate">
+                      {profileData?.profileData?.location || 
+                       profileData?.location || 
+                       profileData?.city || 
+                       profileData?.user?.location ||
+                       'Your Location'}
+                    </span>
+                  </div>
+                  {(profileData?.email || profileData?.user?.email) && (
+                    <div className="flex items-center">
+                      <span className="w-4 h-4 mr-2 flex-shrink-0 text-xs">📧</span>
+                      <span className="truncate">{profileData?.email || profileData?.user?.email}</span>
+                    </div>
+                  )}
+                  {(profileData?.profileData?.phone || profileData?.phone) && (
+                    <div className="flex items-center">
+                      <span className="w-4 h-4 mr-2 flex-shrink-0 text-xs">📱</span>
+                      <span className="truncate">{profileData?.profileData?.phone || profileData?.phone}</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -756,7 +784,13 @@ const LinkedInProfile = () => {
               </button>
             </div>
             <div className="text-gray-700 leading-relaxed text-sm sm:text-base">
-              {profileData?.profileData?.summary ? (
+              {loading && !profileData ? (
+                <div className="space-y-2">
+                  <SkeletonLine width="w-full" height="h-4" />
+                  <SkeletonLine width="w-5/6" height="h-4" />
+                  <SkeletonLine width="w-4/5" height="h-4" />
+                </div>
+              ) : profileData?.profileData?.summary ? (
                 <div className="whitespace-pre-wrap">{profileData.profileData.summary}</div>
               ) : (
                 <button 
@@ -788,7 +822,20 @@ const LinkedInProfile = () => {
             </div>
             
             <div className="space-y-3 sm:space-y-4">
-              {profileData?.experience?.length > 0 ? (
+              {loading && !profileData ? (
+                // Skeleton for experience items
+                Array.from({ length: 2 }).map((_, index) => (
+                  <div key={index} className="flex gap-2 sm:gap-3">
+                    <SkeletonCircle size="w-8 h-8 sm:w-10 sm:h-10" />
+                    <div className="flex-1 space-y-2">
+                      <SkeletonLine width="w-3/4" height="h-4 sm:h-5" />
+                      <SkeletonLine width="w-1/2" height="h-3 sm:h-4" />
+                      <SkeletonLine width="w-1/3" height="h-3 sm:h-4" />
+                      <SkeletonLine width="w-5/6" height="h-3" />
+                    </div>
+                  </div>
+                ))
+              ) : profileData?.experience?.length > 0 ? (
                 profileData.experience.map((exp, index) => (
                   <div key={index} className="flex gap-2 sm:gap-3 group">
                     <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded flex items-center justify-center flex-shrink-0">
@@ -857,7 +904,19 @@ const LinkedInProfile = () => {
             </div>
             
             <div className="space-y-3 sm:space-y-4">
-              {profileData?.education?.length > 0 ? (
+              {loading && !profileData ? (
+                // Skeleton for education items
+                Array.from({ length: 2 }).map((_, index) => (
+                  <div key={index} className="flex gap-2 sm:gap-3">
+                    <SkeletonCircle size="w-8 h-8 sm:w-10 sm:h-10" />
+                    <div className="flex-1 space-y-2">
+                      <SkeletonLine width="w-2/3" height="h-4 sm:h-5" />
+                      <SkeletonLine width="w-1/2" height="h-3 sm:h-4" />
+                      <SkeletonLine width="w-1/3" height="h-3 sm:h-4" />
+                    </div>
+                  </div>
+                ))
+              ) : profileData?.education?.length > 0 ? (
                 profileData.education.map((edu, index) => (
                   <div key={index} className="flex gap-2 sm:gap-3 group">
                     <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
@@ -924,7 +983,18 @@ const LinkedInProfile = () => {
             </div>
             
             <div className="grid grid-cols-1 gap-2 sm:gap-3">
-              {(profileData?.skills?.length > 0 || (profileData?.ratings && Object.keys(profileData.ratings).length > 0)) ? (
+              {loading && !profileData ? (
+                // Skeleton for skills
+                Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="p-2 sm:p-3 bg-gray-50 rounded-lg border">
+                    <div className="flex items-center justify-between mb-1">
+                      <SkeletonLine width="w-1/3" height="h-4" />
+                      <SkeletonLine width="w-8" height="h-3" />
+                    </div>
+                    <SkeletonLine width="w-full" height="h-1.5" />
+                  </div>
+                ))
+              ) : (profileData?.skills?.length > 0 || (profileData?.ratings && Object.keys(profileData.ratings).length > 0)) ? (
                 <>
                   {/* Display skills array if available */}
                   {profileData?.skills?.map((skill, index) => (
@@ -988,7 +1058,18 @@ const LinkedInProfile = () => {
             </div>
             
             <div className="space-y-3 sm:space-y-4">
-              {profileData?.resumeUrl ? (
+              {loading && !profileData ? (
+                <div className="p-3 sm:p-4 bg-gray-50 rounded-lg border">
+                  <div className="flex items-center space-x-3">
+                    <SkeletonCircle size="w-6 h-6 sm:w-8 sm:h-8" />
+                    <div className="flex-1 space-y-2">
+                      <SkeletonLine width="w-1/3" height="h-4" />
+                      <SkeletonLine width="w-1/2" height="h-3" />
+                    </div>
+                    <SkeletonLine width="w-16" height="h-8" />
+                  </div>
+                </div>
+              ) : profileData?.resumeUrl ? (
                 <div className="flex items-center justify-between p-3 sm:p-4 bg-green-50 rounded-lg border border-green-200">
                   <div className="flex items-center space-x-3 min-w-0 flex-1">
                     <DocumentArrowDownIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 flex-shrink-0" />
@@ -1058,7 +1139,18 @@ const LinkedInProfile = () => {
             </div>
             
             <div className="space-y-3 sm:space-y-4">
-              {(profileData?.jobPreferences || profileData?.profileData?.jobPreferences) ? (
+              {loading && !profileData ? (
+                <div className="grid grid-cols-1 gap-2 sm:gap-3">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index} className="p-2 sm:p-3 bg-gray-50 rounded-lg border">
+                      <SkeletonLine width="w-1/4" height="h-4" />
+                      <div className="mt-2">
+                        <SkeletonLine width="w-3/4" height="h-6" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (profileData?.jobPreferences || profileData?.profileData?.jobPreferences) ? (
                 <div className="grid grid-cols-1 gap-2 sm:gap-3">
                   {((profileData?.jobPreferences?.jobTypes || profileData?.profileData?.jobPreferences?.jobTypes)?.length > 0) && (
                     <div className="p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200">

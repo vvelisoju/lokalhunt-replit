@@ -61,13 +61,15 @@ const AccountSettings = () => {
   };
 
   return (
-    <Profile
-      profileData={profileData}
-      onUpdateProfile={handleUpdateProfile}
-      onUpdatePassword={handleUpdatePassword}
-      userType="candidate"
-      loading={loading}
-    />
+    <div className="min-h-screen bg-gray-50">
+      <Profile
+        profileData={profileData}
+        onUpdateProfile={handleUpdateProfile}
+        onUpdatePassword={handleUpdatePassword}
+        userType="candidate"
+        loading={loading}
+      />
+    </div>
   );
 };
 

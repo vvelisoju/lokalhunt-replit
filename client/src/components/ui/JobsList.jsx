@@ -9,7 +9,12 @@ import { publicApi } from "../../services/publicApi";
 import { useAuth } from "../../context/AuthContext";
 import Loader from "./Loader";
 
-const JobsList = ({ showFilters = true, title = "Jobs", subtitle = "", apiEndpoint = "public" }) => {
+const JobsList = ({
+  showFilters = true,
+  title = "Jobs",
+  subtitle = "",
+  apiEndpoint = "public",
+}) => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const [jobs, setJobs] = useState([]);
@@ -114,7 +119,6 @@ const JobsList = ({ showFilters = true, title = "Jobs", subtitle = "", apiEndpoi
       navigate(`/jobs/${jobId}`);
     }
   };
-
 
   const handleApply = async (jobId) => {
     if (!isAuthenticated) {
@@ -227,13 +231,9 @@ const JobsList = ({ showFilters = true, title = "Jobs", subtitle = "", apiEndpoi
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-              {subtitle && (
-                <p className="mt-1 text-gray-600">{subtitle}</p>
-              )}
+              {subtitle && <p className="mt-1 text-gray-600">{subtitle}</p>}
             </div>
-            <div className="text-sm text-gray-500">
-              {totalJobs} jobs found
-            </div>
+            <div className="text-sm text-gray-500">{totalJobs} jobs found</div>
           </div>
         </div>
       )}
@@ -346,13 +346,14 @@ const JobsList = ({ showFilters = true, title = "Jobs", subtitle = "", apiEndpoi
             };
 
             // Determine the variant based on user role for the SharedJobCard
-            const variant = user?.role === "CANDIDATE" ? "candidate" : "default";
+            const variant =
+              user?.role === "CANDIDATE" ? "candidate" : "default";
 
             return (
               <SharedJobCard
                 key={job.id}
                 job={jobData}
-                variant={variant}
+                variant={"default"}
                 user={user}
                 onApply={handleApply}
                 onBookmark={handleBookmark}

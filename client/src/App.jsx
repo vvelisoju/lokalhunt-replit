@@ -130,6 +130,7 @@ function App() {
                 <Route path="profile" element={<CandidateProfile />} />
                 <Route path="resume" element={<CandidateResume />} />
                 <Route path="settings" element={<CandidateAccountSettings />} />
+                <Route path="account-settings" element={<CandidateAccountSettings />} />
                 <Route path="profile/:candidateId" element={<CandidateProfileView />} />
               </Route>
 

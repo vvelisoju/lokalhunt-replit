@@ -97,7 +97,10 @@ const Register = () => {
     const { confirmPassword, agreeToTerms, ...registrationData } = formData
     const result = await register(registrationData)
     if (result.success) {
-      navigate('/candidate/dashboard')
+      // Small delay to ensure localStorage is set before navigation
+      setTimeout(() => {
+        navigate('/candidate/dashboard')
+      }, 100)
     }
   }
 

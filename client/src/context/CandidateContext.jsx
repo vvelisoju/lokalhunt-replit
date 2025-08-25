@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo } from 'react'
 import { candidateApi } from '../services/candidateApi'
 import { useToast } from '../components/ui/Toast'
 
@@ -117,22 +117,29 @@ export const CandidateProvider = ({ children }) => {
   }, [showSuccess])
 
   // Applications operations
-  const fetchApplications = useCallback(async () => {
+  const fetchApplications = useCallback(async (params = {}) => {
     try {
       setLoading(true)
-      console.log('Starting to fetch applications...')
-      const response = await candidateApi.getApplications()
-      console.log('Raw applications API response:', response)
-      
-      // Handle API response structure: { success: true, data: [...], message: "..." }
-      const applications = response?.data?.data || response?.data || []
-      console.log('Extracted applications:', applications)
-      console.log('First application sample:', applications[0])
-      
-      dispatch({ type: 'SET_APPLICATIONS', payload: Array.isArray(applications) ? applications : [] })
+      const response = await candidateApi.getApplications(params)
+      if (response.data && Array.isArray(response.data)) {
+        dispatch({ type: 'SET_APPLICATIONS', payload: response.data })
+        console.log('Applications fetched successfully:', response.data.length, 'applications')
+        return response.data
+      } else if (response.data?.data && Array.isArray(response.data.data)) {
+        // Handle nested data structure
+        dispatch({ type: 'SET_APPLICATIONS', payload: response.data.data })
+        console.log('Applications fetched successfully:', response.data.data.length, 'applications')
+        return response.data.data
+      } else {
+        console.warn('Invalid applications response structure:', response)
+        dispatch({ type: 'SET_APPLICATIONS', payload: [] })
+        return []
+      }
     } catch (error) {
-      console.error('Fetch applications error:', error)
+      console.error('Error fetching applications:', error)
       setError(error.message)
+      dispatch({ type: 'SET_APPLICATIONS', payload: [] })
+      return []
     } finally {
       setLoading(false)
     }
@@ -199,9 +206,9 @@ export const CandidateProvider = ({ children }) => {
       const resume = await candidateApi.uploadResume(file)
       // Update profile with new resume
       if (state.profile) {
-        dispatch({ 
-          type: 'SET_PROFILE', 
-          payload: { ...state.profile, resume } 
+        dispatch({
+          type: 'SET_PROFILE',
+          payload: { ...state.profile, resume }
         })
       }
       showSuccess('Resume uploaded successfully')
@@ -217,9 +224,9 @@ export const CandidateProvider = ({ children }) => {
       await candidateApi.deleteResume()
       // Update profile to remove resume
       if (state.profile) {
-        dispatch({ 
-          type: 'SET_PROFILE', 
-          payload: { ...state.profile, resume: null } 
+        dispatch({
+          type: 'SET_PROFILE',
+          payload: { ...state.profile, resume: null }
         })
       }
       showSuccess('Resume deleted successfully')
@@ -241,7 +248,7 @@ export const CandidateProvider = ({ children }) => {
     }
   }, [])
 
-  const value = {
+  const value = useMemo(() => ({
     ...state,
     fetchProfile,
     updateProfile,
@@ -254,7 +261,13 @@ export const CandidateProvider = ({ children }) => {
     deleteResume,
     clearData,
     dispatch
-  }
+  }), [
+    state,
+    fetchProfile,
+    updateProfile,
+    fetchApplications,
+    fetchBookmarks
+  ])
 
   return (
     <CandidateContext.Provider value={value}>
@@ -263,10 +276,13 @@ export const CandidateProvider = ({ children }) => {
   )
 }
 
-export const useCandidate = () => {
-  const context = useContext(CandidateContext)
-  if (!context) {
-    throw new Error('useCandidate must be used within a CandidateProvider')
+// Custom hook to use the candidate context
+const useCandidate = () => {
+  const context = useContext(CandidateContext);
+  if (context === undefined) {
+    throw new Error('useCandidate must be used within a CandidateProvider');
   }
-  return context
-}
+  return context;
+};
+
+export { useCandidate };

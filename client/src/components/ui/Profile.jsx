@@ -50,6 +50,7 @@ const Profile = ({
     confirmPassword: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
 
   React.useEffect(() => {
     if (profileData && typeof profileData === "object") {
@@ -111,6 +112,9 @@ const Profile = ({
   };
 
   const handleSave = async () => {
+    if (!validateForm()) {
+      return;
+    }
     try {
       setIsSubmitting(true);
       // Send city directly as the API expects it
@@ -161,6 +165,66 @@ const Profile = ({
       [field]: !prev[field],
     }));
   };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.firstName?.trim()) {
+      newErrors.firstName = "First name is required";
+    }
+
+    if (!formData.lastName?.trim()) {
+      newErrors.lastName = "Last name is required";
+    }
+
+    if (!formData.email?.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Email is invalid";
+    }
+
+    if (!formData.phone?.trim()) {
+      newErrors.phone = "Phone number is required";
+    } else if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) {
+      newErrors.phone = "Phone number must be exactly 10 digits";
+    }
+
+    if (!formData.city) {
+      newErrors.city = "City is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+
+    // Special handling for phone number - only allow digits and limit to 10
+    if (name === 'phone') {
+      const digitsOnly = value.replace(/\D/g, '');
+      if (digitsOnly.length <= 10) {
+        setFormData(prev => ({
+          ...prev,
+          [name]: digitsOnly
+        }));
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ""
+      }));
+    }
+  };
+
 
   if (loading) {
     return (
@@ -293,14 +357,11 @@ const Profile = ({
                       {editMode ? (
                         <FormInput
                           value={formData.firstName}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              firstName: e.target.value,
-                            })
-                          }
+                          onChange={handleInputChange}
+                          name="firstName"
                           placeholder="Enter your first name"
                           className="border border-gray-300 bg-white rounded-lg w-full focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          error={errors.firstName}
                         />
                       ) : (
                         <p className="text-gray-900 font-medium text-sm lg:text-base">
@@ -326,14 +387,11 @@ const Profile = ({
                       {editMode ? (
                         <FormInput
                           value={formData.lastName}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              lastName: e.target.value,
-                            })
-                          }
+                          onChange={handleInputChange}
+                          name="lastName"
                           placeholder="Enter your last name"
                           className="border border-gray-300 bg-white rounded-lg w-full focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          error={errors.lastName}
                         />
                       ) : (
                         <p className="text-gray-900 font-medium text-sm lg:text-base">
@@ -374,16 +432,19 @@ const Profile = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Phone Number
+                        Phone <span className="text-red-500">*</span>
                       </label>
                       {editMode ? (
                         <FormInput
-                          value={formData.phone}
-                          onChange={(e) =>
-                            setFormData({ ...formData, phone: e.target.value })
-                          }
-                          placeholder="Enter your phone number"
-                          className="border border-gray-300 bg-white rounded-lg w-full focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          label="Phone"
+                          name="phone"
+                          type="tel"
+                          value={formData.phone || ""}
+                          onChange={handleInputChange}
+                          icon={PhoneIcon}
+                          placeholder="Enter your 10-digit phone number"
+                          required
+                          error={errors.phone}
                         />
                       ) : (
                         <p className="text-gray-900 font-medium text-sm lg:text-base">
@@ -413,6 +474,7 @@ const Profile = ({
                           placeholder="Select your city"
                           className="w-full"
                           hideLabel={true}
+                          error={errors.city}
                         />
                       ) : (
                         <p className="text-gray-900 font-medium text-sm lg:text-base">
@@ -449,12 +511,8 @@ const Profile = ({
                         {editMode ? (
                           <FormInput
                             value={formData.companyName}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                companyName: e.target.value,
-                              })
-                            }
+                            onChange={handleInputChange}
+                            name="companyName"
                             placeholder="Enter your company name"
                             className="border border-gray-300 bg-white rounded-lg w-full focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                           />
@@ -482,12 +540,8 @@ const Profile = ({
                         {editMode ? (
                           <FormInput
                             value={formData.industry}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                industry: e.target.value,
-                              })
-                            }
+                            onChange={handleInputChange}
+                            name="industry"
                             placeholder="Enter your industry"
                             className="border border-gray-300 bg-white rounded-lg w-full focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                           />

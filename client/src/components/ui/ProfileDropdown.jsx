@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -5,13 +6,15 @@ import {
   ChartBarIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
-  GlobeAltIcon
+  GlobeAltIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 
 const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
   const { t, i18n } = useTranslation()
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const dropdownRef = useRef(null)
 
   const changeLanguage = (lng) => {
@@ -20,10 +23,22 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
     if (onLanguageChange) onLanguageChange(lng)
   }
 
-  // Close dropdown when clicking outside
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Close dropdown when clicking outside (desktop only)
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (!isMobile && dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowUserMenu(false)
       }
     }
@@ -32,7 +47,20 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [])
+  }, [isMobile])
+
+  // Prevent body scroll when bottom sheet is open
+  useEffect(() => {
+    if (isMobile && showUserMenu) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [isMobile, showUserMenu])
 
   const handleLogout = async (e) => {
     e.preventDefault()
@@ -133,83 +161,142 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
     }
   }
 
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button 
-        className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 hover:bg-gray-50 p-1 transition-colors"
-        onClick={() => setShowUserMenu(!showUserMenu)}
-      >
-        <img
-          className={`h-8 w-8 rounded-full object-cover ring-2 ${roleConfig.ringColor}`}
-          src={avatarUrl}
-          alt={displayName}
-        />
-        <div className="ml-3 hidden sm:block text-left">
-          <p className="text-sm font-medium text-gray-700">
-            {displayName}
-          </p>
-          <p className="text-xs text-gray-500">{user?.email}</p>
+  const MenuContent = () => (
+    <>
+      {/* User Info Header */}
+      <div className={`${isMobile ? 'px-6 py-4' : 'px-4 py-3'} border-b border-gray-100`}>
+        <div className="flex items-center">
+          <img
+            className={`${isMobile ? 'h-12 w-12' : 'h-10 w-10'} rounded-full object-cover ring-2 ${roleConfig.ringColor}`}
+            src={avatarUrl}
+            alt={displayName}
+          />
+          <div className="ml-3 flex-1">
+            <p className={`${isMobile ? 'text-base' : 'text-sm'} font-medium text-gray-700`}>
+              {displayName}
+            </p>
+            <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-gray-500`}>{user?.email}</p>
+            <p className={`${isMobile ? 'text-sm' : 'text-xs'} mt-1 ${roleConfig.roleColor}`}>
+              {formatRoleName(user?.role)}
+            </p>
+          </div>
+          {isMobile && (
+            <button
+              onClick={() => setShowUserMenu(false)}
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            >
+              <XMarkIcon className="h-6 w-6 text-gray-500" />
+            </button>
+          )}
         </div>
-        <ChevronDownIcon className="ml-2 h-4 w-4 text-gray-400 hidden sm:block" />
-      </button>
+      </div>
 
-      {/* Dropdown Menu */}
-      {showUserMenu && (
-        <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
-          <div className="px-4 py-3 border-b border-gray-100">
+      {/* Menu Items */}
+      <div className={`${isMobile ? 'py-2' : 'py-1'}`}>
+        {/* Dashboard Link */}
+        <Link 
+          to={roleConfig.dashboardLink} 
+          className={`flex items-center ${isMobile ? 'px-6 py-4' : 'px-4 py-2'} text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
+          onClick={() => setShowUserMenu(false)}
+        >
+          <ChartBarIcon className={`${isMobile ? 'h-6 w-6' : 'h-4 w-4'} mr-3`} />
+          <span className={isMobile ? 'text-base' : 'text-sm'}>Dashboard</span>
+        </Link>
+
+        {/* Account Settings Link */}
+        <Link 
+          to={roleConfig.accountSettingsLink} 
+          className={`flex items-center ${isMobile ? 'px-6 py-4' : 'px-4 py-2'} text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
+          onClick={() => setShowUserMenu(false)}
+        >
+          <Cog6ToothIcon className={`${isMobile ? 'h-6 w-6' : 'h-4 w-4'} mr-3`} />
+          <span className={isMobile ? 'text-base' : 'text-sm'}>Account Settings</span>
+        </Link>
+
+        {/* Language Toggle */}
+        <button 
+          className={`w-full flex items-center ${isMobile ? 'px-6 py-4' : 'px-4 py-2'} text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
+          onClick={() => changeLanguage(i18n.language === 'en' ? 'te' : 'en')}
+        >
+          <GlobeAltIcon className={`${isMobile ? 'h-6 w-6' : 'h-4 w-4'} mr-3`} />
+          <span className={isMobile ? 'text-base' : 'text-sm'}>
+            Language: {i18n.language === 'en' ? 'తెలుగు' : 'English'}
+          </span>
+        </button>
+      </div>
+
+      {/* Sign Out */}
+      <div className={`border-t border-gray-100 ${isMobile ? 'pt-2' : 'pt-1'}`}>
+        <button 
+          onClick={handleLogout}
+          className={`w-full flex items-center ${isMobile ? 'px-6 py-4' : 'px-4 py-2'} text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
+        >
+          <ArrowRightOnRectangleIcon className={`${isMobile ? 'h-6 w-6' : 'h-4 w-4'} mr-3`} />
+          <span className={isMobile ? 'text-base' : 'text-sm'}>Sign Out</span>
+        </button>
+      </div>
+    </>
+  )
+
+  return (
+    <>
+      <div className="relative" ref={dropdownRef}>
+        <button 
+          className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 hover:bg-gray-50 p-1 transition-colors"
+          onClick={() => setShowUserMenu(!showUserMenu)}
+        >
+          <img
+            className={`h-8 w-8 rounded-full object-cover ring-2 ${roleConfig.ringColor}`}
+            src={avatarUrl}
+            alt={displayName}
+          />
+          <div className="ml-3 hidden sm:block text-left">
             <p className="text-sm font-medium text-gray-700">
               {displayName}
             </p>
             <p className="text-xs text-gray-500">{user?.email}</p>
-            <p className={`text-xs mt-1 ${roleConfig.roleColor}`}>
-              {formatRoleName(user?.role)}
-            </p>
           </div>
+          <ChevronDownIcon className="ml-2 h-4 w-4 text-gray-400 hidden sm:block" />
+        </button>
 
-          <div className="py-1">
-            {/* Dashboard Link */}
-            <Link 
-              to={roleConfig.dashboardLink} 
-              className={`flex items-center px-4 py-2 text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
+        {/* Desktop Dropdown Menu */}
+        {!isMobile && showUserMenu && (
+          <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+            <MenuContent />
+          </div>
+        )}
+      </div>
+
+      {/* Mobile Bottom Sheet */}
+      {isMobile && (
+        <>
+          {/* Backdrop */}
+          {showUserMenu && (
+            <div 
+              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-all duration-300"
               onClick={() => setShowUserMenu(false)}
-            >
-              <ChartBarIcon className="h-4 w-4 mr-3" />
-              Dashboard
-            </Link>
-
-            {/* Account Settings Link */}
-            <Link 
-              to={roleConfig.accountSettingsLink} 
-              className={`flex items-center px-4 py-2 text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
-              onClick={() => setShowUserMenu(false)}
-            >
-              <Cog6ToothIcon className="h-4 w-4 mr-3" />
-              Account Settings
-            </Link>
-
-            {/* Language Toggle */}
-            <button 
-              className={`w-full flex items-center px-4 py-2 text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
-              onClick={() => changeLanguage(i18n.language === 'en' ? 'te' : 'en')}
-            >
-              <GlobeAltIcon className="h-4 w-4 mr-3" />
-              Language: {i18n.language === 'en' ? 'తెలుగు' : 'English'}
-            </button>
+            />
+          )}
+          
+          {/* Bottom Sheet */}
+          <div className={`fixed inset-x-0 bottom-0 z-50 transform transition-transform duration-300 ${
+            showUserMenu ? 'translate-y-0' : 'translate-y-full'
+          }`}>
+            <div className="bg-white rounded-t-2xl shadow-2xl max-h-[80vh] overflow-y-auto">
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
+              </div>
+              
+              <MenuContent />
+              
+              {/* Safe area padding for devices with home indicator */}
+              <div className="pb-safe"></div>
+            </div>
           </div>
-
-          <div className="border-t border-gray-100 pt-1">
-            {/* Sign Out */}
-            <button 
-              onClick={handleLogout}
-              className={`w-full flex items-center px-4 py-2 text-sm text-gray-700 ${roleConfig.hoverColor} transition-colors`}
-            >
-              <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
-              Sign Out
-            </button>
-          </div>
-        </div>
+        </>
       )}
-    </div>
+    </>
   )
 }
 

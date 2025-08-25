@@ -62,7 +62,7 @@ const Sidebar = ({ isOpen, onClose }) => {
       {/* Mobile overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
           onClick={onClose}
         />
       )}
@@ -70,24 +70,33 @@ const Sidebar = ({ isOpen, onClose }) => {
       {/* Sidebar - Mobile optimized */}
       <div
         className={`
-        fixed inset-y-0 left-0 z-50 w-72 sm:w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+        fixed inset-y-0 left-0 z-50 w-full sm:w-80 lg:w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
       `}
       >
-        {/* Logo */}
-        <div className="flex items-center justify-center h-16 px-4 border-b border-neutral-200 bg-gradient-to-r from-green-50 to-blue-50">
+        {/* Header with Logo and Close Button */}
+        <div className="flex items-center justify-between h-16 px-4 border-b border-neutral-200 bg-gradient-to-r from-green-50 to-blue-50">
           <Link to={`${routeBase}/dashboard`} className="flex items-center hover:scale-105 transition-transform duration-200">
             <img 
               src={logoImage} 
               alt="LokalHunt" 
-              className="h-14 w-auto object-contain"
+              className="h-12 w-auto object-contain"
             />
           </Link>
+          
+          {/* Close button - only visible on mobile */}
+          <button
+            onClick={onClose}
+            className="lg:hidden p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-white/60 active:bg-white/80 transition-all duration-200"
+            aria-label="Close sidebar"
+          >
+            <XMarkIcon className="h-6 w-6" />
+          </button>
         </div>
 
         {/* Navigation */}
-        <nav className="mt-8 px-4">
-          <ul className="space-y-2">
+        <nav className="flex-1 px-4 py-6 overflow-y-auto">
+          <ul className="space-y-1">
             {navigation.map((item) => {
               const Icon = item.icon;
               return (
@@ -96,16 +105,16 @@ const Sidebar = ({ isOpen, onClose }) => {
                     to={item.href}
                     onClick={onClose}
                     className={`
-                      group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 hover:scale-[1.02]
+                      group flex items-center px-4 py-3.5 text-base font-medium rounded-xl transition-all duration-200 active:scale-[0.98]
                       ${
                         isActive(item.href)
-                          ? "bg-gradient-to-r from-green-500 to-blue-500 text-white shadow-md"
-                          : "text-gray-700 hover:bg-gray-100 hover:text-green-600"
+                          ? "bg-gradient-to-r from-green-500 to-blue-500 text-white shadow-lg shadow-green-200"
+                          : "text-gray-700 hover:bg-gray-50 active:bg-gray-100 hover:text-green-600"
                       }
                     `}
                   >
                     <Icon
-                      className={`mr-3 flex-shrink-0 h-5 w-5 transition-colors ${
+                      className={`mr-4 flex-shrink-0 h-6 w-6 transition-colors ${
                         isActive(item.href) ? "text-white" : "text-gray-400 group-hover:text-green-500"
                       }`}
                       aria-hidden="true"
@@ -119,10 +128,10 @@ const Sidebar = ({ isOpen, onClose }) => {
 
           {/* Quick Actions */}
           <div className="mt-8">
-            <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <h3 className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
               {t('employer.sidebar.quickActions', 'Quick Actions')}
             </h3>
-            <ul className="mt-2 space-y-2">
+            <ul className="space-y-1">
               {quickActions.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -131,10 +140,10 @@ const Sidebar = ({ isOpen, onClose }) => {
                       <Link
                         to={item.href}
                         onClick={onClose}
-                        className="group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 hover:scale-[1.02] text-gray-700 hover:bg-green-50 hover:text-green-600 border border-transparent hover:border-green-200"
+                        className="group flex items-center px-4 py-3.5 text-base font-medium rounded-xl transition-all duration-200 active:scale-[0.98] text-gray-700 hover:bg-green-50 active:bg-green-100 hover:text-green-600 border border-transparent hover:border-green-200"
                       >
                         <Icon
-                          className="mr-3 flex-shrink-0 h-5 w-5 text-gray-400 group-hover:text-green-500"
+                          className="mr-4 flex-shrink-0 h-6 w-6 text-gray-400 group-hover:text-green-500"
                           aria-hidden="true"
                         />
                         {item.name}
@@ -145,10 +154,10 @@ const Sidebar = ({ isOpen, onClose }) => {
                           item.action();
                           onClose();
                         }}
-                        className="group flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 hover:scale-[1.02] text-gray-700 hover:bg-blue-50 hover:text-blue-600 border border-transparent hover:border-blue-200"
+                        className="group flex items-center w-full px-4 py-3.5 text-base font-medium rounded-xl transition-all duration-200 active:scale-[0.98] text-gray-700 hover:bg-blue-50 active:bg-blue-100 hover:text-blue-600 border border-transparent hover:border-blue-200"
                       >
                         <Icon
-                          className="mr-3 flex-shrink-0 h-5 w-5 text-gray-400 group-hover:text-blue-500"
+                          className="mr-4 flex-shrink-0 h-6 w-6 text-gray-400 group-hover:text-blue-500"
                           aria-hidden="true"
                         />
                         {item.name}
@@ -163,16 +172,16 @@ const Sidebar = ({ isOpen, onClose }) => {
 
 
           {/* Employer Info Card */}
-          <div className="mt-8 px-3">
-            <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-lg p-4 border border-gray-200">
-              <div className="flex items-center">
+          <div className="mt-auto px-4 pb-6">
+            <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-4 border border-gray-200 shadow-sm">
+              <div className="flex items-center mb-4">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
-                    <BuildingOfficeIcon className="w-4 h-4 text-white" />
+                  <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
+                    <BuildingOfficeIcon className="w-5 h-5 text-white" />
                   </div>
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-900">Employer</p>
+                  <p className="text-sm font-semibold text-gray-900">Employer</p>
                   <p className="text-xs text-gray-500">Job Management</p>
                 </div>
               </div>
@@ -181,11 +190,14 @@ const Sidebar = ({ isOpen, onClose }) => {
                   setShowHelpModal(true);
                   onClose();
                 }}
-                className="mt-3 block w-full bg-blue-500 hover:bg-blue-600 text-white text-center py-2.5 px-3 rounded-lg text-sm font-semibold hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+                className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 text-white text-center py-3 px-4 rounded-lg text-sm font-semibold shadow-md hover:shadow-lg active:shadow-sm transition-all duration-200 active:scale-[0.98]"
               >
                 {t('employer.sidebar.customerSupport', 'Customer Support')}
               </button>
             </div>
+            
+            {/* Mobile-specific bottom spacing */}
+            <div className="h-4 lg:h-0"></div>
           </div>
         </nav>
       </div>

@@ -60,6 +60,9 @@ router.get('/resume/history', candidateController.getResumeHistory);
 // Main dashboard with stats and overview
 router.get('/dashboard', candidateController.getDashboard);
 
+// Dashboard statistics
+router.get('/dashboard/stats', candidateController.getDashboardStats);
+
 // Profile completeness and recommendations
 router.get('/profile/completeness', candidateController.getProfileCompleteness);
 

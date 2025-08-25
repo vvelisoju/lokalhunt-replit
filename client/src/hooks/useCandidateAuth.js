@@ -78,6 +78,9 @@ export const useCandidateAuth = () => {
   const login = async (credentials) => {
     try {
       setLoading(true)
+      // Removed setError(null) as it's not defined in the original hook.
+      // Assuming `toast` is imported and used for error display.
+
       const response = await candidateApi.login(credentials)
       const { token, user: userData } = response.data
 
@@ -88,6 +91,10 @@ export const useCandidateAuth = () => {
       setUser(user)
       setIsAuthenticated(true)
       showSuccess('Logged in successfully')
+
+      // Removed the logic related to authService.candidateLogin and token/user storage
+      // as it was not present in the original `useCandidateAuth` hook provided.
+      // The existing logic for `candidateApi.login` is preserved.
 
       return { success: true, user: user }
     } catch (error) {
@@ -102,6 +109,8 @@ export const useCandidateAuth = () => {
   const register = async (userData) => {
     try {
       setLoading(true)
+      // Removed setError(null) as it's not defined in the original hook.
+
       const response = await candidateApi.register(userData)
       const { token, user: newUser } = response.data
 
@@ -113,7 +122,18 @@ export const useCandidateAuth = () => {
       setIsAuthenticated(true)
       showSuccess('Account created successfully')
 
-      return { success: true, user: user }
+      // Set onboarding flags for new user
+      localStorage.setItem('showOnboarding', 'true')
+      localStorage.setItem('onboardingStep', '1')
+      localStorage.removeItem('onboardingCompleted') // Ensure it's not set
+      
+      console.log('Registration complete - onboarding flags set:', {
+        showOnboarding: localStorage.getItem('showOnboarding'),
+        onboardingStep: localStorage.getItem('onboardingStep')
+      })
+
+      // Added isNewUser flag to return value
+      return { success: true, user: user, isNewUser: true }
     } catch (error) {
       const message = error.response?.data?.message || 'Registration failed'
       showError(message)
@@ -130,6 +150,9 @@ export const useCandidateAuth = () => {
       localStorage.removeItem('token')
       sessionStorage.removeItem('candidateToken')
       sessionStorage.removeItem('token')
+
+      // Remove onboarding flag on logout
+      localStorage.removeItem('showOnboarding');
 
       // Reset state
       setUser(null)

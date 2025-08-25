@@ -992,6 +992,63 @@ class CandidateController {
   // DASHBOARD & ANALYTICS
   // =======================
 
+  async getDashboardStats(req, res, next) {
+    try {
+      const candidate = await prisma.candidate.findUnique({
+        where: { userId: req.user.userId },
+      });
+
+      if (!candidate) {
+        return res
+          .status(404)
+          .json(createErrorResponse("Candidate profile not found", 404));
+      }
+
+      // Get applications statistics
+      const applications = await prisma.allocation.findMany({
+        where: { candidateId: candidate.id },
+      });
+
+      // Get bookmarks count
+      const bookmarksCount = await prisma.bookmark.count({
+        where: { candidateId: candidate.id },
+      });
+
+      // Calculate profile completeness
+      const profileFields = [
+        candidate.profileData,
+        candidate.resumeUrl,
+        candidate.education,
+        candidate.experience,
+        candidate.profilePhoto,
+        candidate.dateOfBirth,
+      ];
+      const completedFields = profileFields.filter(
+        (field) => field !== null && field !== undefined,
+      ).length;
+      const profileCompletion = Math.round(
+        (completedFields / profileFields.length) * 100,
+      );
+
+      const stats = {
+        totalApplications: applications.length,
+        pendingApplications: applications.filter((a) => a.status === "APPLIED").length,
+        rejectedApplications: applications.filter((a) => a.status === "REJECTED").length,
+        interviewScheduled: applications.filter((a) => a.status === "SHORTLISTED").length,
+        profileViews: 0, // Placeholder - would require tracking
+        profileCompletion,
+        bookmarks: bookmarksCount,
+        hasResume: !!candidate.resumeUrl,
+      };
+
+      res.json(
+        createResponse("Dashboard statistics retrieved successfully", stats),
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getProfileCompleteness(req, res, next) {
     try {
       const candidate = await prisma.candidate.findUnique({

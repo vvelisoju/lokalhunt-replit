@@ -11,7 +11,7 @@ export default defineConfig({
     base: "/",
     allowedHosts: [
       "localhost:3000",
-      "8623772d-42f2-4847-92b4-3b6c3e49b220-00-1xro0juetxdg.riker.replit.dev",
+      "ee2f5811-628a-444d-b83f-2bffaa9c3561-00-3d22d0btftv4b.janeway.replit.dev",
     ],
     proxy: {
       "/api": {
