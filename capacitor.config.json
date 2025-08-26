@@ -1,0 +1,5 @@
+{
+  "appId": "com.codevel.lokalhunt",
+  "appName": "LokalHunt",
+  "webDir": "client/dist"
+}

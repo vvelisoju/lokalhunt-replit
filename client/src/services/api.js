@@ -12,16 +12,27 @@ if (!API_BASE_URL) {
       // Remove any existing port and add port 5000
       const baseHostname = hostname.split(':')[0]
       API_BASE_URL = `${window.location.protocol}//${baseHostname}:5000/api`
-    } else if (hostname === 'localhost') {
-      // Local development - server on port 5000
-      API_BASE_URL = 'http://localhost:5000/api'
+    } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      // Local development - check if we have a production API URL in env
+      if (import.meta.env.VITE_API_URL) {
+        API_BASE_URL = import.meta.env.VITE_API_URL
+        if (!API_BASE_URL.endsWith('/api')) {
+          API_BASE_URL = `${API_BASE_URL}/api`
+        }
+      } else {
+        // Fallback to local server
+        API_BASE_URL = 'http://localhost:5000/api'
+      }
     } else {
       // Production or other environments
       API_BASE_URL = `${window.location.origin}/api`
     }
   } else {
     // Fallback for SSR or development
-    API_BASE_URL = 'http://localhost:5000/api'
+    API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+    if (API_BASE_URL && !API_BASE_URL.endsWith('/api')) {
+      API_BASE_URL = `${API_BASE_URL}/api`
+    }
   }
 } else {
   // Ensure API path is appended if not already present

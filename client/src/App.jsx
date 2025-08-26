@@ -1,6 +1,10 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+
+// Capacitor imports for push notifications
+import { PushNotifications } from '@capacitor/push-notifications'
+import { Capacitor } from '@capacitor/core'
 
 // Landing Page
 import Landing from './pages/Landing'
@@ -79,26 +83,136 @@ import AdCandidates from "./pages/employer/AdCandidates";
 import Candidates from "./pages/employer/Candidates";
 import EmployerCandidateProfileView from "./pages/employer/CandidateProfileView";
 import CompanyProfile from "./pages/employer/CompanyProfile";
+// Import new footer page components
+import HelpCenter from "./pages/HelpCenter";
+import ContactUs from "./pages/ContactUs";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import RefundPolicy from "./pages/RefundPolicy";
 
 
 function App() {
+  const [pushToken, setPushToken] = useState(null)
+
+  // Initialize push notifications on component mount
+  useEffect(() => {
+    initPushNotifications()
+  }, [])
+
+  // Initialize push notifications
+  const initPushNotifications = async () => {
+    // Only run on native platforms
+    if (!Capacitor.isNativePlatform()) {
+      console.log('Push notifications only available on mobile devices')
+      return
+    }
+
+    try {
+      // Check permissions
+      const permStatus = await PushNotifications.checkPermissions()
+      
+      if (permStatus.receive === 'prompt') {
+        const requestResult = await PushNotifications.requestPermissions()
+        if (requestResult.receive !== 'granted') {
+          console.log('Push notification permissions denied')
+          return
+        }
+      } else if (permStatus.receive !== 'granted') {
+        console.log('Push notification permissions not granted')
+        return
+      }
+
+      // Register for push notifications
+      await PushNotifications.register()
+
+      // Add listeners
+      addPushListeners()
+
+    } catch (error) {
+      console.error('Error initializing push notifications:', error)
+    }
+  }
+
+  // Add push notification listeners
+  const addPushListeners = () => {
+    // Called when the app receives the registration token
+    PushNotifications.addListener('registration', (token) => {
+      console.log('Push registration success, token: ' + token.value)
+      setPushToken(token.value)
+    })
+
+    // Called when there's an error during registration
+    PushNotifications.addListener('registrationError', (error) => {
+      console.error('Error on registration: ' + JSON.stringify(error))
+    })
+
+    // Called when the app receives a push notification (foreground)
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      console.log('Push notification received (foreground): ', notification)
+      // You can show a toast notification here
+      // toast.info(notification.title, notification.body)
+    })
+
+    // Called when user taps on a push notification (background/closed app)
+    PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+      console.log('Push notification action performed (background): ', notification)
+      // Handle navigation or actions based on notification data
+    })
+  }
+
+  // Manual registration trigger
+  const handleRegisterForPush = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      alert('Push notifications only work on mobile devices')
+      return
+    }
+
+    try {
+      await initPushNotifications()
+    } catch (error) {
+      console.error('Error registering for push:', error)
+      alert('Failed to register for push notifications')
+    }
+  }
+
   return (
     <ToastProvider>
       <CandidateProvider>
         <div className="min-h-screen flex flex-col">
+          {/* Push notification registration button - only show on native platforms */}
+          {Capacitor.isNativePlatform() && (
+            <div className="fixed top-4 right-4 z-50">
+              <button
+                onClick={handleRegisterForPush}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium"
+                title={pushToken ? `Token: ${pushToken.slice(0, 20)}...` : 'Register for Push Notifications'}
+              >
+                {pushToken ? '🔔 Push Enabled' : 'Register for Push'}
+              </button>
+            </div>
+          )}
             <Routes>
-              {/* Landing Page */}
-              <Route path="/" element={<Landing />} />
+              {/* Landing Page - Redirect mobile users to login */}
+              <Route path="/" element={
+                Capacitor.isNativePlatform() ? 
+                <Navigate to="/login" replace /> : 
+                <Landing />
+              } />
 
               {/* Jobs Page */}
               <Route path="/jobs" element={<Jobs />} />
-              <Route path="/jobs/:id" element={<JobDetail />} />
-              <Route path="/jobs/:id/preview" element={<JobPreview />} />
+              <Route path="/jobs/:jobId" element={<JobDetail />} />
               <Route path="/companies" element={<Companies />} />
-              {/* Career Advice Page */}
               <Route path="/career-advice" element={<CareerAdvice />} />
-              {/* Public Candidate Profile Route */}
-              <Route path="/candidate/:candidateId/profile" element={<PublicCandidateProfile />} />
+              <Route path="/job-preview/:jobId" element={<JobPreview />} />
+              <Route path="/candidate/:id" element={<PublicCandidateProfile />} />
+              {/* Footer Pages */}
+              <Route path="/help" element={<HelpCenter />} />
+              <Route path="/contact" element={<ContactUs />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/refund-policy" element={<RefundPolicy />} />
+
 
               {/* Dashboard redirect for logged in users */}
               <Route path="/dashboard" element={

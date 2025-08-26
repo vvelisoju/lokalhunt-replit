@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { 
-  MagnifyingGlassIcon, 
+import {
+  MagnifyingGlassIcon,
   MapPinIcon,
   ChevronDownIcon,
   AdjustmentsHorizontalIcon
@@ -8,17 +8,19 @@ import {
 import Button from './Button'
 import Modal from './Modal'
 import { publicApi } from '../../services/publicApi'
+import CategorySearchSelect from './CategorySearchSelect'
+import CityDropdown from './CityDropdown'
 
-const JobFilters = ({ 
-  filters, 
-  onFiltersChange, 
+const JobFilters = ({
+  filters,
+  onFiltersChange,
   onSearch,
   showAdvancedFilters = true,
   showApplicationFilters = false,
   statusOptions = [],
   dateRangeOptions = [],
   className = '',
-  compact = false 
+  compact = false
 }) => {
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [categories, setCategories] = useState([])
@@ -133,7 +135,11 @@ const JobFilters = ({
       gender: '',
       education: [],
       salaryRange: '',
-      sortBy: 'newest'
+      sortBy: 'newest',
+      experienceLevel: '',
+      employmentType: '',
+      minSalary: '',
+      maxSalary: ''
     }
     onFiltersChange(clearedFilters)
   }
@@ -149,10 +155,26 @@ const JobFilters = ({
     if (filters.gender) count++
     if (filters.education?.length > 0) count++
     if (filters.salaryRange) count++
+    if (filters.experienceLevel) count++
+    if (filters.employmentType) count++
+    if (filters.minSalary) count++
+    if (filters.maxSalary) count++
     return count
   }
 
   const activeFiltersCount = getActiveFiltersCount()
+
+  // Function to handle the "Apply Filters" button click in the modal
+  const applyMobileFilters = () => {
+    setShowMobileFilters(false)
+    // The actual filtering is handled by the onFiltersChange, so no further action needed here
+  }
+
+  // Function to handle the "Clear Filters" button click in the modal
+  const clearMobileFilters = () => {
+    clearFilters()
+    setShowMobileFilters(false)
+  }
 
   return (
     <div className={className}>
@@ -197,8 +219,6 @@ const JobFilters = ({
               <ChevronDownIcon className="h-5 w-5 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
-
-          
 
           {/* Search Input */}
           <div className="flex-1">
@@ -365,14 +385,14 @@ const JobFilters = ({
             {/* Action Buttons */}
             <div className="flex space-x-3 pt-4">
               <Button
-                onClick={clearFilters}
+                onClick={clearMobileFilters}
                 variant="outline"
                 className="flex-1"
               >
                 Clear All
               </Button>
               <Button
-                onClick={() => setShowMobileFilters(false)}
+                onClick={applyMobileFilters}
                 className="flex-1"
               >
                 Apply Filters

@@ -155,6 +155,23 @@ const JobsList = ({
     updateURL(newFilters);
   };
 
+  const handleClearFilters = () => {
+    const clearedFilters = {
+      search: '',
+      location: '',
+      category: '',
+      jobType: [],
+      experience: [],
+      gender: '',
+      education: [],
+      salaryRange: '',
+      sortBy: 'newest'
+    };
+    setFilters(clearedFilters);
+    setCurrentPage(1);
+    updateURL(clearedFilters);
+  };
+
   const handleJobCardClick = (jobId, status) => {
     // The 'variant' prop is not available in this component's scope.
     // Assuming the intention is to distinguish between candidate and other user types.
@@ -287,11 +304,14 @@ const JobsList = ({
 
       {/* Filters */}
       {showFilters && (
-        <JobFilters
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          showAdvancedFilters={true}
-        />
+        <div className="">
+          <JobFilters
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            onClearFilters={handleClearFilters}
+            loading={loading}
+          />
+        </div>
       )}
 
       {/* Results Header */}

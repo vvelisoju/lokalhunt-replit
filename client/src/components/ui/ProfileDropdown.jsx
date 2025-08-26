@@ -10,11 +10,13 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
+import { getImageUrl } from '../../services/candidateApi'
 
 const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
   const { t, i18n } = useTranslation()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [imageError, setImageError] = useState(false)
   const dropdownRef = useRef(null)
 
   const changeLanguage = (lng) => {
@@ -147,7 +149,37 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
     displayName = 'User'
   }
 
-  const avatarUrl = user?.profileImage || user?.profilePhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=059669&color=fff`
+  // Get profile image URL using the getImageUrl helper function
+  const getProfileImageUrl = () => {
+    // Check for profile image/photo in various user data structures
+    const profileImagePath = user?.profileImage || 
+                             user?.profilePhoto || 
+                             user?.candidate?.profilePhoto ||
+                             user?.candidate?.profileImage;
+    
+    if (profileImagePath) {
+      // Use getImageUrl helper to properly construct the URL
+      return getImageUrl(profileImagePath);
+    }
+    
+    // Fallback to generated avatar
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=059669&color=fff`;
+  };
+
+  const avatarUrl = getProfileImageUrl();
+
+  // Reset image error when user changes
+  useEffect(() => {
+    setImageError(false);
+  }, [user?.profileImage, user?.profilePhoto]);
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
+  const finalAvatarUrl = imageError ? 
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=059669&color=fff` : 
+    avatarUrl;
 
   // Format role display name
   const formatRoleName = (role) => {
@@ -168,8 +200,9 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
         <div className="flex items-center">
           <img
             className={`${isMobile ? 'h-12 w-12' : 'h-10 w-10'} rounded-full object-cover ring-2 ${roleConfig.ringColor}`}
-            src={avatarUrl}
+            src={finalAvatarUrl}
             alt={displayName}
+            onError={handleImageError}
           />
           <div className="ml-3 flex-1">
             <p className={`${isMobile ? 'text-base' : 'text-sm'} font-medium text-gray-700`}>
@@ -247,8 +280,9 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
         >
           <img
             className={`h-8 w-8 rounded-full object-cover ring-2 ${roleConfig.ringColor}`}
-            src={avatarUrl}
+            src={finalAvatarUrl}
             alt={displayName}
+            onError={handleImageError}
           />
           <div className="ml-3 hidden sm:block text-left">
             <p className="text-sm font-medium text-gray-700">

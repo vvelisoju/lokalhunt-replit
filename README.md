@@ -3,6 +3,10 @@
 ## Overview
 Lokalhunt is a comprehensive city-focused job portal built with Express.js, PostgreSQL, and React. The platform implements a sophisticated multi-role architecture supporting Candidates, Employers, Branch Admins, and Super Admins.
 
+## 📱 Mobile App & Push Notifications
+
+This project now supports native Android and iOS apps using **Capacitor** with **Firebase Push Notifications**. The React web app can be deployed as native mobile apps with full push notification support.
+
 ## Tech Stack
 
 ### Backend
@@ -153,6 +157,123 @@ The frontend is configured to proxy API requests to the backend, so both servers
 2. Run `npx prisma db push` to apply changes
 3. Run `npx prisma generate` to update client
 
+## 🚀 Mobile App Deployment (Capacitor)
+
+### Prerequisites for Mobile Deployment
+- Android Studio (for Android builds)
+- Xcode (for iOS builds, macOS only)
+- Firebase project with Push Notifications enabled
+- `firebase-service-account.json` file in `/server` directory
+
+### Step-by-Step Mobile App Deployment
+
+#### 1. Build the React App
+```bash
+# Build the React app for production
+cd client && npm run build
+```
+
+#### 2. Sync with Capacitor
+```bash
+# Copy web assets to native projects (run from project root)
+npx cap copy
+```
+
+#### 3. Open Native Projects
+```bash
+# Open Android project in Android Studio
+npx cap open android
+
+# Open iOS project in Xcode (macOS only)
+npx cap open ios
+```
+
+#### 4. Configure Firebase Push Notifications
+
+**Android Setup:**
+1. Add your `google-services.json` to `android/app/`
+2. Build and run from Android Studio
+
+**iOS Setup:**  
+1. Add your `GoogleService-Info.plist` to the iOS project in Xcode
+2. Enable Push Notifications capability in Xcode
+3. Build and run from Xcode
+
+#### 5. Start the Backend Server
+```bash
+# Run the backend (required for API calls)
+cd server && npm start
+```
+
+#### 6. Test Push Notifications
+```javascript
+// Example: Using the push utility in server
+const { sendPushNotification } = require('./server/push.js')
+
+// Send a test notification
+await sendPushNotification(
+  'device_token_from_mobile_app', 
+  'Welcome to LokalHunt!', 
+  'Your job portal is now mobile-ready!'
+)
+```
+
+### 📱 Mobile App Features
+
+#### Push Notification Integration
+- **Automatic Registration**: App automatically requests push permissions on launch
+- **Foreground Notifications**: Shows notifications while app is active
+- **Background Notifications**: Handles tapped notifications when app is closed
+- **Device Token Logging**: Tokens are logged to console for testing
+- **Manual Registration**: "Register for Push" button for manual trigger
+
+#### Native Features Available
+- **Full React App**: Complete web app functionality in native wrapper
+- **Native Navigation**: Proper mobile navigation and gestures  
+- **Push Notifications**: Firebase Cloud Messaging integration
+- **Device APIs**: Access to camera, storage, and other native features
+- **Offline Capabilities**: Basic offline functionality (can be extended)
+
+### 🔧 Development Workflow for Mobile
+
+#### Making Changes to Mobile App
+```bash
+# 1. Make changes to React app in /client
+# 2. Build the React app
+cd client && npm run build
+
+# 3. Sync changes to native projects  
+npx cap copy
+
+# 4. For live reload during development
+npx cap run android --livereload-url=http://localhost:3000
+npx cap run ios --livereload-url=http://localhost:3000
+```
+
+#### Testing Push Notifications
+```bash
+# 1. Run the app on device/emulator
+# 2. Check console for device token
+# 3. Use server push utility to send test notifications
+
+# Example test from server:
+node -e "
+const { sendPushNotification } = require('./push.js');
+sendPushNotification('YOUR_DEVICE_TOKEN', 'Test', 'Hello from LokalHunt!');
+"
+```
+
+### 📋 Mobile App Checklist
+
+- [ ] React app builds successfully (`npm run build`)
+- [ ] Firebase service account file is in `/server/firebase-service-account.json`
+- [ ] Capacitor platforms added (`npx cap add android ios`)
+- [ ] Google services files added to native projects
+- [ ] Push notification permissions requested in app
+- [ ] Device token appears in console logs
+- [ ] Backend server running and accessible
+- [ ] Test push notification sent successfully
+
 ## Production Deployment
 
 The application is ready for deployment with:
@@ -160,6 +281,7 @@ The application is ready for deployment with:
 - Optimized static assets in `/dist`
 - Environment-based configuration
 - Database migrations ready
+- **Mobile Apps**: Native Android/iOS apps via Capacitor
 
 ## Contributing
 

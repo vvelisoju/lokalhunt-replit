@@ -44,11 +44,11 @@ const CityDropdown = ({
 
   return (
     <div className={className}>
-      {/* {!hideLabel && (
+      {!hideLabel && (
         <label className="block text-sm font-medium text-gray-700 mb-2">
           {label} {required && <span className="text-red-500">*</span>}
         </label>
-      )} */}
+      )}
       <Select
         name={name}
         value={value}

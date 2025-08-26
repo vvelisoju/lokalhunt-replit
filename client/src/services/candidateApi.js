@@ -11,7 +11,7 @@ export const getImageUrl = (path) => {
 
   // Get the server URL (without /api suffix)
   let serverUrl = import.meta.env.VITE_API_URL;
-  
+
   // If VITE_API_URL includes /api, remove it to get base server URL
   if (serverUrl && serverUrl.endsWith('/api')) {
     serverUrl = serverUrl.slice(0, -4);
@@ -192,7 +192,7 @@ export const candidateApi = {
   getCoverImageUploadUrl: () => api.get("/candidates/cover-image-upload-url"),
   updateProfilePhoto: (data) => api.put("/candidates/profile-photo", data),
   updateCoverPhoto: (data) => api.put("/candidates/cover-photo", data),
-  
+
   // Optimized profile photo upload
   uploadOptimizedProfilePhoto: async (file) => {
     try {

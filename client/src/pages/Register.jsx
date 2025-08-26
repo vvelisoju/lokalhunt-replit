@@ -233,31 +233,28 @@ const Register = () => {
       </div>
 
       {/* Right Panel - Registration Form */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-gray-50">
-        <div className="max-w-md w-full">
+      <div className="flex-1 flex items-center justify-center p-4 min-h-screen bg-gray-50">
+        <div className="w-full max-w-md mx-auto">
           {/* Mobile Logo */}
-          <div className="lg:hidden text-center mb-8">
-            <div className="flex items-center justify-center">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-orange-500 rounded-lg flex items-center justify-center shadow-lg">
-                <div className="text-white font-bold text-lg flex items-center">
-                  <svg className="w-6 h-6 mr-1" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                  </svg>
-                  LH
-                </div>
-              </div>
+          <div className="lg:hidden text-center mb-6">
+            <div className="flex items-center justify-center mb-4">
+              <img
+                src="/images/logo.png"
+                alt="LokalHunt Logo"
+                className="h-12"
+              />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-lg p-8">
+          <div className="bg-white rounded-lg shadow-lg p-6 sm:p-8">
             {/* Role Selection Tabs */}
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 text-center mb-6">Create Account</h2>
+            <div className="mb-6 sm:mb-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 text-center mb-4 sm:mb-6">Create Account</h2>
               <div className="flex rounded-lg bg-gray-100 p-1">
                 <button
                   type="button"
                   onClick={() => handleTabChange('candidate')}
-                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex-1 py-2 px-3 sm:px-4 rounded-md text-sm font-medium transition-colors ${
                     activeTab === 'candidate'
                       ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-800'
@@ -268,7 +265,7 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={() => handleTabChange('employer')}
-                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex-1 py-2 px-3 sm:px-4 rounded-md text-sm font-medium transition-colors ${
                     activeTab === 'employer'
                       ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-800'
@@ -280,7 +277,7 @@ const Register = () => {
             </div>
 
             {/* Registration Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
               {/* Company Name - First for Employers */}
               {activeTab === 'employer' && (
                 <FormInput
@@ -298,7 +295,7 @@ const Register = () => {
 
               {/* Name Fields */}
               {activeTab === 'candidate' ? (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-4">
                   <FormInput
                     label="First Name"
                     type="text"
@@ -362,13 +359,18 @@ const Register = () => {
               />
 
               {/* City */}
-              <CityDropdown
-                label="City"
-                name="city"
-                value={formData.city}
-                onChange={handleCityChange}
-                error={errors.city}
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  City <span className="text-red-500">*</span>
+                </label>
+                <CityDropdown
+                  name="city"
+                  value={formData.city}
+                  onChange={handleCityChange}
+                  error={errors.city}
+                  hideLabel={true}
+                />
+              </div>
 
               {/* Password Fields */}
               <div className="relative">
@@ -422,21 +424,21 @@ const Register = () => {
               </div>
 
               {/* Terms and Conditions */}
-              <div className="flex items-center">
+              <div className="flex items-start pt-3">
                 <input
                   id="terms"
                   name="terms"
                   type="checkbox"
                   required
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1 flex-shrink-0"
                 />
-                <label htmlFor="terms" className="ml-2 block text-sm text-gray-700">
+                <label htmlFor="terms" className="ml-3 block text-sm text-gray-700 leading-relaxed">
                   I agree to the{' '}
-                  <a href="#" className="text-blue-600 hover:text-blue-500">
+                  <a href="#" className="text-blue-600 hover:text-blue-500 underline">
                     Terms of Service
                   </a>{' '}
                   and{' '}
-                  <a href="#" className="text-blue-600 hover:text-blue-500">
+                  <a href="#" className="text-blue-600 hover:text-blue-500 underline">
                     Privacy Policy
                   </a>
                 </label>
@@ -445,7 +447,7 @@ const Register = () => {
               <Button
                 type="submit"
                 isLoading={isLoading}
-                className="w-full"
+                className="w-full mt-6"
                 size="lg"
               >
                 {isLoading ? 'Creating Account...' : 'Create Account'}
@@ -453,7 +455,7 @@ const Register = () => {
             </form>
 
             {/* Login Link */}
-            <div className="mt-6 text-center">
+            <div className="mt-6 sm:mt-8 text-center">
               <p className="text-sm text-gray-600">
                 Already have an account?{' '}
                 <Link 

@@ -1,0 +1,18 @@
+run = "cd mobile && npm start"
+modules = ["nodejs-20"]
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-c", "cd mobile && npm start"]
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+exposeLocalhost = true
+
+[[ports]]
+localPort = 19006
+externalPort = 19006
+exposeLocalhost = true

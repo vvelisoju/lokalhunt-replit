@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "656886045862",
+    "project_id": "lokalhunt-4f85d",
+    "storage_bucket": "lokalhunt-4f85d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:656886045862:android:92f5b4f15224f571e32867",
+        "android_client_info": {
+          "package_name": "com.codevel.lokalhunt"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCcS4kaA9P0noRMegvczHQeBTELBEAWTJ0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

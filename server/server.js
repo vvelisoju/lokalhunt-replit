@@ -51,6 +51,10 @@ app.use((req, res, next) => {
     "http://localhost:8081", // Expo web
     "https://lokalhunt.com",
     "https://www.lokalhunt.com",
+    'https://localhost',
+    'http://localhost',
+    'capacitor://localhost',
+    'ionic://localhost',
   ];
 
   // Allow all Replit domains
@@ -325,7 +329,7 @@ app.use("*", (req, res) => {
 });
 
 // Start server
-const server = app.listen(PORT, "0.0.0.0", async () => {
+const server = app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 LokalHunt API Server running on http://0.0.0.0:${PORT}`);
   console.log(`📊 Environment: ${NODE_ENV}`);
   console.log("📊 Database: Connected");

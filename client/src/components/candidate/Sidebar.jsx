@@ -92,7 +92,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               className="h-12 lg:h-14 w-auto object-contain"
             />
           </Link>
-          
+
           {/* Close button - visible only on mobile */}
           <button
             onClick={onClose}
@@ -124,7 +124,9 @@ const Sidebar = ({ isOpen, onClose }) => {
                     `}
                   >
                     <Icon className="mr-4 lg:mr-3 h-6 w-6 lg:h-5 lg:w-5 flex-shrink-0" />
-                    <span className="font-medium lg:font-medium">{item.name}</span>
+                    <span className="font-medium lg:font-medium">
+                      {item.name}
+                    </span>
                   </Link>
                 </li>
               );
@@ -133,7 +135,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         </nav>
 
         {/* Profile completion card - Mobile optimized */}
-        <div className="mt-8 mx-4 lg:mt-8 lg:mx-4 lg:hidden lg:lg:block">
+        {/* <div className="mt-8 mx-4 lg:mt-8 lg:mx-4 lg:hidden lg:lg:block">
           <div className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-xl p-4 border border-primary-100 shadow-sm">
             <h3 className="text-sm font-semibold text-primary-900 mb-2">
               {t("sidebar.completeProfile", "Complete Your Profile")}
@@ -157,7 +159,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               {t("dashboard.completeProfileButton", "Complete Profile")}
             </Link>
           </div>
-        </div>
+        </div> */}
 
         {/* Mobile-specific bottom spacing */}
         <div className="h-8 lg:h-0"></div>

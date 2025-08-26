@@ -1,33 +1,46 @@
-import React, { useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-import { Bars3Icon, XMarkIcon, MoonIcon, SunIcon } from '@heroicons/react/24/outline'
-import { useAuth } from '../../context/AuthContext'
-import ProfileDropdown from '../ui/ProfileDropdown'
+import React, { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import {
+  Bars3Icon,
+  XMarkIcon,
+  MoonIcon,
+  SunIcon,
+} from "@heroicons/react/24/outline";
+import { useAuth } from "../../context/AuthContext";
+import ProfileDropdown from "../ui/ProfileDropdown";
 
 const Header = () => {
-  const { t, i18n } = useTranslation()
-  const { user, isAuthenticated, logout } = useAuth()
-  const location = useLocation()
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isDarkMode, setIsDarkMode] = useState(false)
+  const { t, i18n } = useTranslation();
+  const { user, isAuthenticated, logout } = useAuth();
+  const location = useLocation();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const toggleLanguage = () => {
-    const newLang = i18n.language === 'en' ? 'te' : 'en'
-    i18n.changeLanguage(newLang)
-  }
+    const newLang = i18n.language === "en" ? "te" : "en";
+    i18n.changeLanguage(newLang);
+  };
 
   const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode)
+    setIsDarkMode(!isDarkMode);
     // In a real app, you'd implement dark mode logic here
-  }
+  };
 
   const navigation = [
-    { name: 'Home', href: '/', current: location.pathname === '/' },
-    { name: 'Find Job', href: '/jobs', current: location.pathname === '/jobs' },
-    { name: 'Company', href: '/companies', current: location.pathname === '/companies' },
-    { name: 'Career Advice', href: '/career-advice', current: location.pathname === '/career-advice' },
-  ]
+    { name: "Home", href: "/", current: location.pathname === "/" },
+    { name: "Find Job", href: "/jobs", current: location.pathname === "/jobs" },
+    {
+      name: "Company",
+      href: "/companies",
+      current: location.pathname === "/companies",
+    },
+    {
+      name: "Career Advice",
+      href: "/career-advice",
+      current: location.pathname === "/career-advice",
+    },
+  ];
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
@@ -36,10 +49,10 @@ const Header = () => {
           {/* Logo */}
           <div className="flex-shrink-0 flex items-center">
             <Link to="/" className="flex items-center">
-              <img 
-                src="/images/logo.png" 
-                alt="LokalHunt" 
-                className="h-10 w-auto"
+              <img
+                src="/images/logo.png"
+                alt="LokalHunt"
+                className="h-14 w-auto"
               />
             </Link>
           </div>
@@ -52,8 +65,8 @@ const Header = () => {
                 to={item.href}
                 className={`px-3 py-2 text-sm font-medium transition-colors ${
                   item.current
-                    ? 'text-green-600 border-b-2 border-green-600'
-                    : 'text-gray-700 hover:text-green-600'
+                    ? "text-green-600 border-b-2 border-green-600"
+                    : "text-gray-700 hover:text-green-600"
                 }`}
               >
                 {item.name}
@@ -69,7 +82,7 @@ const Header = () => {
               className="p-2 text-gray-600 hover:text-green-600 transition-colors"
               title="Switch Language"
             >
-              {i18n.language === 'en' ? 'తె' : 'EN'}
+              {i18n.language === "en" ? "తె" : "EN"}
             </button>
 
             {/* Dark Mode Toggle */}
@@ -78,7 +91,11 @@ const Header = () => {
               className="p-2 text-gray-600 hover:text-green-600 transition-colors"
               title="Toggle Dark Mode"
             >
-              {isDarkMode ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
+              {isDarkMode ? (
+                <SunIcon className="h-5 w-5" />
+              ) : (
+                <MoonIcon className="h-5 w-5" />
+              )}
             </button>
 
             {/* Authentication Section */}
@@ -119,23 +136,23 @@ const Header = () => {
                   to={item.href}
                   className={`block px-3 py-2 text-base font-medium transition-colors ${
                     item.current
-                      ? 'text-green-600 bg-green-50'
-                      : 'text-gray-700 hover:text-green-600 hover:bg-gray-50'
+                      ? "text-green-600 bg-green-50"
+                      : "text-gray-700 hover:text-green-600 hover:bg-gray-50"
                   }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {item.name}
                 </Link>
               ))}
-              
+
               <div className="flex items-center justify-between px-3 py-2 mt-4 border-t">
                 <button
                   onClick={toggleLanguage}
                   className="text-gray-600 hover:text-green-600 transition-colors"
                 >
-                  {i18n.language === 'en' ? 'Telugu' : 'English'}
+                  {i18n.language === "en" ? "Telugu" : "English"}
                 </button>
-                
+
                 {isAuthenticated ? (
                   <div className="pl-3">
                     <ProfileDropdown user={user} logout={logout} />
@@ -155,7 +172,7 @@ const Header = () => {
         )}
       </div>
     </header>
-  )
-}
+  );
+};
 
-export default Header
+export default Header;

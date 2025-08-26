@@ -5,8 +5,8 @@ export const getBranchStats = async () => {
     const response = await api.get('/branch-admins/stats');
     return { success: true, data: response.data };
   } catch (error) {
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: error.response?.data?.message || 'Failed to fetch branch statistics'
     };
   }
@@ -17,8 +17,8 @@ export const getQuickActions = async () => {
     const response = await api.get('/branch-admins/quick-actions');
     return { success: true, data: response.data };
   } catch (error) {
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: error.response?.data?.message || 'Failed to fetch quick actions'
     };
   }
