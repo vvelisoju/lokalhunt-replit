@@ -19,6 +19,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/push-notifications": "^7.0.2",
     "@heroicons/react": "^2.2.0",
     "@tailwindcss/vite": "^4.1.12",
     "@uiw/react-md-editor": "^4.0.8",
