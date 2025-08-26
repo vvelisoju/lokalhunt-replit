@@ -1,10 +1,7 @@
+
 import React, { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-
-// Capacitor imports for push notifications
-import { PushNotifications } from '@capacitor/push-notifications'
-import { Capacitor } from '@capacitor/core'
 
 // Landing Page
 import Landing from './pages/Landing'
@@ -93,20 +90,33 @@ import RefundPolicy from "./pages/RefundPolicy";
 
 function App() {
   const [pushToken, setPushToken] = useState(null)
+  const [isNativePlatform, setIsNativePlatform] = useState(false)
 
   // Initialize push notifications on component mount
   useEffect(() => {
-    initPushNotifications()
+    initializeCapacitor()
   }, [])
 
-  // Initialize push notifications
-  const initPushNotifications = async () => {
-    // Only run on native platforms
-    if (!Capacitor.isNativePlatform()) {
-      console.log('Push notifications only available on mobile devices')
-      return
+  // Initialize Capacitor and push notifications
+  const initializeCapacitor = async () => {
+    try {
+      // Try to import Capacitor modules dynamically
+      const { Capacitor } = await import('@capacitor/core')
+      const isNative = Capacitor.isNativePlatform()
+      setIsNativePlatform(isNative)
+      
+      if (isNative) {
+        const { PushNotifications } = await import('@capacitor/push-notifications')
+        await initPushNotifications(PushNotifications)
+      }
+    } catch (error) {
+      console.log('Capacitor not available - running in web mode')
+      setIsNativePlatform(false)
     }
+  }
 
+  // Initialize push notifications
+  const initPushNotifications = async (PushNotifications) => {
     try {
       // Check permissions
       const permStatus = await PushNotifications.checkPermissions()
@@ -126,7 +136,7 @@ function App() {
       await PushNotifications.register()
 
       // Add listeners
-      addPushListeners()
+      addPushListeners(PushNotifications)
 
     } catch (error) {
       console.error('Error initializing push notifications:', error)
@@ -134,7 +144,7 @@ function App() {
   }
 
   // Add push notification listeners
-  const addPushListeners = () => {
+  const addPushListeners = (PushNotifications) => {
     // Called when the app receives the registration token
     PushNotifications.addListener('registration', (token) => {
       console.log('Push registration success, token: ' + token.value)
@@ -162,13 +172,13 @@ function App() {
 
   // Manual registration trigger
   const handleRegisterForPush = async () => {
-    if (!Capacitor.isNativePlatform()) {
+    if (!isNativePlatform) {
       alert('Push notifications only work on mobile devices')
       return
     }
 
     try {
-      await initPushNotifications()
+      await initializeCapacitor()
     } catch (error) {
       console.error('Error registering for push:', error)
       alert('Failed to register for push notifications')
@@ -180,7 +190,7 @@ function App() {
       <CandidateProvider>
         <div className="min-h-screen flex flex-col">
           {/* Push notification registration button - only show on native platforms */}
-          {Capacitor.isNativePlatform() && (
+          {isNativePlatform && (
             <div className="fixed top-4 right-4 z-50">
               <button
                 onClick={handleRegisterForPush}
@@ -194,7 +204,7 @@ function App() {
             <Routes>
               {/* Landing Page - Redirect mobile users to login */}
               <Route path="/" element={
-                Capacitor.isNativePlatform() ? 
+                isNativePlatform ? 
                 <Navigate to="/login" replace /> : 
                 <Landing />
               } />
