@@ -17,6 +17,21 @@ CREATE TYPE "public"."EmploymentType" AS ENUM ('FULL_TIME', 'PART_TIME', 'CONTRA
 CREATE TYPE "public"."ExperienceLevel" AS ENUM ('ENTRY_LEVEL', 'MID_LEVEL', 'SENIOR_LEVEL', 'EXECUTIVE');
 
 -- CreateEnum
+CREATE TYPE "public"."CurrentEmploymentStatus" AS ENUM ('LOOKING_FOR_JOB', 'OPEN_TO_OPPORTUNITIES', 'CURRENTLY_WORKING', 'STUDENT_RECENT_GRADUATE');
+
+-- CreateEnum
+CREATE TYPE "public"."ShiftPreference" AS ENUM ('DAY_SHIFT', 'NIGHT_SHIFT', 'FLEXIBLE_HOURS', 'WEEKEND_ONLY');
+
+-- CreateEnum
+CREATE TYPE "public"."Availability" AS ENUM ('IMMEDIATELY', 'WITHIN_1_WEEK', 'WITHIN_1_MONTH', 'AFTER_2_MONTHS');
+
+-- CreateEnum
+CREATE TYPE "public"."Language" AS ENUM ('ENGLISH', 'HINDI', 'TELUGU', 'TAMIL', 'KANNADA', 'MALAYALAM', 'BENGALI', 'MARATHI', 'GUJARATI', 'PUNJABI', 'URDU', 'ODIA');
+
+-- CreateEnum
+CREATE TYPE "public"."EmailTemplateType" AS ENUM ('OTP_VERIFICATION', 'JOB_APPLIED', 'SHORTLISTED', 'INTERVIEW_SCHEDULED', 'JOB_REJECTED', 'WELCOME', 'PASSWORD_RESET', 'PROFILE_APPROVED', 'SUBSCRIPTION_EXPIRED', 'PAYMENT_SUCCESS', 'PAYMENT_FAILED', 'TEST', 'PASSWORD_RESET_OTP');
+
+-- CreateEnum
 CREATE TYPE "public"."SubscriptionStatus" AS ENUM ('ACTIVE', 'EXPIRED', 'CANCELLED', 'PAST_DUE', 'PENDING_APPROVAL');
 
 -- CreateTable
@@ -31,6 +46,9 @@ CREATE TABLE "public"."users" (
     "role" "public"."UserRole" NOT NULL,
     "city_id" TEXT,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "is_verified" BOOLEAN NOT NULL DEFAULT false,
+    "otp" TEXT,
+    "otp_expires_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -66,6 +84,29 @@ CREATE TABLE "public"."candidates" (
     "profile_photo" TEXT,
     "cover_photo" TEXT,
     "date_of_birth" TIMESTAMP(3),
+    "onboarding_completed" BOOLEAN NOT NULL DEFAULT false,
+    "onboarding_step" INTEGER DEFAULT 0,
+    "bio" TEXT,
+    "linkedin_url" TEXT,
+    "github_url" TEXT,
+    "website_url" TEXT,
+    "preferred_job_titles" TEXT[],
+    "preferred_industries" TEXT[],
+    "preferred_locations" TEXT[],
+    "preferred_salary_min" DECIMAL(10,2),
+    "preferred_salary_max" DECIMAL(10,2),
+    "preferred_job_types" TEXT[],
+    "remote_work_preference" TEXT,
+    "skills_with_experience" JSONB,
+    "current_employment_status" TEXT,
+    "availability_date" TIMESTAMP(3),
+    "notice_period" TEXT,
+    "current_salary" DECIMAL(10,2),
+    "preferred_languages" TEXT[],
+    "shift_preference" TEXT,
+    "travel_willingness" BOOLEAN,
+    "experience_level" TEXT,
+    "availability_status" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -236,12 +277,26 @@ CREATE TABLE "public"."education_qualifications" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
-    "sort_order" INTEGER NOT NULL,
-    "is_active" BOOLEAN NOT NULL DEFAULT true,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "education_qualifications_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."job_roles" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "category" TEXT,
+    "description" TEXT,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "job_roles_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -282,6 +337,18 @@ CREATE TABLE "public"."subscriptions" (
     CONSTRAINT "subscriptions_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "public"."email_templates" (
+    "id" TEXT NOT NULL,
+    "type" "public"."EmailTemplateType" NOT NULL,
+    "subject" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "email_templates_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "public"."users"("email");
 
@@ -311,6 +378,12 @@ CREATE UNIQUE INDEX "job_categories_name_key" ON "public"."job_categories"("name
 
 -- CreateIndex
 CREATE UNIQUE INDEX "education_qualifications_name_key" ON "public"."education_qualifications"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "job_roles_name_key" ON "public"."job_roles"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "email_templates_type_key" ON "public"."email_templates"("type");
 
 -- AddForeignKey
 ALTER TABLE "public"."users" ADD CONSTRAINT "users_city_id_fkey" FOREIGN KEY ("city_id") REFERENCES "public"."cities"("id") ON DELETE SET NULL ON UPDATE CASCADE;
