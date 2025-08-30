@@ -23,42 +23,59 @@ const Login = () => {
 
   // Redirect authenticated users appropriately - only when on login page
   useEffect(() => {
-    // Only redirect if user is authenticated AND currently on the login page
-    if (isAuthenticated && user?.role && location.pathname === "/login") {
+    // Add extra checks to prevent infinite loops during logout
+    const hasValidToken =
+      localStorage.getItem("token") || localStorage.getItem("candidateToken");
+
+    // Only redirect if user is authenticated AND has valid token AND currently on the login page
+    if (
+      isAuthenticated &&
+      user?.role &&
+      hasValidToken &&
+      location.pathname === "/login"
+    ) {
       console.log(
         "User already authenticated on login page, checking redirect:",
         user.role,
       );
 
-      // Check if they came from a protected route
-      const returnUrl = location.state?.from?.pathname;
+      // Add a small delay to prevent rapid redirects during logout
+      const timeoutId = setTimeout(() => {
+        // Double-check authentication state again after delay
+        if (isAuthenticated && user?.role) {
+          // Check if they came from a protected route
+          const returnUrl = location.state?.from?.pathname;
 
-      if (returnUrl && returnUrl !== "/" && returnUrl !== "/login") {
-        console.log("Redirecting authenticated user to:", returnUrl);
-        navigate(returnUrl, { replace: true });
-      } else {
-        // Default role-based redirects
-        console.log("No return URL, redirecting based on role:", user.role);
-        switch (user.role) {
-          case "CANDIDATE":
-            console.log("Redirecting to candidate dashboard");
-            navigate("/candidate/dashboard", { replace: true });
-            break;
-          case "EMPLOYER":
-            console.log("Redirecting to employer dashboard");
-            navigate("/employer/dashboard", { replace: true });
-            break;
-          case "BRANCH_ADMIN":
-            console.log("Redirecting to branch admin dashboard");
-            navigate("/branch-admin/dashboard", { replace: true });
-            break;
-          default:
-            console.log(
-              "Unknown role, redirecting to candidate dashboard as default",
-            );
-            navigate("/candidate/dashboard", { replace: true });
+          if (returnUrl && returnUrl !== "/" && returnUrl !== "/login") {
+            console.log("Redirecting authenticated user to:", returnUrl);
+            navigate(returnUrl, { replace: true });
+          } else {
+            // Default role-based redirects
+            console.log("No return URL, redirecting based on role:", user.role);
+            switch (user.role) {
+              case "CANDIDATE":
+                console.log("Redirecting to candidate dashboard");
+                navigate("/candidate/dashboard", { replace: true });
+                break;
+              case "EMPLOYER":
+                console.log("Redirecting to employer dashboard");
+                navigate("/employer/dashboard", { replace: true });
+                break;
+              case "BRANCH_ADMIN":
+                console.log("Redirecting to branch admin dashboard");
+                navigate("/branch-admin/dashboard", { replace: true });
+                break;
+              default:
+                console.log(
+                  "Unknown role, redirecting to candidate dashboard as default",
+                );
+                navigate("/candidate/dashboard", { replace: true });
+            }
+          }
         }
-      }
+      }, 200); // 200ms delay to let logout complete
+
+      return () => clearTimeout(timeoutId);
     }
   }, [isAuthenticated, user, navigate, location.state, location.pathname]);
 
@@ -271,7 +288,7 @@ const Login = () => {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="Enter your email"
-                    className={`w-full pl-12 pr-4 py-4 text-base border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                    className={`w-full pl-12 pr-4 py-3 sm:py-4 text-sm sm:text-base border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
                       errors.email
                         ? "border-red-300 bg-red-50"
                         : "border-gray-200 bg-gray-50 focus:bg-white"
@@ -299,7 +316,7 @@ const Login = () => {
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="Enter your password"
-                    className={`w-full pl-12 pr-12 py-4 text-base border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                    className={`w-full pl-12 pr-4 py-3 sm:py-4 text-sm sm:text-base border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
                       errors.password
                         ? "border-red-300 bg-red-50"
                         : "border-gray-200 bg-gray-50 focus:bg-white"
@@ -377,8 +394,6 @@ const Login = () => {
               </p>
             </div>
           </div>
-
-          
         </div>
       </div>
     </div>

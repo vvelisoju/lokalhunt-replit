@@ -57,6 +57,15 @@ const api = axios.create({
   },
 });
 
+// Helper function to handle fetch responses
+const handleResponse = async (response) => {
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+  }
+  return response.json();
+};
+
 export const publicApi = {
   // Get platform statistics
   async getStats() {
@@ -86,8 +95,23 @@ export const publicApi = {
 
   // Get education qualifications
   async getEducationQualifications() {
-    const response = await api.get("/public/education-qualifications");
+    const response = await api.get('/public/education-qualifications');
     return response.data;
+  },
+
+  // Get job roles
+  getJobRoles: async () => {
+    const response = await fetch(`${API_BASE_URL}/public/job-roles`);
+    return handleResponse(response);
+  },
+
+  // Get skills
+  getSkills: async (category = null) => {
+    const url = category
+      ? `${API_BASE_URL}/public/skills?category=${encodeURIComponent(category)}`
+      : `${API_BASE_URL}/public/skills`;
+    const response = await fetch(url);
+    return handleResponse(response);
   },
 
   // Search jobs (public endpoint)

@@ -41,22 +41,25 @@ const Dashboard = () => {
   useEffect(() => {
     // Only check for onboarding after user is loaded
     if (!user) return;
-    
-    const shouldShowOnboarding = localStorage.getItem('showOnboarding') === 'true';
-    const onboardingInProgress = localStorage.getItem('onboardingStep');
-    const onboardingCompleted = localStorage.getItem('onboardingCompleted') === 'true';
-    
-    console.log('Onboarding check:', {
-      shouldShowOnboarding,
-      onboardingInProgress,
-      onboardingCompleted,
-      user: user?.firstName
-    });
-    
-    // Show onboarding if it should be shown and hasn't been completed
-    if ((shouldShowOnboarding || onboardingInProgress) && !onboardingCompleted) {
-      console.log('Setting showOnboarding to true');
-      setShowOnboarding(true);
+
+    const onboardingCompleted =
+      localStorage.getItem("onboardingCompleted") === "true";
+
+    // If onboarding has not been completed and the user is newly registered, show the wizard.
+    // A simple check for 'onboardingStep' or 'showOnboarding' flag can indicate if it's the first time.
+    // If onboardingCompleted is true, we ensure it's not shown again.
+    if (!onboardingCompleted) {
+      const onboardingStep = localStorage.getItem("onboardingStep");
+      // If onboardingStep is null or '1', it implies a new user or an incomplete session.
+      // We also check if the user object has been fully populated to avoid race conditions.
+      if (user && (onboardingStep === null || onboardingStep === "1")) {
+        console.log(
+          "Setting showOnboarding to true for new or returning user with incomplete onboarding",
+        );
+        setShowOnboarding(true);
+        // Set a flag to indicate onboarding is in progress or should be shown
+        localStorage.setItem("showOnboarding", "true");
+      }
     }
   }, [user]); // Depend on user to ensure auth is complete
 
@@ -108,12 +111,12 @@ const Dashboard = () => {
   }, [user, dataLoaded]); // Include dataLoaded to prevent re-runs
 
   const handleOnboardingComplete = () => {
-    console.log('Onboarding completed');
+    console.log("Onboarding completed");
     setShowOnboarding(false);
-    localStorage.removeItem('showOnboarding');
-    localStorage.removeItem('onboardingStep');
-    localStorage.removeItem('onboardingProgress');
-    localStorage.setItem('onboardingCompleted', 'true');
+    localStorage.removeItem("showOnboarding");
+    localStorage.removeItem("onboardingStep");
+    localStorage.removeItem("onboardingProgress");
+    localStorage.setItem("onboardingCompleted", "true");
   };
 
   // Calculate actual application count from both sources
@@ -124,7 +127,9 @@ const Dashboard = () => {
 
   // Show onboarding wizard if needed
   if (showOnboarding) {
-    return <OnboardingWizard onComplete={handleOnboardingComplete} user={user} />;
+    return (
+      <OnboardingWizard onComplete={handleOnboardingComplete} user={user} />
+    );
   }
 
   const quickStats = [
@@ -183,23 +188,23 @@ const Dashboard = () => {
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             {/* Temporary test button for onboarding */}
-            <Button 
-              variant="outline" 
-              size="sm" 
+            {/* <Button
+              variant="outline"
+              size="sm"
               onClick={() => {
-                localStorage.setItem('showOnboarding', 'true');
-                localStorage.setItem('onboardingStep', '1');
-                localStorage.removeItem('onboardingCompleted');
+                localStorage.setItem("showOnboarding", "true");
+                localStorage.setItem("onboardingStep", "1");
+                localStorage.removeItem("onboardingCompleted");
                 setShowOnboarding(true);
               }}
               className="w-full sm:w-auto"
             >
               🚀 Test Onboarding
-            </Button>
+            </Button> */}
             <Link to="/candidate/jobs">
               <Button variant="primary" size="sm" className="w-full sm:w-auto">
                 <BriefcaseIcon className="h-4 w-4 mr-2" />
-                {t("dashboard.browseJobs", "Browse Jobs")}
+                {t("dashboard.browseJobs", "Find Jobs")}
               </Button>
             </Link>
           </div>
@@ -313,7 +318,7 @@ const Dashboard = () => {
                 )}
               </p>
               <Link to="/candidate/jobs" className="mt-4 inline-block">
-                <Button>{t("applications.browseJobs", "Browse Jobs")}</Button>
+                <Button>{t("applications.browseJobs", "Find Jobs")}</Button>
               </Link>
             </div>
           ) : (

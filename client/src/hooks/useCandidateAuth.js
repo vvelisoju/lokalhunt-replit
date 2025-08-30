@@ -143,33 +143,43 @@ export const useCandidateAuth = () => {
     }
   }
 
-  const logout = async () => {
+  const logout = async (navigate = null) => {
     try {
-      // Clear all possible token storage locations
-      localStorage.removeItem('candidateToken')
-      localStorage.removeItem('token')
-      sessionStorage.removeItem('candidateToken')
-      sessionStorage.removeItem('token')
-
-      // Remove onboarding flag on logout
-      localStorage.removeItem('showOnboarding');
-
-      // Reset state
+      // Import clear function
+      const { clearAllAuthData } = await import('../utils/authUtils')
+      
+      // CRITICAL: Clear storage first to prevent loops
+      clearAllAuthData()
+      
+      // THEN reset local state
       setUser(null)
       setIsAuthenticated(false)
       setLoading(false)
-
-      // Clear candidate context data
+      
+      // Clear candidate context if available
       if (window.candidateContext?.clearData) {
         window.candidateContext.clearData()
       }
-
-      // Redirect to login
-      window.location.href = '/login'
+      
+      // Small delay to ensure state is updated before navigation
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Finally navigate
+      if (navigate && typeof navigate === 'function') {
+        navigate('/login', { replace: true })
+      } else {
+        window.location.href = '/login'
+      }
     } catch (error) {
       console.error('Logout error:', error)
-      // Even if there's an error, still redirect to login
-      window.location.href = '/login'
+      // Fallback: force clear everything and redirect
+      localStorage.clear()
+      sessionStorage.clear()
+      if (navigate && typeof navigate === 'function') {
+        navigate('/login', { replace: true })
+      } else {
+        window.location.href = '/login'
+      }
     }
   }
 

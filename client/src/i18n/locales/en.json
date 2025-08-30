@@ -3,7 +3,7 @@
     "title": "Dashboard",
     "welcome": "Welcome back, {{name}}!",
     "subtitle": "Here's what's happening with your job search today.",
-    "browseJobs": "Browse Jobs",
+    "browseJobs": "Find Jobs",
     "completeProfile": "Complete your profile to get better job matches",
     "completeProfileButton": "Complete Profile"
   },
@@ -14,14 +14,16 @@
     "logout": "Logout"
   },
   "sidebar": {
-    "dashboard": "Dashboard",
-    "appliedJobs": "Applied Jobs",
-    "bookmarks": "Bookmarks",
+    "home": "Home",
+    "findJobs": "Find Jobs",
+    "myApplications": "My Applications",
+    "savedJobs": "Saved Jobs",
     "myProfile": "My Profile",
-    "manageResume": "Manage Resume",
-    "testInterface": "Test Interface",
+    "myResume": "My Resume",
+    "helpSupport": "Help / Support",
     "completeProfile": "Complete Your Profile",
-    "percentComplete": "{{percent}}% complete"
+    "percentComplete": "{{percent}}% complete",
+    "testInterface": "Test Interface"
   },
   "stats": {
     "applications": "Applications",
@@ -36,10 +38,10 @@
     "viewAll": "View All",
     "noApplications": "No applications yet",
     "startApplying": "Start applying for jobs to track your applications here.",
-    "browseJobs": "Browse Jobs",
+    "browseJobs": "Find Jobs",
     "status": {
       "pending": "Pending",
-      "approved": "Approved", 
+      "approved": "Approved",
       "rejected": "Rejected",
       "interview": "Interview"
     }

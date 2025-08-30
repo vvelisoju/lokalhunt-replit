@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
@@ -104,7 +103,7 @@ function App() {
       const { Capacitor } = await import('@capacitor/core')
       const isNative = Capacitor.isNativePlatform()
       setIsNativePlatform(isNative)
-      
+
       if (isNative) {
         const { PushNotifications } = await import('@capacitor/push-notifications')
         await initPushNotifications(PushNotifications)
@@ -120,7 +119,7 @@ function App() {
     try {
       // Check permissions
       const permStatus = await PushNotifications.checkPermissions()
-      
+
       if (permStatus.receive === 'prompt') {
         const requestResult = await PushNotifications.requestPermissions()
         if (requestResult.receive !== 'granted') {
@@ -187,165 +186,145 @@ function App() {
 
   return (
     <ToastProvider>
-      <CandidateProvider>
-        <div className="min-h-screen flex flex-col">
-          {/* Push notification registration button - only show on native platforms */}
-          {isNativePlatform && (
-            <div className="fixed top-4 right-4 z-50">
-              <button
-                onClick={handleRegisterForPush}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium"
-                title={pushToken ? `Token: ${pushToken.slice(0, 20)}...` : 'Register for Push Notifications'}
-              >
-                {pushToken ? '🔔 Push Enabled' : 'Register for Push'}
-              </button>
+        <CandidateProvider>
+            <div className="min-h-screen flex flex-col">
+            {/* Push notification registration button - only show on native platforms */}
+            {isNativePlatform && (
+                <div className="fixed top-4 right-4 z-50">
+                <button
+                    onClick={handleRegisterForPush}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium"
+                    title={pushToken ? `Token: ${pushToken.slice(0, 20)}...` : 'Register for Push Notifications'}
+                >
+                    {pushToken ? '🔔 Push Enabled' : 'Register for Push'}
+                </button>
+                </div>
+            )}
+                <Routes>
+                {/* Landing Page - Redirect mobile users to login */}
+                <Route path="/" element={
+                    isNativePlatform ? 
+                    <Navigate to="/login" replace /> : 
+                    <Landing />
+                } />
+
+                {/* Jobs Page */}
+                <Route path="/jobs" element={<Jobs />} />
+                <Route path="/jobs/:jobId" element={<JobDetail />} />
+                <Route path="/companies" element={<Companies />} />
+                <Route path="/career-advice" element={<CareerAdvice />} />
+                <Route path="/job-preview/:jobId" element={<JobPreview />} />
+                <Route path="/candidate/:id" element={<PublicCandidateProfile />} />
+                {/* Footer Pages */}
+                <Route path="/help" element={<HelpCenter />} />
+                <Route path="/contact" element={<ContactUs />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/refund-policy" element={<RefundPolicy />} />
+
+
+                {/* Dashboard redirect for logged in users */}
+                <Route path="/dashboard" element={
+                    <ProtectedRoute>
+                    <CandidateLayout>
+                        <CandidateDashboard />
+                    </CandidateLayout>
+                    </ProtectedRoute>
+                } />
+
+                {/* Auth Routes (No Layout) */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+
+                {/* Legacy redirects */}
+                <Route path="/candidate/login" element={<Login />} />
+                <Route path="/candidate/register" element={<Register />} />
+
+                {/* Protected Candidate Routes (With Layout) */}
+                <Route path="/candidate" element={
+                    <ProtectedRoute>
+                    <CandidateLayout />
+                    </ProtectedRoute>
+                }>
+                    <Route index element={<Navigate to="/candidate/dashboard" replace />} />
+                    <Route path="dashboard" element={<CandidateDashboard />} />
+                    <Route path="jobs" element={<CandidateJobs />} />
+                    <Route path="jobs/:id" element={<CandidateJobView />} />
+                    <Route path="applications" element={<CandidateApplications />} />
+                    <Route path="bookmarks" element={<CandidateBookmarks />} />
+                    <Route path="profile" element={<CandidateProfile />} />
+                    <Route path="resume" element={<CandidateResume />} />
+                    <Route path="settings" element={<CandidateAccountSettings />} />
+                    <Route path="account-settings" element={<CandidateAccountSettings />} />
+                    <Route path="profile/:candidateId" element={<CandidateProfileView />} />
+                </Route>
+
+                {/* Protected Employer Routes (With Layout) */}
+                <Route path="/employer" element={
+                    <EmployerRoute>
+                    <RoleProvider>
+                        <EmployerLayout />
+                    </RoleProvider>
+                    </EmployerRoute>
+                }>
+                    <Route path="dashboard" element={<EmployerDashboard />} />
+                    <Route path="ads" element={<EmployerAdsList />} />
+                    <Route path="ads/new" element={<EmployerAdForm />} />
+                    <Route path="ads/:adId/edit" element={<EmployerAdForm />} />
+                    <Route path="ads/:adId/candidates" element={<EmployerAdCandidates />} />
+                    <Route path="candidates" element={<EmployerCandidates />} />
+                    <Route path="candidate/:candidateId/profile" element={<EmployerCandidateProfileView />} />
+                    <Route path="/employer/ads/:id/candidates" element={<AdCandidates />} />
+                    <Route path="/employer/candidates" element={<Candidates />} />
+                    <Route path="/employer/candidate/:candidateId/profile" element={<EmployerCandidateProfileView />} />
+                    <Route path="/employer/companies" element={<CompanyProfile />} />
+                    <Route path="subscription" element={<EmployerSubscription />} />
+                    <Route path="mou" element={<EmployerMou />} />
+                    <Route path="account-settings" element={<EmployerAccountSettings />} />
+                </Route>
+
+                {/* Protected Branch Admin Routes (With Layout) */}
+                <Route path="/branch-admin" element={
+                    <BranchAdminRoute>
+                    <RoleProvider>
+                        <BranchAdminLayout />
+                    </RoleProvider>
+                    </BranchAdminRoute>
+                }>
+                    <Route path="dashboard" element={<BranchAdminDashboard />} />
+                    <Route path="employers" element={<Employers />} />
+                    <Route path="employers/new" element={<CreateEmployer />} />
+                    <Route path="ads" element={<AdsApprovals />} />
+                    {/* <Route path="subscriptions" element={<Subscriptions />} /> */}
+                    <Route path="employers/:employerId/dashboard" element={<EmployerDashboard />} />
+                    <Route path="employers/:employerId/ads" element={<EmployerAdsList />} />
+                    <Route path="employers/:employerId/ads/new" element={<EmployerAdForm />} />
+                    <Route path="employers/:employerId/ads/:adId/edit" element={<EmployerAdForm />} />
+                    <Route path="employers/:employerId/ads/:adId/candidates" element={<EmployerAdCandidates />} />
+                    <Route path="employers/:employerId/companies" element={<EmployerCompanyProfile />} />
+                    <Route path="employers/:employerId/subscription" element={<EmployerSubscription />} />
+
+                    <Route path="screening" element={<Screening />} />
+                    <Route path="reports" element={<Reports />} />
+                    <Route path="admin-profile" element={<AdminProfile />} />
+                    <Route path="account-settings" element={<BranchAdminAccountSettings />} />
+                    <Route path="mou" element={<BranchAdminMou />} />
+                    <Route path="logs" element={<Logs />} />
+
+                    {/* Branch Admin viewing Employer pages (Employer components within Branch Admin Layout) */}
+                    <Route path="employers/:employerId/dashboard" element={<EmployerDashboard />} />
+                    <Route path="employers/:employerId/ads" element={<EmployerAdsList />} />
+                    <Route path="employers/:employerId/ads/new" element={<EmployerAdForm />} />
+                    <Route path="employers/:employerId/ads/:adId/edit" element={<EmployerAdForm />} />
+                    <Route path="employers/:employerId/ads/:adId/candidates" element={<EmployerAdCandidates />} />
+                    <Route path="employers/:employerId/candidates" element={<EmployerCandidates />} />
+                    <Route path="employers/:employerId/companies" element={<EmployerCompanyProfile />} />
+                    <Route path="employers/:employerId/subscription" element={<EmployerSubscription />} />
+                </Route>
+                </Routes>
             </div>
-          )}
-            <Routes>
-              {/* Landing Page - Redirect mobile users to login */}
-              <Route path="/" element={
-                isNativePlatform ? 
-                <Navigate to="/login" replace /> : 
-                <Landing />
-              } />
-
-              {/* Jobs Page */}
-              <Route path="/jobs" element={<Jobs />} />
-              <Route path="/jobs/:jobId" element={<JobDetail />} />
-              <Route path="/companies" element={<Companies />} />
-              <Route path="/career-advice" element={<CareerAdvice />} />
-              <Route path="/job-preview/:jobId" element={<JobPreview />} />
-              <Route path="/candidate/:id" element={<PublicCandidateProfile />} />
-              {/* Footer Pages */}
-              <Route path="/help" element={<HelpCenter />} />
-              <Route path="/contact" element={<ContactUs />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/terms" element={<TermsOfService />} />
-              <Route path="/refund-policy" element={<RefundPolicy />} />
-
-
-              {/* Dashboard redirect for logged in users */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <CandidateLayout>
-                    <CandidateDashboard />
-                  </CandidateLayout>
-                </ProtectedRoute>
-              } />
-
-              {/* Auth Routes (No Layout) */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-
-              {/* Legacy redirects */}
-              <Route path="/candidate/login" element={<Login />} />
-              <Route path="/candidate/register" element={<Register />} />
-
-              {/* Protected Candidate Routes (With Layout) */}
-              <Route path="/candidate" element={
-                <ProtectedRoute>
-                  <CandidateLayout />
-                </ProtectedRoute>
-              }>
-                <Route index element={<Navigate to="/candidate/dashboard" replace />} />
-                <Route path="dashboard" element={<CandidateDashboard />} />
-                <Route path="jobs" element={<CandidateJobs />} />
-                <Route path="jobs/:id" element={<CandidateJobView />} />
-                <Route path="applications" element={<CandidateApplications />} />
-                <Route path="bookmarks" element={<CandidateBookmarks />} />
-                <Route path="profile" element={<CandidateProfile />} />
-                <Route path="resume" element={<CandidateResume />} />
-                <Route path="settings" element={<CandidateAccountSettings />} />
-                <Route path="account-settings" element={<CandidateAccountSettings />} />
-                <Route path="profile/:candidateId" element={<CandidateProfileView />} />
-              </Route>
-
-              {/* Protected Employer Routes (With Layout) */}
-              <Route path="/employer" element={
-                <EmployerRoute>
-                  <RoleProvider>
-                    <EmployerLayout />
-                  </RoleProvider>
-                </EmployerRoute>
-              }>
-                <Route path="dashboard" element={<EmployerDashboard />} />
-                <Route path="ads" element={<EmployerAdsList />} />
-                <Route path="ads/new" element={<EmployerAdForm />} />
-                <Route path="ads/:adId/edit" element={<EmployerAdForm />} />
-                <Route path="ads/:adId/candidates" element={<EmployerAdCandidates />} />
-                <Route path="candidates" element={<EmployerCandidates />} />
-                <Route path="candidate/:candidateId/profile" element={<EmployerCandidateProfileView />} />
-                <Route path="/employer/ads/:id/candidates" element={<AdCandidates />} />
-                <Route path="/employer/candidates" element={<Candidates />} />
-                <Route path="/employer/candidate/:candidateId/profile" element={<EmployerCandidateProfileView />} />
-                <Route path="/employer/companies" element={<CompanyProfile />} />
-                <Route path="subscription" element={<EmployerSubscription />} />
-                <Route path="mou" element={<EmployerMou />} />
-                <Route path="account-settings" element={<EmployerAccountSettings />} />
-              </Route>
-
-              {/* Protected Branch Admin Routes (With Layout) */}
-              <Route path="/branch-admin" element={
-                <BranchAdminRoute>
-                  <RoleProvider>
-                    <BranchAdminLayout />
-                  </RoleProvider>
-                </BranchAdminRoute>
-              }>
-                <Route path="dashboard" element={<BranchAdminDashboard />} />
-                <Route path="employers" element={<Employers />} />
-                <Route path="employers/new" element={<CreateEmployer />} />
-                <Route path="ads" element={<AdsApprovals />} />
-                {/* <Route path="subscriptions" element={<Subscriptions />} /> */}
-                <Route path="employers/:employerId/dashboard" element={<EmployerDashboard />} />
-                <Route path="employers/:employerId/ads" element={<EmployerAdsList />} />
-                <Route path="employers/:employerId/ads/new" element={<EmployerAdForm />} />
-                <Route path="employers/:employerId/ads/:adId/edit" element={<EmployerAdForm />} />
-                <Route path="employers/:employerId/ads/:adId/candidates" element={<EmployerAdCandidates />} />
-                <Route path="employers/:employerId/companies" element={<EmployerCompanyProfile />} />
-                <Route path="employers/:employerId/subscription" element={<EmployerSubscription />} />
-
-                <Route path="screening" element={<Screening />} />
-                <Route path="reports" element={<Reports />} />
-                <Route path="admin-profile" element={<AdminProfile />} />
-                <Route path="account-settings" element={<BranchAdminAccountSettings />} />
-                <Route path="mou" element={<BranchAdminMou />} />
-                <Route path="logs" element={<Logs />} />
-
-                {/* Branch Admin viewing Employer pages (Employer components within Branch Admin Layout) */}
-                <Route path="employers/:employerId/dashboard" element={<EmployerDashboard />} />
-                <Route path="employers/:employerId/ads" element={<EmployerAdsList />} />
-                <Route path="employers/:employerId/ads/new" element={<EmployerAdForm />} />
-                <Route path="employers/:employerId/ads/:adId/edit" element={<EmployerAdForm />} />
-                <Route path="employers/:employerId/ads/:adId/candidates" element={<EmployerAdCandidates />} />
-                <Route path="employers/:employerId/candidates" element={<EmployerCandidates />} />
-                <Route path="employers/:employerId/companies" element={<EmployerCompanyProfile />} />
-                <Route path="employers/:employerId/subscription" element={<EmployerSubscription />} />
-              </Route>
-            </Routes>
-        </div>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-            success: {
-              style: {
-                background: '#10b981',
-              },
-            },
-            error: {
-              style: {
-                background: '#ef4444',
-              },
-            },
-          }}
-        />
-      </CandidateProvider>
+        </CandidateProvider>
     </ToastProvider>
   )
 }

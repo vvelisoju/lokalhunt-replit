@@ -39,7 +39,19 @@ const candidateReducer = (state, action) => {
         )
       }
     case 'CLEAR_DATA':
-      return initialState
+      console.log('CandidateContext: Clearing all data - resetting to initial state')
+      return {
+        ...initialState,
+        // Ensure all fields are explicitly reset
+        profile: null,
+        applications: [],
+        bookmarks: [],
+        loading: false,
+        error: null,
+        profileLoaded: false,
+        applicationsLoaded: false,
+        bookmarksLoaded: false
+      }
     case 'CLEAR_PROFILE':
       return { ...state, profile: null, profileLoaded: false }
     default:
@@ -50,6 +62,19 @@ const candidateReducer = (state, action) => {
 export const CandidateProvider = ({ children }) => {
   const [state, dispatch] = useReducer(candidateReducer, initialState)
   const { success: showSuccess, error: showError } = useToast()
+  
+  // Clear candidate data when user becomes unauthenticated
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'token' && !e.newValue) {
+        console.log('CandidateContext: Token removed from storage, clearing candidate data')
+        dispatch({ type: 'CLEAR_DATA' })
+      }
+    }
+    
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
 
   const setLoading = (loading) => {
     dispatch({ type: 'SET_LOADING', payload: loading })
@@ -236,9 +261,10 @@ export const CandidateProvider = ({ children }) => {
     }
   }
 
-  const clearData = () => {
+  const clearData = useCallback(() => {
+    console.log('CandidateContext: Clearing all candidate data')
     dispatch({ type: 'CLEAR_DATA' })
-  }
+  }, [])
 
   // Make clearData globally accessible for logout
   useEffect(() => {
@@ -246,7 +272,7 @@ export const CandidateProvider = ({ children }) => {
     return () => {
       delete window.candidateContext
     }
-  }, [])
+  }, [clearData])
 
   const value = useMemo(() => ({
     ...state,

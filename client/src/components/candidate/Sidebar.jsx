@@ -9,6 +9,7 @@ import {
   ChatBubbleLeftIcon,
   BeakerIcon,
   XMarkIcon,
+  QuestionMarkCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
 import logoImage from "../../assets/lokalhunt-logo.png";
@@ -19,32 +20,32 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   const navigation = [
     {
-      name: t("sidebar.dashboard", "Dashboard"),
+      name: t("sidebar.home", "Home"),
       href: "/candidate/dashboard",
       icon: HomeIcon,
     },
     {
-      name: t("sidebar.browseJobs", "Browse Jobs"),
+      name: t("sidebar.findJobs", "Find Jobs"),
       href: "/candidate/jobs",
       icon: BriefcaseIcon,
     },
     {
-      name: t("sidebar.appliedJobs", "Applied Jobs"),
+      name: t("sidebar.myApplications", "My Applications"),
       href: "/candidate/applications",
       icon: BriefcaseIcon,
     },
     {
-      name: t("sidebar.bookmarks", "Bookmarks"),
+      name: t("sidebar.savedJobs", "Saved Jobs"),
       href: "/candidate/bookmarks",
       icon: BookmarkIcon,
     },
     {
-      name: t("sidebar.myProfile", "My Digital Resume"),
+      name: t("sidebar.myProfile", "My Profile"),
       href: "/candidate/profile",
       icon: UserIcon,
     },
     {
-      name: t("sidebar.manageResume", "Manage Resume"),
+      name: t("sidebar.myResume", "My Resume"),
       href: "/candidate/resume",
       icon: DocumentIcon,
     },
@@ -133,6 +134,24 @@ const Sidebar = ({ isOpen, onClose }) => {
             })}
           </ul>
         </nav>
+
+        {/* Help/Support Section */}
+        {/* <div className="mt-6 px-4 lg:mt-6 lg:px-4">
+          <div className="border-t border-gray-200 pt-4">
+            <Link
+              to="/help-center"
+              onClick={onClose}
+              className="group flex items-center px-4 lg:px-3 py-4 lg:py-2.5 text-base lg:text-sm font-medium rounded-xl lg:rounded-lg 
+                text-gray-700 hover:bg-gray-50 lg:hover:bg-gray-100 hover:text-blue-600 active:bg-gray-100
+                transition-all duration-200 active:scale-[0.98] lg:hover:scale-[1.02]"
+            >
+              <QuestionMarkCircleIcon className="mr-4 lg:mr-3 h-6 w-6 lg:h-5 lg:w-5 flex-shrink-0" />
+              <span className="font-medium lg:font-medium">
+                {t("sidebar.helpSupport", "Help / Support")}
+              </span>
+            </Link>
+          </div>
+        </div> */}
 
         {/* Profile completion card - Mobile optimized */}
         {/* <div className="mt-8 mx-4 lg:mt-8 lg:mx-4 lg:hidden lg:lg:block">

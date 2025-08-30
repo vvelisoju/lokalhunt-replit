@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { 
   UserIcon, 
   EnvelopeIcon, 
-  LockClosedIcon, 
   PhoneIcon,
   MapPinIcon 
 } from '@heroicons/react/24/outline'
@@ -11,24 +10,22 @@ import FormInput from '../../components/ui/FormInput'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import CityDropdown from '../../components/ui/CityDropdown'
+import EmailOTPVerification from '../../components/ui/EmailOTPVerification'
 import { useCandidateAuth } from '../../hooks/useCandidateAuth'
 
 const Register = () => {
+  const [currentStep, setCurrentStep] = useState('registration') // 'registration' or 'verification'
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
-    password: '',
-    confirmPassword: '',
     cityId: '',
     agreeToTerms: false
   })
   const [errors, setErrors] = useState({})
   const { register, loading } = useCandidateAuth()
   const navigate = useNavigate()
-
-  
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -42,68 +39,113 @@ const Register = () => {
     }
   }
 
-  const validateForm = () => {
+  const validateRegistrationForm = () => {
     const newErrors = {}
-    
+
     if (!formData.firstName.trim()) {
       newErrors.firstName = 'First name is required'
     }
-    
+
     if (!formData.lastName.trim()) {
       newErrors.lastName = 'Last name is required'
     }
-    
+
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required'
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Email is invalid'
     }
-    
+
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone number is required'
     } else if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) {
       newErrors.phone = 'Phone number must be 10 digits'
     }
-    
-    if (!formData.password) {
-      newErrors.password = 'Password is required'
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters'
-    }
-    
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password'
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match'
-    }
-    
+
     if (!formData.cityId) {
       newErrors.cityId = 'Please select your city'
     }
-    
+
     if (!formData.agreeToTerms) {
       newErrors.agreeToTerms = 'You must agree to the terms and conditions'
     }
-    
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = async (e) => {
+  const handleRegistrationSubmit = async (e) => {
     e.preventDefault()
-    
-    if (!validateForm()) return
-    
-    const { confirmPassword, agreeToTerms, ...registrationData } = formData
-    const result = await register(registrationData)
-    if (result.success) {
-      // Small delay to ensure localStorage is set before navigation
-      setTimeout(() => {
+
+    if (!validateRegistrationForm()) return
+
+    // Move to OTP verification step
+    setCurrentStep('verification')
+  }
+
+  const handleVerificationSuccess = async (verificationData) => {
+    try {
+      // Complete registration with verification data using auth API
+      const response = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          otp: verificationData.otp,
+          password: verificationData.password,
+          confirmPassword: verificationData.confirmPassword,
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Store token if provided
+        if (data.data.token) {
+          localStorage.setItem('token', data.data.token)
+          localStorage.setItem('user', JSON.stringify(data.data.user))
+        }
+        
+        // Set flag to show onboarding for new users
+        localStorage.setItem('showOnboarding', 'true')
+        localStorage.setItem('onboardingCompleted', 'false')
+        
+        // Navigate to dashboard
         navigate('/candidate/dashboard')
-      }, 100)
+      } else {
+        throw new Error(data.message || 'Verification failed')
+      }
+    } catch (error) {
+      console.error('Registration completion failed:', error)
+      // Reset step to allow re-verification or correction
+      setCurrentStep('verification');
+      // Set an error message to be displayed in EmailOTPVerification
+      // Assuming EmailOTPVerification can receive and display an error prop
+      // For now, we'll log it and potentially need to pass it down.
+      // In a real app, you'd likely pass an error state down or have a shared error handler.
+      console.error("Error during OTP verification:", error.message);
     }
   }
 
+  const handleBackToRegistration = () => {
+    setCurrentStep('registration')
+  }
+
+  // Show OTP verification step
+  if (currentStep === 'verification') {
+    return (
+      <EmailOTPVerification
+        email={formData.email}
+        onVerificationSuccess={handleVerificationSuccess}
+        onBack={handleBackToRegistration}
+        loading={loading} // This loading state might need to be managed internally in EmailOTPVerification or passed from a context
+      />
+    )
+  }
+
+  // Show registration form
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -130,7 +172,7 @@ const Register = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <Card>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleRegistrationSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <FormInput
                 label="First Name"
@@ -191,31 +233,6 @@ const Register = () => {
               error={errors.cityId}
             />
 
-            <FormInput
-              label="Password"
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Create a password"
-              required
-              icon={LockClosedIcon}
-              error={errors.password}
-              helpText="Must be at least 6 characters"
-            />
-
-            <FormInput
-              label="Confirm Password"
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="Confirm your password"
-              required
-              icon={LockClosedIcon}
-              error={errors.confirmPassword}
-            />
-
             <div className="flex items-start">
               <div className="flex items-center h-5">
                 <input
@@ -247,10 +264,9 @@ const Register = () => {
             <Button
               type="submit"
               className="w-full"
-              loading={loading}
               disabled={loading}
             >
-              Create Account
+              Continue to Email Verification
             </Button>
           </form>
         </Card>

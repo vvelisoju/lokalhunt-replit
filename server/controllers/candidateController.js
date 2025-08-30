@@ -2,6 +2,7 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { createResponse, createErrorResponse } = require("../utils/response");
 const { ObjectStorageService } = require("../objectStorage");
+const { generateCandidateAbout } = require("./aiController");
 
 class CandidateController {
   // =======================
@@ -44,11 +45,36 @@ class CandidateController {
           .json(createErrorResponse("Candidate profile not found", 404));
       }
 
-      // Extract jobPreferences from profileData for frontend compatibility
+      // Build jobPreferences from dedicated candidate columns for frontend compatibility
       const profileData = candidate.profileData || {};
+      const jobPreferences = {
+        jobTitles: candidate.preferredJobTitles || [],
+        preferredRoles: candidate.preferredJobTitles || [],
+        industry: candidate.preferredIndustries || [],
+        locations: candidate.preferredLocations || [],
+        preferredLocations: candidate.preferredLocations || [],
+        jobTypes: candidate.preferredJobTypes || [],
+        languages: candidate.preferredLanguages || [],
+        workType: candidate.remoteWorkPreference,
+        remoteWork: candidate.remoteWorkPreference,
+        currentEmploymentStatus: candidate.currentEmploymentStatus,
+        shiftPreference: candidate.shiftPreference,
+        travelWillingness: candidate.travelWillingness,
+        noticePeriod: candidate.noticePeriod,
+        experienceLevel: candidate.experienceLevel,
+        salaryRange: {
+          min: candidate.preferredSalaryMin ? Number(candidate.preferredSalaryMin) : null,
+          max: candidate.preferredSalaryMax ? Number(candidate.preferredSalaryMax) : null,
+        },
+        availability: candidate.availabilityStatus || candidate.availabilityDate || profileData.availabilityPreference,
+      };
+
       const enhancedCandidate = {
         ...candidate,
-        jobPreferences: profileData.jobPreferences || null,
+        jobPreferences,
+        // Explicitly include these fields at the top level for better accessibility
+        experienceLevel: candidate.experienceLevel,
+        availabilityStatus: candidate.availabilityStatus,
         openToWork: profileData.openToWork || false,
       };
 
@@ -80,7 +106,7 @@ class CandidateController {
         phone,
         openToWork,
         coverPhoto,
-        cityId, // Added cityId to the destructured body
+        cityId,
       } = req.body;
 
       const candidate = await prisma.candidate.findUnique({
@@ -96,7 +122,6 @@ class CandidateController {
       // Prepare update data - only include fields that are provided
       const updateData = {};
 
-      if (profileData !== undefined) updateData.profileData = profileData;
       if (resumeUrl !== undefined) updateData.resumeUrl = resumeUrl;
       if (education !== undefined) updateData.education = education;
       if (experience !== undefined) updateData.experience = experience;
@@ -117,17 +142,89 @@ class CandidateController {
         updateData.ratings = ratings;
       }
 
-      // Handle job preferences - store in profileData if not directly supported
+      // Handle skillsWithExperience - store directly in the candidate record
+      if (req.body.skillsWithExperience !== undefined) {
+        updateData.skillsWithExperience = req.body.skillsWithExperience;
+      }
+
+      // Handle job preferences - map to dedicated candidate columns
       if (jobPreferences !== undefined) {
-        const currentProfileData = updateData.profileData || {};
-        updateData.profileData = {
-          ...currentProfileData,
-          jobPreferences,
-        };
+        // Map to dedicated candidate columns
+        if (jobPreferences.jobTitles !== undefined) updateData.preferredJobTitles = jobPreferences.jobTitles;
+        if (jobPreferences.preferredRoles !== undefined) updateData.preferredJobTitles = jobPreferences.preferredRoles;
+        if (jobPreferences.industry !== undefined) updateData.preferredIndustries = jobPreferences.industry;
+        if (jobPreferences.locations !== undefined) updateData.preferredLocations = jobPreferences.locations;
+        if (jobPreferences.preferredLocations !== undefined) updateData.preferredLocations = jobPreferences.preferredLocations;
+        if (jobPreferences.remoteWork !== undefined) updateData.remoteWorkPreference = jobPreferences.remoteWork;
+        if (jobPreferences.workType !== undefined) updateData.remoteWorkPreference = jobPreferences.workType;
+        if (jobPreferences.currentEmploymentStatus !== undefined) updateData.currentEmploymentStatus = jobPreferences.currentEmploymentStatus;
+        if (jobPreferences.shiftPreference !== undefined) updateData.shiftPreference = jobPreferences.shiftPreference;
+        if (jobPreferences.travelWillingness !== undefined) updateData.travelWillingness = jobPreferences.travelWillingness;
+        if (jobPreferences.jobTypes !== undefined) updateData.preferredJobTypes = jobPreferences.jobTypes;
+        if (jobPreferences.languages !== undefined) updateData.preferredLanguages = jobPreferences.languages;
+        if (jobPreferences.noticePeriod !== undefined) updateData.noticePeriod = jobPreferences.noticePeriod;
+        
+        // Handle salary range
+        if (jobPreferences.salaryRange !== undefined) {
+          if (jobPreferences.salaryRange.min !== undefined) {
+            updateData.preferredSalaryMin = jobPreferences.salaryRange.min;
+          }
+          if (jobPreferences.salaryRange.max !== undefined) {
+            updateData.preferredSalaryMax = jobPreferences.salaryRange.max;
+          }
+        }
+
+        // Handle experience level
+        if (jobPreferences.experienceLevel !== undefined) {
+          updateData.experienceLevel = jobPreferences.experienceLevel;
+        }
+
+        // Handle availability - prefer availabilityStatus for enum values, availabilityDate for actual dates
+        if (jobPreferences.availability !== undefined) {
+          const availabilityValue = jobPreferences.availability;
+          if (availabilityValue === null || availabilityValue === undefined) {
+            updateData.availabilityDate = null;
+            updateData.availabilityStatus = null;
+          } else if (typeof availabilityValue === 'string' && 
+                     ['IMMEDIATELY', 'WITHIN_1_WEEK', 'WITHIN_1_MONTH', 'AFTER_2_MONTHS'].includes(availabilityValue)) {
+            // For enum values, store in availabilityStatus
+            updateData.availabilityStatus = availabilityValue;
+            updateData.availabilityDate = null;
+          } else {
+            // Try to parse as date only if it's a valid date string
+            const parsedDate = new Date(availabilityValue);
+            if (!isNaN(parsedDate.getTime())) {
+              updateData.availabilityDate = parsedDate;
+              updateData.availabilityStatus = null;
+            } else {
+              updateData.availabilityStatus = availabilityValue;
+              updateData.availabilityDate = null;
+            }
+          }
+        }
+      }
+
+      // Handle profileData - only keep summary, headline, and availabilityPreference
+      if (profileData !== undefined) {
+        const currentProfileData = candidate.profileData || {};
+        const cleanProfileData = {};
+        
+        // Only keep allowed fields in profileData
+        if (profileData.summary !== undefined) cleanProfileData.summary = profileData.summary;
+        if (profileData.headline !== undefined) cleanProfileData.headline = profileData.headline;
+        if (profileData.availabilityPreference !== undefined) cleanProfileData.availabilityPreference = profileData.availabilityPreference;
+        
+        // Handle availability preference from jobPreferences
+        if (jobPreferences?.availability && 
+            ['IMMEDIATELY', 'WITHIN_1_WEEK', 'WITHIN_1_MONTH', 'AFTER_2_MONTHS'].includes(jobPreferences.availability)) {
+          cleanProfileData.availabilityPreference = jobPreferences.availability;
+        }
+
+        updateData.profileData = cleanProfileData;
       }
 
       if (openToWork !== undefined) {
-        const currentProfileData = updateData.profileData || {};
+        const currentProfileData = updateData.profileData || candidate.profileData || {};
         updateData.profileData = {
           ...currentProfileData,
           openToWork,
@@ -767,10 +864,41 @@ class CandidateController {
         select: { resumeUrl: true, updatedAt: true, profileData: true },
       });
 
-      if (!candidate?.resumeUrl) {
+      if (!candidate) {
         return res
           .status(404)
-          .json(createErrorResponse("No resume found", 404));
+          .json(createErrorResponse("Candidate profile not found", 404));
+      }
+
+      // Check if resume URL is valid (not null, not empty, not 'null' string)
+      const isValidResumeUrl = candidate.resumeUrl && 
+                              candidate.resumeUrl !== 'null' && 
+                              candidate.resumeUrl.trim().length > 0;
+
+      if (!isValidResumeUrl) {
+        // Clean up invalid resume URL if it exists
+        if (candidate.resumeUrl) {
+          await prisma.candidate.update({
+            where: { userId: req.user.userId },
+            data: { 
+              resumeUrl: null,
+              profileData: {
+                ...(candidate.profileData || {}),
+                resumeMetadata: null
+              }
+            },
+          });
+        }
+
+        // Return a success response with null data instead of 404 for better UX
+        return res.json(
+          createResponse("No resume uploaded yet", {
+            url: null,
+            fileName: null,
+            fileSize: 0,
+            uploadedAt: null,
+          })
+        );
       }
 
       // Get resume metadata from profileData
@@ -785,7 +913,7 @@ class CandidateController {
       if (fileSize === 0 && candidate.resumeUrl) {
         try {
           const objectStorageService = new ObjectStorageService();
-          
+
           // Extract the actual storage path from the server URL
           let filePath = null;
           if (candidate.resumeUrl.includes('/api/public/files/')) {
@@ -794,18 +922,18 @@ class CandidateController {
           } else {
             filePath = objectStorageService.extractFilePathFromUrl(candidate.resumeUrl);
           }
-          
+
           console.log("Trying to get file size for path:", filePath);
-          
+
           if (filePath) {
             const file = objectStorageService.bucket.file(filePath);
             const [exists] = await file.exists();
-            
+
             if (exists) {
               const [metadata] = await file.getMetadata();
               fileSize = metadata.size || 0;
               console.log("Got file size from storage:", fileSize);
-              
+
               // Update the stored metadata with the real file size
               if (fileSize > 0) {
                 const updatedProfileData = {
@@ -815,7 +943,7 @@ class CandidateController {
                     fileSize: fileSize
                   }
                 };
-                
+
                 await prisma.candidate.update({
                   where: { userId: req.user.userId },
                   data: { profileData: updatedProfileData },
@@ -879,6 +1007,428 @@ class CandidateController {
         createResponse("Resume status updated successfully", { status }),
       );
     } catch (error) {
+      next(error);
+    }
+  }
+
+  // =======================
+  // ONBOARDING MANAGEMENT
+  // =======================
+
+  async saveOnboardingData(req, res, next) {
+    try {
+      const {
+        step,
+        basicInfo,
+        jobPreferences,
+        skillsExperience,
+        isCompleted = false
+      } = req.body;
+
+      console.log("Saving onboarding data for user:", req.user.userId);
+      console.log("Onboarding data:", { step, basicInfo, jobPreferences, skillsExperience, isCompleted });
+
+      // Get or create candidate profile
+      let candidate = await prisma.candidate.findUnique({
+        where: { userId: req.user.userId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              cityId: true,
+              city: {
+                select: {
+                  id: true,
+                  name: true,
+                  state: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!candidate) {
+        // Create candidate profile if it doesn't exist
+        candidate = await prisma.candidate.create({
+          data: {
+            userId: req.user.userId,
+            onboardingStep: step || 0,
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+                cityId: true,
+                city: {
+                  select: {
+                    id: true,
+                    name: true,
+                    state: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // Prepare update data
+      const updateData = {
+        onboardingStep: step || candidate.onboardingStep,
+        onboardingCompleted: isCompleted,
+      };
+
+      // Update user data if basicInfo is provided
+      const userUpdateData = {};
+      if (basicInfo) {
+        if (basicInfo.firstName !== undefined) userUpdateData.firstName = basicInfo.firstName;
+        if (basicInfo.lastName !== undefined) userUpdateData.lastName = basicInfo.lastName;
+        if (basicInfo.phone !== undefined) userUpdateData.phone = basicInfo.phone;
+        if (basicInfo.cityId !== undefined) userUpdateData.cityId = basicInfo.cityId;
+      }
+
+      // Update candidate data from basicInfo
+      if (basicInfo) {
+        if (basicInfo.dateOfBirth !== undefined) {
+          updateData.dateOfBirth = basicInfo.dateOfBirth ? new Date(basicInfo.dateOfBirth) : null;
+        }
+        if (basicInfo.bio !== undefined) updateData.bio = basicInfo.bio;
+        if (basicInfo.linkedinUrl !== undefined) updateData.linkedinUrl = basicInfo.linkedinUrl;
+        if (basicInfo.githubUrl !== undefined) updateData.githubUrl = basicInfo.githubUrl;
+        if (basicInfo.websiteUrl !== undefined) updateData.websiteUrl = basicInfo.websiteUrl;
+        if (basicInfo.profilePhoto !== undefined) updateData.profilePhoto = basicInfo.profilePhoto;
+        if (basicInfo.coverPhoto !== undefined) updateData.coverPhoto = basicInfo.coverPhoto;
+      }
+
+      // Update candidate data from jobPreferences - map to respective columns
+      if (jobPreferences) {
+        // Map to candidate table columns
+        if (jobPreferences.jobTitles !== undefined) updateData.preferredJobTitles = jobPreferences.jobTitles;
+        if (jobPreferences.industry !== undefined) updateData.preferredIndustries = jobPreferences.industry;
+        if (jobPreferences.locations !== undefined) updateData.preferredLocations = jobPreferences.locations;
+        if (jobPreferences.preferredLocations !== undefined) updateData.preferredLocations = jobPreferences.preferredLocations;
+        if (jobPreferences.salaryRange !== undefined) {
+          if (jobPreferences.salaryRange.min !== undefined) {
+            updateData.preferredSalaryMin = jobPreferences.salaryRange.min;
+          }
+          if (jobPreferences.salaryRange.max !== undefined) {
+            updateData.preferredSalaryMax = jobPreferences.salaryRange.max;
+          }
+        }
+        if (jobPreferences.jobTypes !== undefined) updateData.preferredJobTypes = jobPreferences.jobTypes;
+        if (jobPreferences.remoteWork !== undefined) updateData.remoteWorkPreference = jobPreferences.remoteWork;
+        if (jobPreferences.workType !== undefined) updateData.remoteWorkPreference = jobPreferences.workType;
+        if (jobPreferences.languages !== undefined) updateData.preferredLanguages = jobPreferences.languages;
+        if (jobPreferences.shiftPreference !== undefined) updateData.shiftPreference = jobPreferences.shiftPreference;
+        if (jobPreferences.travelWillingness !== undefined) updateData.travelWillingness = jobPreferences.travelWillingness;
+        if (jobPreferences.currentEmploymentStatus !== undefined) updateData.currentEmploymentStatus = jobPreferences.currentEmploymentStatus;
+      }
+
+      // Update candidate data from skillsExperience - map to respective columns
+      if (skillsExperience) {
+        // Map skills to skillsWithExperience column
+        if (skillsExperience.skills !== undefined) {
+          const skillsWithExp = {};
+          skillsExperience.skills.forEach(skill => {
+            skillsWithExp[skill.id || skill.name] = skill.experience || skill.level || 'ENTRY_LEVEL';
+          });
+          updateData.skillsWithExperience = skillsWithExp;
+        }
+
+        // Map to candidate table columns
+        if (skillsExperience.currentEmploymentStatus !== undefined) {
+          updateData.currentEmploymentStatus = skillsExperience.currentEmploymentStatus;
+        }
+        
+        // Map experience level
+        if (skillsExperience.experienceLevel !== undefined) {
+          updateData.experienceLevel = skillsExperience.experienceLevel;
+        }
+        
+        // Handle availability - prefer availabilityStatus for enum values, availabilityDate for actual dates
+        if (skillsExperience.availabilityDate !== undefined) {
+          const availabilityValue = skillsExperience.availabilityDate;
+          if (availabilityValue === null || availabilityValue === undefined) {
+            updateData.availabilityDate = null;
+            updateData.availabilityStatus = null;
+          } else if (typeof availabilityValue === 'string' && 
+                     ['IMMEDIATELY', 'WITHIN_1_WEEK', 'WITHIN_1_MONTH', 'AFTER_2_MONTHS'].includes(availabilityValue)) {
+            // For enum values, store in availabilityStatus
+            updateData.availabilityStatus = availabilityValue;
+            updateData.availabilityDate = null;
+          } else {
+            // Try to parse as date only if it's a valid date string
+            const parsedDate = new Date(availabilityValue);
+            if (!isNaN(parsedDate.getTime())) {
+              updateData.availabilityDate = parsedDate;
+              updateData.availabilityStatus = null;
+            } else {
+              updateData.availabilityStatus = availabilityValue;
+              updateData.availabilityDate = null;
+            }
+          }
+        }
+        if (skillsExperience.noticePeriod !== undefined) updateData.noticePeriod = skillsExperience.noticePeriod;
+        if (skillsExperience.currentSalary !== undefined) updateData.currentSalary = skillsExperience.currentSalary;
+
+        // Update experience and education arrays
+        if (skillsExperience.experience !== undefined) updateData.experience = skillsExperience.experience;
+        if (skillsExperience.education !== undefined) updateData.education = skillsExperience.education;
+      }
+
+      // Generate profileData with headline and summary if this is completion or if we have job preferences
+      if ((isCompleted || jobPreferences) && (jobPreferences || skillsExperience)) {
+        const currentProfileData = updateData.profileData || candidate.profileData || {};
+
+        // Generate headline from job roles (top 2 only) as a normal string
+        let headline = '';
+        if (jobPreferences?.jobTitles && jobPreferences.jobTitles.length > 0) {
+          const topTwoRoles = jobPreferences.jobTitles.slice(0, 2);
+          headline = topTwoRoles.join(' | ');
+        }
+
+        // Generate AI-powered summary using the dedicated method
+        let summary = '';
+        if (jobPreferences || skillsExperience || basicInfo) {
+          const preferencesForAI = {
+            jobTitles: jobPreferences?.jobTitles || [],
+            industry: jobPreferences?.industry || [],
+            jobTypes: jobPreferences?.jobTypes || [],
+            experienceLevel: skillsExperience?.experienceLevel || '',
+            skills: skillsExperience?.skills || [],
+            languages: jobPreferences?.languages || [],
+            currentEmploymentStatus: skillsExperience?.currentEmploymentStatus || basicInfo?.currentEmploymentStatus || '',
+            shiftPreference: jobPreferences?.shiftPreference || '',
+            location: basicInfo?.city || 'Various locations',
+            salaryExpectation: jobPreferences?.salaryRange ? {
+              min: jobPreferences.salaryRange.min,
+              max: jobPreferences.salaryRange.max
+            } : null
+          };
+
+          try {
+            summary = await generateCandidateAbout(preferencesForAI);
+            console.log('Generated AI summary for candidate:', req.user.userId);
+          } catch (error) {
+            console.error('Failed to generate AI summary:', error);
+            // Fallback to a basic summary if AI fails
+            summary = headline ? `Experienced ${headline} looking for new opportunities.` : '';
+          }
+        }
+
+        // Update profileData with generated content and only unsupported fields
+        const cleanProfileData = {
+          ...currentProfileData,
+          ...(headline && { headline }),
+          ...(summary && { summary }),
+          // Store any unsupported fields from skillsExperience
+          ...(skillsExperience && {
+            additionalInfo: skillsExperience.additionalInfo,
+            portfolioUrl: skillsExperience.portfolioUrl,
+            certifications: skillsExperience.certifications
+          })
+        };
+
+        // Only store job preferences fields that don't have dedicated columns
+        if (jobPreferences) {
+          const unsupportedJobPrefs = {};
+          
+          // Only keep fields that don't have dedicated candidate columns
+          if (jobPreferences.workEnvironmentPreference !== undefined) {
+            unsupportedJobPrefs.workEnvironmentPreference = jobPreferences.workEnvironmentPreference;
+          }
+          if (jobPreferences.careerGoals !== undefined) {
+            unsupportedJobPrefs.careerGoals = jobPreferences.careerGoals;
+          }
+          if (jobPreferences.benefits !== undefined) {
+            unsupportedJobPrefs.benefits = jobPreferences.benefits;
+          }
+          if (jobPreferences.companySize !== undefined) {
+            unsupportedJobPrefs.companySize = jobPreferences.companySize;
+          }
+
+          // Only add jobPreferences to profileData if there are unsupported fields
+          if (Object.keys(unsupportedJobPrefs).length > 0) {
+            cleanProfileData.jobPreferences = {
+              ...(currentProfileData.jobPreferences || {}),
+              ...unsupportedJobPrefs
+            };
+          }
+        }
+
+        updateData.profileData = cleanProfileData;
+      }
+
+      // Update user if there are user fields to update
+      if (Object.keys(userUpdateData).length > 0) {
+        await prisma.user.update({
+          where: { id: req.user.userId },
+          data: userUpdateData,
+        });
+      }
+
+      // Update candidate
+      const updatedCandidate = await prisma.candidate.update({
+        where: { userId: req.user.userId },
+        data: updateData,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              cityId: true,
+              city: {
+                select: {
+                  id: true,
+                  name: true,
+                  state: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Prepare response data
+      const responseData = {
+        candidate: updatedCandidate,
+        onboardingProgress: {
+          currentStep: updatedCandidate.onboardingStep,
+          isCompleted: updatedCandidate.onboardingCompleted,
+          completedSteps: updatedCandidate.onboardingStep || 0,
+        }
+      };
+
+      res.json(
+        createResponse("Onboarding data saved successfully", responseData),
+      );
+    } catch (error) {
+      console.error("Save onboarding data error:", error);
+      next(error);
+    }
+  }
+
+  async getOnboardingData(req, res, next) {
+    try {
+      const candidate = await prisma.candidate.findUnique({
+        where: { userId: req.user.userId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              cityId: true,
+              city: {
+                select: {
+                  id: true,
+                  name: true,
+                  state: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!candidate) {
+        // Return default onboarding data if candidate doesn't exist
+        return res.json(
+          createResponse("Onboarding data retrieved successfully", {
+            basicInfo: {},
+            jobPreferences: {},
+            skillsExperience: {},
+            onboardingProgress: {
+              currentStep: 0,
+              isCompleted: false,
+              completedSteps: 0,
+            }
+          })
+        );
+      }
+
+      // Build onboarding data from candidate record - read from respective columns
+      const profileData = candidate.profileData || {};
+
+      const onboardingData = {
+        basicInfo: {
+          firstName: candidate.user.firstName,
+          lastName: candidate.user.lastName,
+          phone: candidate.user.phone,
+          cityId: candidate.user.cityId,
+          city: candidate.user.city,
+          dateOfBirth: candidate.dateOfBirth,
+          bio: candidate.bio,
+          linkedinUrl: candidate.linkedinUrl,
+          githubUrl: candidate.githubUrl,
+          websiteUrl: candidate.websiteUrl,
+          profilePhoto: candidate.profilePhoto,
+          coverPhoto: candidate.coverPhoto,
+          currentEmploymentStatus: candidate.currentEmploymentStatus,
+        },
+        jobPreferences: {
+          // Read from dedicated candidate columns
+          jobTitles: candidate.preferredJobTitles || [],
+          preferredRoles: candidate.preferredJobTitles || [],
+          industry: candidate.preferredIndustries || [],
+          locations: candidate.preferredLocations || [],
+          preferredLocations: candidate.preferredLocations || [],
+          salaryRange: {
+            min: candidate.preferredSalaryMin ? Number(candidate.preferredSalaryMin) : null,
+            max: candidate.preferredSalaryMax ? Number(candidate.preferredSalaryMax) : null,
+          },
+          jobTypes: candidate.preferredJobTypes || [],
+          remoteWork: candidate.remoteWorkPreference,
+          workType: candidate.remoteWorkPreference,
+          languages: candidate.preferredLanguages || [],
+          shiftPreference: candidate.shiftPreference,
+          travelWillingness: candidate.travelWillingness,
+          currentEmploymentStatus: candidate.currentEmploymentStatus,
+          noticePeriod: candidate.noticePeriod,
+          availability: candidate.availabilityStatus || candidate.availabilityDate || profileData.availabilityPreference,
+          experienceLevel: candidate.experienceLevel,
+        },
+        skillsExperience: {
+          // Read from dedicated candidate columns
+          skills: candidate.skillsWithExperience || {},
+          currentEmploymentStatus: candidate.currentEmploymentStatus,
+          experienceLevel: candidate.experienceLevel,
+          availabilityDate: candidate.availabilityStatus || candidate.availabilityDate || profileData.availabilityPreference,
+          noticePeriod: candidate.noticePeriod,
+          currentSalary: candidate.currentSalary ? Number(candidate.currentSalary) : null,
+          experience: candidate.experience || [],
+          education: candidate.education || [],
+          // Include any additional fields from profileData
+          additionalInfo: profileData.additionalInfo,
+          portfolioUrl: profileData.portfolioUrl,
+          certifications: profileData.certifications,
+        },
+        onboardingProgress: {
+          currentStep: candidate.onboardingStep || 0,
+          isCompleted: candidate.onboardingCompleted,
+          completedSteps: candidate.onboardingStep || 0,
+        }
+      };
+
+      res.json(
+        createResponse("Onboarding data retrieved successfully", onboardingData),
+      );
+    } catch (error) {
+      console.error("Get onboarding data error:", error);
       next(error);
     }
   }
@@ -1939,7 +2489,7 @@ class CandidateController {
 
       const userId = req.user.userId;
       const imageBuffer = req.file.buffer;
-      
+
       console.log(`Received image for optimization: ${req.file.originalname}, size: ${(imageBuffer.length / 1024).toFixed(1)}KB`);
 
       const objectStorageService = new ObjectStorageService();

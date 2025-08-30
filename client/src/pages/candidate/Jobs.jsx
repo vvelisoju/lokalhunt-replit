@@ -9,7 +9,7 @@ const CandidateJobs = () => {
     <div className="space-y-3 sm:space-y-6">
       <JobsList
         showFilters={true}
-        title="Browse Jobs"
+        title="Find Jobs"
         subtitle="Find opportunities based on your profile and preferences"
         apiEndpoint="public"
       />

@@ -3,11 +3,11 @@ const authRoutes = require('./authRoutes');
 const candidateRoutes = require('./candidateRoutes');
 const employerRoutes = require('./employerRoutes');
 const branchAdminRoutes = require('./branchAdminRoutes');
-const adRoutes = require('./adRoutes');
 const publicRoutes = require('./publicRoutes');
 const sharedRoutes = require('./sharedRoutes');
 const aiRoutes = require('./aiRoutes');
 const profileRoutes = require('./profileRoutes');
+const emailRoutes = require('./emailRoutes');
 const { createResponse } = require('../utils/response');
 
 const router = express.Router();
@@ -28,7 +28,8 @@ router.get('/', (req, res) => {
       profile: '/api/profile',
       shared: '/api/shared',
       health: '/health',
-      ai: '/api/ai'
+      ai: '/api/ai',
+      email: '/api/email'
     }
   }));
 });
@@ -43,5 +44,6 @@ router.use('/ads', adRoutes);
 router.use('/public', publicRoutes);
 router.use('/shared', sharedRoutes);
 router.use('/ai', aiRoutes);
+router.use('/email', emailRoutes);
 
 module.exports = router;

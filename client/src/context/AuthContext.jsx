@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { authService } from '../services/authService'
 import { profileService } from '../services/profileService'
+import api from '../services/api' // Import default export
 
 const AuthContext = createContext({})
 
@@ -25,14 +26,35 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = localStorage.getItem('token')
       if (token) {
-        const response = await authService.getProfile()
-        const userData = response.data || response
-        setUser(userData)
-        setIsAuthenticated(true)
+        // Set auth header
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        
+        // Always use the universal auth profile endpoint - works for all user roles
+        const response = await api.get('/auth/profile')
+        console.log('AuthContext: Auth profile response:', response.data)
+        
+        if (response.data && (response.data.status === 'success' || response.data.success !== false)) {
+          const userData = response.data.data || response.data
+          console.log('AuthContext: Setting user data:', userData)
+          setUser(userData)
+          setIsAuthenticated(true)
+        } else {
+          throw new Error('Invalid profile response')
+        }
+      } else {
+        // No token found
+        console.log('AuthContext: No token found')
+        setUser(null)
+        setIsAuthenticated(false)
       }
     } catch (error) {
       console.error('Auth check failed:', error)
+      // Clear all auth data on failure
       localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      delete api.defaults.headers.common['Authorization']
+      setUser(null)
+      setIsAuthenticated(false)
     } finally {
       setLoading(false)
     }
@@ -54,6 +76,9 @@ export const AuthProvider = ({ children }) => {
 
         if (token && user) {
           localStorage.setItem('token', token)
+          localStorage.setItem('user', JSON.stringify(user))
+          // Set auth header for subsequent requests
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`
           setUser(user)
           setIsAuthenticated(true)
           console.log('AuthContext: Login successful, user set:', user)
@@ -119,8 +144,10 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const logout = async () => {
+  const logout = async (navigate = null) => {
     try {
+      console.log('AuthContext: Starting logout process')
+      
       // Try to call logout endpoint, but don't fail if it doesn't exist
       await authService.logout()
     } catch (error) {
@@ -128,15 +155,35 @@ export const AuthProvider = ({ children }) => {
       console.log('Logout API call failed, proceeding with client-side cleanup')
     }
 
-    // Always clear client-side state regardless of API response
-    localStorage.removeItem('token')
-    localStorage.removeItem('candidateToken') // Also clear candidate token
-    sessionStorage.removeItem('token') // Also clear sessionStorage just in case
+    // Import and use common logout function
+    const { clearAllAuthData } = await import('../utils/authUtils')
+
+    // CRITICAL: Clear candidate context FIRST before clearing auth data
+    if (window.candidateContext?.clearData) {
+      console.log('AuthContext: Clearing candidate context data')
+      window.candidateContext.clearData()
+    }
+
+    // Clear all storage to prevent loops
+    console.log('AuthContext: Clearing all auth data from storage')
+    clearAllAuthData()
+
+    // THEN reset local auth state
+    console.log('AuthContext: Resetting auth state')
     setUser(null)
     setIsAuthenticated(false)
 
-    // Don't reload the page - let the component handle navigation
-    console.log('Logout completed - user state cleared')
+    // Small delay to ensure state is updated before navigation
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    console.log('AuthContext: Logout complete, navigating to login')
+    
+    // Finally navigate
+    if (navigate && typeof navigate === 'function') {
+      navigate('/login', { replace: true })
+    } else {
+      window.location.href = '/login'
+    }
   }
 
   const updateUser = (userData) => {
@@ -183,6 +230,43 @@ export const AuthProvider = ({ children }) => {
     return user?.role === 'EMPLOYER' || user?.role === 'BRANCH_ADMIN' || user?.role === 'SUPER_ADMIN'
   }
 
+  // Updated fetchUserProfile to use the universal auth endpoint for all users
+  const fetchUserProfile = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No token found');
+      }
+
+      // Set auth header if not already set
+      if (!api.defaults.headers.common['Authorization']) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      }
+
+      // Always use the universal auth profile endpoint - works for all roles
+      console.log('AuthContext: Fetching user profile via /auth/profile')
+      const response = await api.get('/auth/profile');
+      console.log('AuthContext: Profile response:', response.data)
+      
+      if (response.data && (response.data.status === 'success' || response.data.success !== false)) {
+        const userData = response.data.data || response.data;
+        console.log('AuthContext: Setting fetched user data:', userData)
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        return userData;
+      } else {
+        throw new Error('Invalid profile response structure');
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      if (error.response?.status === 401) {
+        console.log('AuthContext: 401 error, logging out user')
+        logout();
+      }
+      throw error;
+    }
+  };
+
   const value = {
     user,
     isAuthenticated,
@@ -195,7 +279,8 @@ export const AuthProvider = ({ children }) => {
     getDefaultDashboard,
     hasRole,
     canAccessEmployerFeatures,
-    refreshUser
+    refreshUser,
+    fetchUserProfile // Ensure fetchUserProfile is exposed if needed by other parts of the app
   }
 
   return (

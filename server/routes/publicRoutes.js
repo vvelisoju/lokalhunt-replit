@@ -215,6 +215,73 @@ router.get("/education-qualifications", async (req, res, next) => {
   }
 });
 
+// Get education qualifications
+router.get("/education-qualifications", async (req, res, next) => {
+  try {
+    const qualifications = await prisma.educationQualification.findMany({
+      where: {
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        sortOrder: true,
+      },
+      orderBy: {
+        sortOrder: "asc",
+      },
+    });
+
+    res.json(
+      createResponse(
+        "Education qualifications retrieved successfully",
+        qualifications,
+      ),
+    );
+  } catch (error) {
+    console.error("Error fetching education qualifications:", error);
+    next(error);
+  }
+});
+
+// Get job roles
+router.get("/job-roles", async (req, res, next) => {
+  try {
+    const { category } = req.query;
+
+    const where = {
+      isActive: true,
+      ...(category && { category }),
+    };
+
+    const jobRoles = await prisma.jobRole.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        description: true,
+        sortOrder: true,
+      },
+      orderBy: [
+        { category: "asc" },
+        { sortOrder: "asc" },
+      ],
+    });
+
+    res.json(
+      createResponse(
+        "Job roles retrieved successfully",
+        jobRoles,
+      ),
+    );
+  } catch (error) {
+    console.error("Error fetching job roles:", error);
+    next(error);
+  }
+});
+
 // Get popular cities
 router.get("/cities", async (req, res, next) => {
   try {
@@ -250,9 +317,7 @@ router.get("/cities", async (req, res, next) => {
       jobCount: city._count.ads,
     }));
 
-    res.json(
-      createResponse("Cities retrieved successfully", transformedCities),
-    );
+    res.json(createResponse("Cities retrieved successfully", transformedCities));
   } catch (error) {
     next(error);
   }
@@ -1254,5 +1319,49 @@ router.get("/files/resumes/:userId/:fileName", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+// Get skills
+router.get("/skills", async (req, res, next) => {
+  try {
+    const { category } = req.query;
+
+    const where = {
+      ...(category && { category }),
+    };
+
+    const skills = await prisma.skill.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        description: true,
+      },
+      orderBy: [
+        { category: "asc" },
+        { name: "asc" },
+      ],
+    });
+
+    res.json(
+      createResponse(
+        "Skills retrieved successfully",
+        skills,
+      ),
+    );
+  } catch (error) {
+    console.error("Error fetching skills:", error);
+    next(error);
+  }
+});
+
+// Get skills
+  getSkills: async (category = null) => {
+    const url = category
+      ? `${API_BASE_URL}/public/skills?category=${encodeURIComponent(category)}`
+      : `${API_BASE_URL}/public/skills`;
+    const response = await fetch(url);
+    return handleResponse(response);
+  },
 
 module.exports = router;

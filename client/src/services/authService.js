@@ -20,7 +20,7 @@ export const authService = {
     return response.data
   },
 
-  // Get user profile
+  // Get user profile - use auth endpoint that works for all roles
   async getProfile() {
     const response = await api.get('/auth/profile')
     return response.data

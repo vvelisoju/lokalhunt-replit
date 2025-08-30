@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ChevronDownIcon,
   ChartBarIcon,
@@ -14,6 +14,7 @@ import { getImageUrl } from '../../services/candidateApi'
 
 const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
   const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [imageError, setImageError] = useState(false)
@@ -69,11 +70,17 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
     e.stopPropagation()
 
     try {
-      await logout()
-      // Don't manually navigate here - let the AuthContext and route protection handle it
+      // Close dropdown first
+      setShowUserMenu(false)
+      
+      // Call context logout with navigate function (handles both state and cleanup)
+      await logout(navigate)
     } catch (error) {
       console.error('Logout error:', error)
-      // Even on error, the logout function should clear the auth state
+      // Fallback: clear everything and redirect using navigate
+      const { clearAllAuthData } = await import('../../utils/authUtils')
+      clearAllAuthData()
+      navigate('/login', { replace: true })
     }
   }
 

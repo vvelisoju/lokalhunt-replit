@@ -41,6 +41,10 @@ router.patch('/profile/experience', candidateController.updateExperience);
 router.patch('/profile/education', candidateController.updateEducation);
 router.patch('/profile/skills', candidateController.updateSkills);
 
+// Onboarding management
+router.post('/onboarding', candidateController.saveOnboardingData);
+router.get('/onboarding', candidateController.getOnboardingData);
+
 // Open to Work status management
 router.patch('/profile/open-to-work', candidateController.updateOpenToWorkStatus);
 router.get('/profile/open-to-work', candidateController.getOpenToWorkStatus);
@@ -64,7 +68,10 @@ router.patch('/resume/status', candidateController.updateResumeStatus);
 
 // Upload and manage resume
 router.post('/resume', candidateController.uploadResume);
-router.get('/resume', candidateController.getResume);
+router.get('/resume', (req, res, next) => {
+  console.log('GET /resume called for user:', req.user?.userId);
+  candidateController.getResume(req, res, next);
+});
 router.delete('/resume', candidateController.deleteResume);
 
 // Resume history (previous versions)

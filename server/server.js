@@ -6,11 +6,15 @@ const {
   ObjectStorageService,
   ObjectNotFoundError,
 } = require("./objectStorage");
+const emailController = require("./controllers/emailController");
+const emailRoutes = require("./routes/emailRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || "development";
 const prisma = new PrismaClient();
+
+// Email service handled by Brevo API in emailController
 
 // Graceful shutdown handler
 const gracefulShutdown = async (signal) => {
@@ -24,9 +28,9 @@ const gracefulShutdown = async (signal) => {
 
   try {
     await prisma.$disconnect();
-    console.log("Database connection closed");
+    console.log("Prisma database connection closed");
   } catch (error) {
-    console.error("Error closing database connection:", error);
+    console.error("Error closing Prisma database connection:", error);
   }
 
   process.exit(0);
@@ -160,6 +164,7 @@ app.get("/api", (req, res) => {
         public: "/api/public",
         shared: "/api/shared",
         ai: "/api/ai",
+        email: "/api/email",
         health: "/health",
       },
     },
@@ -189,6 +194,7 @@ app.use("/api/public", publicRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/shared", sharedRoutes); // Use shared routes
+app.use("/api/email", emailRoutes); // Use email routes
 
 // Object storage serving routes
 app.get("/objects/:objectPath(*)", async (req, res) => {
@@ -323,6 +329,7 @@ app.use("*", (req, res) => {
       public: "/api/public",
       shared: "/api/shared",
       ai: "/api/ai",
+      email: "/api/email",
       health: "/health",
     },
   });
@@ -340,9 +347,9 @@ const server = app.listen(PORT, "0.0.0.0", async () => {
   // Test database connection on startup
   try {
     await prisma.$queryRaw`SELECT 1`;
-    console.log("✅ Database connection verified");
+    console.log("✅ Prisma database connection verified");
   } catch (error) {
-    console.error("❌ Database connection failed:", error);
+    console.error("❌ Prisma database connection failed:", error);
   }
 });
 

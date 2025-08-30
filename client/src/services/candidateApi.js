@@ -151,7 +151,34 @@ export const candidateApi = {
       throw error;
     }
   },
-  getResume: () => api.get("/candidates/resume"),
+  getResume: async () => {
+    try {
+      const response = await api.get("/candidates/resume");
+      const resumeData = response.data?.data || response.data;
+      
+      // Validate resume data before returning
+      if (resumeData && resumeData.url && resumeData.url !== 'null' && resumeData.url.trim()) {
+        return response;
+      } else {
+        // Return consistent null data structure
+        return {
+          ...response,
+          data: {
+            ...response.data,
+            data: {
+              url: null,
+              fileName: null,
+              fileSize: 0,
+              uploadedAt: null,
+            }
+          }
+        };
+      }
+    } catch (error) {
+      console.error("Get resume error:", error);
+      throw error;
+    }
+  },
   deleteResume: () => api.delete("/candidates/resume"),
 
   // Job search
@@ -219,6 +246,11 @@ export const candidateApi = {
   updateOpenToWorkStatus: (openToWork) =>
     api.patch("/candidates/profile/open-to-work", { openToWork }),
   getOpenToWorkStatus: () => api.get("/candidates/profile/open-to-work"),
+
+  // Onboarding management
+  saveOnboardingData: (onboardingData) =>
+    api.post("/candidates/onboarding", onboardingData),
+  getOnboardingData: () => api.get("/candidates/onboarding"),
 
   // Application management
   withdrawApplication: (applicationId) =>

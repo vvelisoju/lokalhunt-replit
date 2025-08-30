@@ -7,11 +7,14 @@ import {
   DocumentArrowDownIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
+  DocumentTextIcon, // Added this import
+  PlusIcon, // Added this import
 } from "@heroicons/react/24/outline";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Alert from "../../components/ui/Alert";
 import Loader from "../../components/ui/Loader";
+import ConfirmModal from "../../components/ui/ConfirmModal";
 import { useCandidate } from "../../context/CandidateContext";
 import { useCandidateAuth } from "../../hooks/useCandidateAuth";
 import { candidateApi, getImageUrl } from "../../services/candidateApi";
@@ -23,11 +26,24 @@ const Resume = () => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchResumeData();
     }
+  }, [user]);
+
+  // Refresh resume data when page becomes visible (useful after onboarding)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        fetchResumeData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [user]);
 
   const allowedFileTypes = [".pdf", ".doc", ".docx"];
@@ -113,7 +129,6 @@ const Resume = () => {
         setResume(uploadedResume);
         setUploadProgress(0);
         setIsUploading(false);
-        showAlert("Resume uploaded successfully!", "success");
         // Refresh the resume data from backend after successful upload
         fetchResumeData();
       }, 500);
@@ -133,35 +148,52 @@ const Resume = () => {
 
   const fetchResumeData = async () => {
     try {
+      console.log('🔍 Fetching resume data...');
       const response = await candidateApi.getResume();
-      console.log("Fetched resume data:", response.data);
-      setResume(response.data.data);
+      console.log('📄 Resume API response:', response.data);
+
+      const resumeData = response.data?.data || response.data;
+      console.log('📋 Processed resume data:', resumeData);
+
+      // Check if we have valid resume data with a proper URL
+      if (resumeData && resumeData.url && resumeData.url !== null && resumeData.url !== 'null') {
+        // Verify the URL is not empty or just whitespace
+        const cleanUrl = resumeData.url.trim();
+        if (cleanUrl && cleanUrl.length > 0) {
+          setResume(resumeData);
+          console.log('✅ Resume data set successfully');
+        } else {
+          console.log('⚠️ Resume URL is empty or invalid');
+          setResume(null);
+        }
+      } else {
+        console.log('⚠️ No valid resume data found');
+        setResume(null);
+      }
     } catch (error) {
-      console.log("No resume found or error fetching resume:", error.message);
+      console.error('❌ Error fetching resume:', error);
       setResume(null);
     }
   };
 
-  const handleDelete = async () => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete your resume? This action cannot be undone.",
-      )
-    ) {
-      try {
-        await deleteResume();
-        setResume(null);
-        showAlert("Resume deleted successfully!", "success");
-        // Refresh data from backend to ensure UI is in sync
-        fetchResumeData();
-      } catch (error) {
-        console.error("Delete failed:", error);
-        const errorMessage =
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to delete resume";
-        showAlert(`Delete failed: ${errorMessage}`, "error");
-      }
+  const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await deleteResume();
+      setResume(null);
+      // Refresh data from backend to ensure UI is in sync
+      fetchResumeData();
+      showAlert("Resume deleted successfully!", "success");
+    } catch (error) {
+      console.error("Delete failed:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to delete resume";
+      showAlert(`Delete failed: ${errorMessage}`, "error");
     }
   };
 
@@ -447,7 +479,7 @@ const Resume = () => {
               </Card.Title>
             </Card.Header>
             <Card.Content>
-              {resume ? (
+              {resume && resume.url && resume.url.trim() ? (
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 border border-gray-200 rounded-lg">
                     {getFileIcon(resume.fileName)}
@@ -492,7 +524,6 @@ const Resume = () => {
                       size="sm"
                       onClick={handleDelete}
                       className="text-red-600 hover:text-red-700 flex-1 sm:flex-initial justify-center"
-                      disabled={loading}
                     >
                       <TrashIcon className="h-4 w-4 mr-2" />
                       Delete
@@ -501,7 +532,7 @@ const Resume = () => {
                 </div>
               ) : (
                 <div className="text-center py-6 sm:py-8">
-                  <DocumentIcon className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
+                  <DocumentTextIcon className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-gray-900">
                     No resume uploaded
                   </h3>
@@ -579,6 +610,18 @@ const Resume = () => {
             </div>
           </Card.Content>
         </Card>
+
+        {/* Delete Confirmation Modal */}
+        <ConfirmModal
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={confirmDelete}
+          title="Delete Resume"
+          message="Are you sure you want to delete your resume? This action cannot be undone and you'll need to upload a new resume to apply for jobs."
+          confirmText="Delete Resume"
+          cancelText="Keep Resume"
+          variant="danger"
+        />
       </div>
     </div>
   );

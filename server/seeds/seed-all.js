@@ -1,7 +1,10 @@
 const { PrismaClient } = require('@prisma/client');
-const { seedCategories } = require('./categories');
 const { seedEducationQualifications } = require('./education-qualifications');
+const { seedJobRoles } = require('./job-roles');
+const { seedCategories } = require('./categories');
 const { seedCities, DEFAULT_CITIES } = require('./cities');
+const { seedEmailTemplates } = require('./email-templates');
+const { seedSkills } = require('./skills');
 
 const prisma = new PrismaClient();
 
@@ -23,7 +26,7 @@ async function seedAll() {
     console.log('🌱 Starting comprehensive seeding process...');
     console.log('=====================================');
 
-    // Seed in order: Cities -> Categories -> Education Qualifications -> Plans
+    // Seed in order: Cities -> Categories -> Education Qualifications -> Plans -> Job Roles
 
     // 1. Seed Cities
     console.log('\n📍 Step 1: Seeding Cities');
@@ -40,6 +43,14 @@ async function seedAll() {
     // 4. Seed Plans
     await seedPlans();
 
+    // 5. Seed job roles
+    console.log('\n🎯 Seeding job roles...');
+    await seedJobRoles();
+
+    // 6. Seed skills
+    console.log('\n🎯 Step 6: Seeding Skills');
+    await seedSkills();
+
     console.log('\n=====================================');
     console.log('🎉 All seeding completed successfully!');
     console.log('\n📊 Summary:');
@@ -49,11 +60,15 @@ async function seedAll() {
     const categoriesCount = await prisma.jobCategory.count();
     const educationCount = await prisma.educationQualification.count();
     const plansCount = await prisma.plan.count(); // Get count for plans
+    const jobRolesCount = await prisma.jobRole.count(); // Get count for job roles
+    const skillsCount = await prisma.skill.count(); // Get count for skills
 
     console.log(`🏙️  Cities: ${citiesCount}`);
     console.log(`📂 Job Categories: ${categoriesCount}`);
     console.log(`🎓 Education Qualifications: ${educationCount}`);
     console.log(`⭐ Subscription Plans: ${plansCount}`); // Display plans count
+    console.log(`🎯 Job Roles: ${jobRolesCount}`); // Display job roles count
+    console.log(`🛠️  Skills: ${skillsCount}`); // Display skills count
 
     console.log('\n✨ Your LokalHunt database is now ready with core data!');
 
