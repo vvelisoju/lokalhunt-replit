@@ -17,10 +17,10 @@ export const clearAllAuthData = () => {
   sessionStorage.removeItem('user')
   sessionStorage.removeItem('userData')
   
-  // Clear onboarding flags
+  // Clear onboarding flags (but preserve completion status)
   localStorage.removeItem('showOnboarding')
   localStorage.removeItem('onboardingStep')
-  localStorage.removeItem('onboardingCompleted')
+  // Keep onboardingCompleted flag - don't remove it during logout
   
   // Clear role context and auth state
   localStorage.removeItem('roleContext')
@@ -29,6 +29,12 @@ export const clearAllAuthData = () => {
   sessionStorage.removeItem('roleContext')
   sessionStorage.removeItem('authState')
   sessionStorage.removeItem('isAuthenticated')
+  
+  // Clear any additional context data
+  localStorage.removeItem('candidateProfile')
+  localStorage.removeItem('employerProfile')
+  sessionStorage.removeItem('candidateProfile')
+  sessionStorage.removeItem('employerProfile')
   
   // Clear any other auth-related data
   localStorage.removeItem('refreshToken')

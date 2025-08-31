@@ -279,6 +279,31 @@ export const RoleProvider = ({ children }) => {
   const isBranchAdmin = () => user?.role === 'BRANCH_ADMIN'
   const isEmployer = () => user?.role === 'EMPLOYER'
 
+  // Clear all role context data - used during logout
+  const clearData = () => {
+    console.log('RoleContext: Clearing all role context data')
+    setRole('employer')
+    setViewingAs('self')
+    setTargetEmployer(null)
+    setViewingContext({
+      currentRole: null,
+      viewingAs: null,
+      targetEmployerId: null,
+      isViewingAsAdmin: false,
+      permissions: {}
+    })
+    // Clear from localStorage as well
+    localStorage.removeItem('roleContext')
+  }
+
+  // Make clearData globally accessible for logout
+  useEffect(() => {
+    window.roleContext = { clearData }
+    return () => {
+      delete window.roleContext
+    }
+  }, [])
+
   const value = {
     // New API matching requirements
     role,
@@ -323,7 +348,10 @@ export const RoleProvider = ({ children }) => {
         case 'CANDIDATE': return 'bg-yellow-100 text-yellow-800'
         default: return 'bg-gray-100 text-gray-800'
       }
-    }
+    },
+
+    // Expose clearData method
+    clearData
   }
 
   return (

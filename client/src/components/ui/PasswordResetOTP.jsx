@@ -3,6 +3,7 @@ import { LockClosedIcon, EnvelopeIcon, ArrowLeftIcon } from '@heroicons/react/24
 import FormInput from './FormInput'
 import Button from './Button'
 import { useToast } from './Toast'
+import { authService } from '../../services/authService'
 
 const PasswordResetOTP = ({ 
   email, 
@@ -39,37 +40,13 @@ const PasswordResetOTP = ({
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email })
-      })
+      const result = await authService.forgotPassword(email)
 
-      const data = await response.json()
-
-      if (response.ok) {
-        // Check for success in response data
-        if (data.success !== false && (data.status === 'success' || data.message?.includes('sent') || !data.error)) {
-          showSuccess('Password reset OTP sent successfully!')
-          setResendCooldown(30)
-          // The original code had a cooldown of 60s and a different interval logic.
-          // Reverting to 30s cooldown and the original interval logic for consistency.
-          // const timer = setInterval(() => {
-          //   setResendCooldown((prev) => {
-          //     if (prev <= 1) {
-          //       clearInterval(timer)
-          //       return 0
-          //     }
-          //     return prev - 1
-          //   })
-          // }, 1000)
-        } else {
-          throw new Error(data.message || data.error || 'Failed to resend verification code')
-        }
+      if (result.success) {
+        showSuccess('Password reset OTP sent successfully!')
+        setResendCooldown(30)
       } else {
-        throw new Error(data.message || data.error || 'Failed to resend verification code')
+        throw new Error(result.error || 'Failed to resend verification code')
       }
     } catch (error) {
       console.error('Failed to send OTP:', error)
@@ -131,26 +108,13 @@ const PasswordResetOTP = ({
     try {
       setIsLoading(true)
 
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          otp,
-          password,
-          confirmPassword
-        })
-      })
+      const result = await authService.resetPassword(email, otp, password, confirmPassword)
 
-      const data = await response.json()
-
-      if (response.ok && data.success !== false) {
+      if (result.success) {
         showSuccess('Password reset successfully!')
         await onResetSuccess()
       } else {
-        throw new Error(data.message || 'Password reset failed')
+        throw new Error(result.error || 'Password reset failed')
       }
     } catch (error) {
       console.error('Password reset failed:', error)

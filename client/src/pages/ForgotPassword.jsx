@@ -7,6 +7,7 @@ import Alert from '../components/ui/Alert'
 import PasswordResetOTP from '../components/ui/PasswordResetOTP'
 import { EnvelopeIcon, ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { toast } from 'react-hot-toast'
+import { authService } from '../services/authService'
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('')
@@ -42,21 +43,13 @@ const ForgotPassword = () => {
     
     setIsLoading(true)
     try {
-      const response = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email })
-      })
+      const result = await authService.forgotPassword(email)
 
-      const data = await response.json()
-
-      if (response.ok && data.success !== false) {
+      if (result.success) {
         toast.success('Password reset OTP sent successfully!')
         setCurrentStep('otp')
       } else {
-        throw new Error(data.message || 'Failed to send reset email')
+        throw new Error(result.error || 'Failed to send reset email')
       }
     } catch (error) {
       console.error('Forgot password error:', error)

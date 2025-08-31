@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../components/ui/Toast";
+import { authService } from "../services/authService";
+import EmailOTPVerification from "../components/ui/EmailOTPVerification";
 import FormInput from "../components/ui/FormInput";
 import Select from "../components/ui/Select";
 import Button from "../components/ui/Button";
@@ -14,10 +18,8 @@ import {
   MapPinIcon,
   BuildingOfficeIcon,
 } from "@heroicons/react/24/outline";
-import { useTranslation } from "react-i18next";
-import { useToast } from "../components/ui/Toast";
 import CityDropdown from "../components/ui/CityDropdown";
-import EmailOTPVerification from "../components/ui/EmailOTPVerification";
+
 
 const Register = () => {
   const { t } = useTranslation();
@@ -26,17 +28,16 @@ const Register = () => {
   const { toast, success, error } = useToast();
 
   const [activeTab, setActiveTab] = useState("candidate");
-  const [currentStep, setCurrentStep] = useState("registration"); // Track current step: 'registration' or 'verification'
+  const [currentStep, setCurrentStep] = useState("registration"); // Track current step: 'registration', 'verification'
+  const [otpSent, setOtpSent] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     phone: "",
-    password: "",
-    confirmPassword: "",
     city: "",
-    companyName: "",
     role: "CANDIDATE",
+    companyName: "",
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -114,8 +115,6 @@ const Register = () => {
       newErrors.companyName = "Company name is required for employers";
     }
 
-    // Password validation is now handled in the EmailOTPVerification component
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -129,48 +128,46 @@ const Register = () => {
       setIsLoading(true);
       setErrors({});
 
-      // Call the register API to create user and send OTP
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          role: formData.role,
-          cityId: formData.city,
-          companyName: formData.companyName,
-        }),
+      const data = await authService.register({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        role: formData.role,
+        cityId: formData.city,
+        companyName: formData.companyName,
       });
 
-      const data = await response.json();
-
-      if (data.success) {
-        // Show success toast and immediately transition
-        success("Registration successful! Please check your email for OTP.");
-        setCurrentStep("verification");
+      // Check for successful registration and OTP sent
+      if (data.success || data.status === 'success' || data.status === 201) {
+        success("OTP sent to email. Please check your email to verify.");
+        setOtpSent(true);
+        setCurrentStep("verification"); // Automatically navigate to verification step
       } else {
-        // Handle registration errors
-        if (response.status === 409) {
-          setErrors({ email: "User with this email already exists" });
-          error("User with this email already exists");
-        } else if (response.status === 201) {
-          // Registration created but maybe email failed - still proceed to verification
-          success("Registration successful! Please check your email for OTP.");
-          setCurrentStep("verification");
-        } else {
-          const errorMessage =
-            data.message || "Registration failed. Please try again.";
-          setErrors({ general: errorMessage });
-          error(errorMessage);
-        }
+        // Handle various error scenarios
+        const errorMessage = data.message || "Registration failed. Please try again.";
+        setErrors({ general: errorMessage });
+        error(errorMessage);
       }
     } catch (error) {
       console.error("Registration failed:", error);
-      setErrors({ general: "Registration failed. Please try again." });
+      
+      // Handle specific error responses
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        
+        if (error.response.status === 409 || errorData.message?.includes('already exists')) {
+          setErrors({ email: "User with this email already exists" });
+          error("User with this email already exists");
+        } else {
+          const errorMessage = errorData.message || "Registration failed. Please try again.";
+          setErrors({ general: errorMessage });
+          error(errorMessage);
+        }
+      } else {
+        setErrors({ general: "Registration failed. Please try again." });
+        error("Registration failed. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -180,48 +177,28 @@ const Register = () => {
     try {
       setIsLoading(true);
 
-      // Verify OTP and complete registration via auth API
-      const otpResponse = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          otp: verificationData.otp,
-          password: verificationData.password,
-          confirmPassword: verificationData.confirmPassword,
-          companyName: formData.companyName,
-          companyDescription: formData.companyDescription,
-          industry: formData.industry,
-          companySize: formData.companySize,
-          website: formData.website,
-          contactDetails: formData.contactDetails,
-        }),
+      const data = await authService.verifyOTP({
+        email: formData.email,
+        otp: verificationData.otp,
+        password: verificationData.password,
+        confirmPassword: verificationData.confirmPassword,
       });
 
-      const otpData = await otpResponse.json();
-
-      // Check if the response was successful (status 200-299)
-      if (otpResponse.ok && otpData.success !== false) {
-        // Store token and user data
-        if (otpData.data && otpData.data.token) {
-          localStorage.setItem("token", otpData.data.token);
-          localStorage.setItem("user", JSON.stringify(otpData.data.user));
+      if (data.success || data.status === 'success') {
+        if (data.data && data.data.token) {
+          localStorage.setItem("token", data.data.token);
+          localStorage.setItem("user", JSON.stringify(data.data.user));
         }
 
-        console.log("Registration completed successfully", formData, otpData);
-        // Show success message
+        console.log("Registration completed successfully", formData, data);
         success("Registration completed successfully!");
 
-        // For employers, fetch employer profile to ensure proper setup
-        if (formData.role === "EMPLOYER" && otpData.data?.token) {
+        if (formData.role === "EMPLOYER" && data.data?.token) {
           try {
-            // Make a call to employer profile to verify setup
             const profileResponse = await fetch("/api/auth/profile", {
               method: "GET",
               headers: {
-                Authorization: `Bearer ${otpData.data.token}`,
+                Authorization: `Bearer ${data.data.token}`,
                 "Content-Type": "application/json",
               },
             });
@@ -235,30 +212,32 @@ const Register = () => {
             }
           } catch (profileError) {
             console.warn("Error verifying employer profile:", profileError);
-            // Don't block navigation for profile verification errors
           }
         }
 
-        // Navigate to appropriate dashboard based on role
         if (formData.role === "EMPLOYER") {
-          // For employers, redirect to employer dashboard
           console.log("Redirecting employer to dashboard");
           navigate("/employer/dashboard", { replace: true });
         } else {
-          // For candidates, redirect to candidate dashboard
           navigate("/candidate/dashboard", { replace: true });
         }
-        return; // Return early to prevent any further execution
+        return;
       } else {
-        // Handle error response from server
-        const errorMessage = otpData.message || "Verification failed";
-        throw new Error(errorMessage);
+        throw new Error(data.message || 'Verification failed')
       }
-    } catch (err) {
-      console.error("Registration completion failed:", err);
-      // Always throw the error to let EmailOTPVerification handle it
-      // This prevents navigation when verification fails
-      throw err;
+    } catch (error) {
+      console.error('Registration completion failed:', error);
+
+      let errorMessage = 'Verification failed. Please try again.';
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      error(errorMessage);
+      setCurrentStep('verification');
     } finally {
       setIsLoading(false);
     }
@@ -266,9 +245,10 @@ const Register = () => {
 
   const handleBackToRegistration = () => {
     setCurrentStep("registration");
+    setOtpSent(false);
+    setErrors({}); // Clear any errors when going back
   };
 
-  // Show OTP verification step
   if (currentStep === "verification") {
     return (
       <EmailOTPVerification
@@ -280,10 +260,8 @@ const Register = () => {
     );
   }
 
-  // Show registration form
   return (
     <div className="min-h-screen flex">
-      {/* Left Panel - Logo and Info */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 to-orange-500 items-center justify-center p-8">
         <div className="max-w-md text-center text-white">
           <div className="flex items-center justify-center mb-8">
@@ -329,10 +307,8 @@ const Register = () => {
         </div>
       </div>
 
-      {/* Right Panel - Registration Form */}
       <div className="flex-1 flex items-center justify-center p-4 min-h-screen">
         <div className="w-full max-w-md mx-auto">
-          {/* Mobile Logo */}
           <div className="text-center mb-8">
             <div className="flex items-center justify-center mb-6">
               <img
@@ -344,7 +320,6 @@ const Register = () => {
           </div>
 
           <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 lg:p-8">
-            {/* Role Selection Tabs */}
             <div className="mb-6 sm:mb-8">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 text-center mb-4 sm:mb-6">
                 Create Account
@@ -375,9 +350,7 @@ const Register = () => {
               </div>
             </div>
 
-            {/* Registration Form */}
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-              {/* Company Name - First for Employers */}
               {activeTab === "employer" && (
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">
@@ -409,7 +382,6 @@ const Register = () => {
                 </div>
               )}
 
-              {/* Name Fields */}
               {activeTab === "candidate" ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-4">
                   <div className="space-y-2">
@@ -500,7 +472,6 @@ const Register = () => {
                 </div>
               )}
 
-              {/* Email and Phone */}
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
                   Email Address <span className="text-red-500">*</span>
@@ -555,7 +526,6 @@ const Register = () => {
                 )}
               </div>
 
-              {/* City */}
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
                   City <span className="text-red-500">*</span>
@@ -570,9 +540,6 @@ const Register = () => {
                 />
               </div>
 
-              {/* Password Fields - Removed from this form */}
-
-              {/* Terms and Conditions */}
               <div className="flex items-start pt-3">
                 <input
                   id="terms"
@@ -616,9 +583,10 @@ const Register = () => {
                   "Continue to Verification"
                 )}
               </button>
+
+              
             </form>
 
-            {/* Login Link */}
             <div className="mt-6 sm:mt-8 text-center">
               <p className="text-sm text-gray-600">
                 Already have an account?{" "}

@@ -12,6 +12,7 @@ import Card from '../../components/ui/Card'
 import CityDropdown from '../../components/ui/CityDropdown'
 import EmailOTPVerification from '../../components/ui/EmailOTPVerification'
 import { useCandidateAuth } from '../../hooks/useCandidateAuth'
+import { authService } from '../../services/authService'
 
 const Register = () => {
   const [currentStep, setCurrentStep] = useState('registration') // 'registration' or 'verification'
@@ -86,22 +87,14 @@ const Register = () => {
   const handleVerificationSuccess = async (verificationData) => {
     try {
       // Complete registration with verification data using auth API
-      const response = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          otp: verificationData.otp,
-          password: verificationData.password,
-          confirmPassword: verificationData.confirmPassword,
-        })
-      })
+      const data = await authService.verifyOTP({
+        email: formData.email,
+        otp: verificationData.otp,
+        password: verificationData.password,
+        confirmPassword: verificationData.confirmPassword,
+      });
 
-      const data = await response.json()
-
-      if (data.success) {
+      if (data.success || data.status === 'success') {
         // Store token if provided
         if (data.data.token) {
           localStorage.setItem('token', data.data.token)

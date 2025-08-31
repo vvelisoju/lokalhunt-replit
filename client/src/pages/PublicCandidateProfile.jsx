@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
@@ -22,6 +21,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { publicApi } from '../services/publicApi'
 import Button from '../components/ui/Button'
+import { publicProfileService } from '../services/publicProfileService'
 
 const getImageUrl = (imagePath) => {
   if (!imagePath) return null
@@ -46,18 +46,7 @@ const PublicCandidateProfile = () => {
     setLoading(true)
     setError(null)
     try {
-      // Use public API to get candidate profile
-      const response = await fetch(`/api/public/candidates/${candidateId}/profile`, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Profile not found or not public')
-      }
-
-      const result = await response.json()
+      const result = await publicProfileService.getCandidateProfile(candidateId)
       setProfileData(result.data || result)
     } catch (error) {
       console.error('Error loading candidate profile:', error)
@@ -118,7 +107,7 @@ const PublicCandidateProfile = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      
+
       <div className="max-w-4xl mx-auto bg-gray-50 pt-8">
         {/* Action Bar */}
         <div className="max-w-4xl mx-auto px-4 mb-6 print:hidden">
@@ -233,7 +222,7 @@ const PublicCandidateProfile = () => {
 
         {/* Main Content */}
         <div className="space-y-4 p-4">
-          
+
           {/* About Section */}
           <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow duration-200">
             <div className="p-4">
@@ -262,7 +251,7 @@ const PublicCandidateProfile = () => {
                   <div className="ml-3 w-6 h-0.5 bg-gradient-to-r from-orange-500 to-red-500 rounded"></div>
                 </h2>
               </div>
-              
+
               <div className="space-y-4">
                 {profileData?.experience?.length > 0 ? (
                   profileData.experience.map((exp, index) => (
@@ -300,7 +289,7 @@ const PublicCandidateProfile = () => {
               <div className="flex items-center mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">Education</h2>
               </div>
-              
+
               <div className="space-y-4">
                 {profileData?.education?.length > 0 ? (
                   profileData.education.map((edu, index) => (
@@ -336,7 +325,7 @@ const PublicCandidateProfile = () => {
               <div className="flex items-center mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">Skills</h2>
               </div>
-              
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {(profileData?.skills?.length > 0 || (profileData?.ratings && Object.keys(profileData.ratings).length > 0)) ? (
                   <>
@@ -357,7 +346,7 @@ const PublicCandidateProfile = () => {
                         </div>
                       </div>
                     ))}
-                    
+
                     {/* Display ratings object if skills array is not available */}
                     {(!profileData?.skills || profileData.skills.length === 0) && profileData?.ratings && 
                       Object.entries(profileData.ratings).map(([skill, rating]) => (
@@ -393,7 +382,7 @@ const PublicCandidateProfile = () => {
               <div className="flex items-center mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">Job Preferences</h2>
               </div>
-              
+
               <div className="space-y-4">
                 {(profileData?.jobPreferences || profileData?.profileData?.jobPreferences) ? (
                   <div className="grid grid-cols-1 gap-3">
@@ -409,7 +398,7 @@ const PublicCandidateProfile = () => {
                         </div>
                       </div>
                     )}
-                    
+
                     {((profileData?.jobPreferences?.preferredLocations || profileData?.profileData?.jobPreferences?.preferredLocations)?.length > 0) && (
                       <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
                         <h4 className="font-medium text-gray-900 mb-2 text-sm">Preferred Locations</h4>
@@ -422,7 +411,7 @@ const PublicCandidateProfile = () => {
                         </div>
                       </div>
                     )}
-                    
+
                     {(profileData?.jobPreferences?.workType || profileData?.profileData?.jobPreferences?.workType) && (
                       <div>
                         <h4 className="font-medium text-gray-900 mb-3">Work Type</h4>
@@ -431,7 +420,7 @@ const PublicCandidateProfile = () => {
                         </span>
                       </div>
                     )}
-                    
+
                     {((profileData?.jobPreferences?.salaryRange?.min || profileData?.jobPreferences?.salaryRange?.max) || 
                       (profileData?.profileData?.jobPreferences?.salaryRange?.min || profileData?.profileData?.jobPreferences?.salaryRange?.max)) && (
                       <div>
@@ -446,7 +435,7 @@ const PublicCandidateProfile = () => {
                         </div>
                       </div>
                     )}
-                    
+
                     {(profileData?.jobPreferences?.noticePeriod || profileData?.profileData?.jobPreferences?.noticePeriod) && (
                       <div>
                         <h4 className="font-medium text-gray-900 mb-3">Notice Period</h4>

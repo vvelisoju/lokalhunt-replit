@@ -7,6 +7,7 @@ import {
 import FormInput from "./FormInput";
 import Button from "./Button";
 import { useToast } from "./Toast";
+import { authService } from "../../services/authService";
 
 const EmailOTPVerification = ({
   email,
@@ -43,21 +44,13 @@ const EmailOTPVerification = ({
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/auth/resend-otp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email }),
-      });
+      const result = await authService.resendOTP(email);
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (result.success) {
         setResendCooldown(30);
         showSuccess("OTP sent successfully!");
       } else {
-        throw new Error(data.message || "Failed to send OTP");
+        throw new Error(result.error || "Failed to send OTP");
       }
     } catch (error) {
       console.error("Failed to send OTP:", error);

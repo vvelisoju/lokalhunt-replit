@@ -1,68 +1,12 @@
-import axios from 'axios';
+import { createAxiosInstance } from './axiosFactory'
 
-// Dynamically determine API base URL
-let API_BASE_URL = import.meta.env.VITE_API_URL
-
-if (!API_BASE_URL) {
-  if (typeof window !== 'undefined') {
-    // Check if we're in Replit environment
-    const hostname = window.location.hostname
-    if (hostname.includes('.replit.dev')) {
-      // In Replit, server runs on port 5000, client on different port
-      // Use the full Replit hostname with port 5000
-      API_BASE_URL = `${window.location.protocol}//${hostname}:5000/api`
-    } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      // Local development - check if we have a production API URL in env
-      if (import.meta.env.VITE_API_URL) {
-        API_BASE_URL = import.meta.env.VITE_API_URL
-        if (!API_BASE_URL.endsWith('/api')) {
-          API_BASE_URL = `${API_BASE_URL}/api`
-        }
-      } else {
-        // Fallback to local server
-        API_BASE_URL = 'http://localhost:5000/api'
-      }
-    } else {
-      // Production or other environments
-      API_BASE_URL = `${window.location.origin}/api`
-    }
-  } else {
-    // Fallback for SSR or development
-    API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
-    if (API_BASE_URL && !API_BASE_URL.endsWith('/api')) {
-      API_BASE_URL = `${API_BASE_URL}/api`
-    }
-  }
-} else {
-  // Ensure API path is appended if not already present
-  if (!API_BASE_URL.endsWith('/api')) {
-    API_BASE_URL = `${API_BASE_URL}/api`
-  }
-}
-
-// Debug logging for Shared API configuration
-console.log('Shared API Configuration:', {
-  hostname: typeof window !== 'undefined' ? window.location.hostname : 'SSR',
-  isReplit: typeof window !== 'undefined' && window.location.hostname.includes('.replit.dev'),
-  finalApiUrl: API_BASE_URL
+// Create shared API instance
+const api = createAxiosInstance({
+  serviceName: 'Shared API',
+  timeout: 10000,
+  withCredentials: true,
+  requireAuth: true
 })
-
-// Configure axios instance with the dynamic base URL
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Function to set the auth token
-api.setToken = (token) => {
-  if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common['Authorization'];
-  }
-};
 
 const sharedApi = {
   // Get job preview by ID

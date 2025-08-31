@@ -158,20 +158,30 @@ export const AuthProvider = ({ children }) => {
     // Import and use common logout function
     const { clearAllAuthData } = await import('../utils/authUtils')
 
-    // CRITICAL: Clear candidate context FIRST before clearing auth data
+    // CRITICAL: Clear all context data FIRST before clearing auth data
+    console.log('AuthContext: Clearing all context data')
+    
+    // Clear candidate context
     if (window.candidateContext?.clearData) {
       console.log('AuthContext: Clearing candidate context data')
       window.candidateContext.clearData()
+    }
+    
+    // Clear role context
+    if (window.roleContext?.clearData) {
+      console.log('AuthContext: Clearing role context data')
+      window.roleContext.clearData()
     }
 
     // Clear all storage to prevent loops
     console.log('AuthContext: Clearing all auth data from storage')
     clearAllAuthData()
 
-    // THEN reset local auth state
+    // THEN reset local auth state completely
     console.log('AuthContext: Resetting auth state')
     setUser(null)
     setIsAuthenticated(false)
+    setLoading(false) // Also reset loading state
 
     // Small delay to ensure state is updated before navigation
     await new Promise(resolve => setTimeout(resolve, 100))

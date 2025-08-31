@@ -1,0 +1,235 @@
+
+import axios from 'axios'
+
+// Centralized base URL configuration logic
+const getApiBaseUrl = () => {
+  let API_BASE_URL = import.meta.env.VITE_API_URL
+
+  if (!API_BASE_URL) {
+    if (typeof window !== 'undefined') {
+      // Check if we're in Replit environment
+      const hostname = window.location.hostname
+      if (hostname.includes('.replit.dev')) {
+        // In Replit, server runs on port 5000, client on different port
+        // Remove any existing port and add port 5000
+        const baseHostname = hostname.split(':')[0]
+        API_BASE_URL = `${window.location.protocol}//${baseHostname}:5000/api`
+      } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        // Local development - check if we have a production API URL in env
+        if (import.meta.env.VITE_API_URL) {
+          API_BASE_URL = import.meta.env.VITE_API_URL
+          if (!API_BASE_URL.endsWith('/api')) {
+            API_BASE_URL = `${API_BASE_URL}/api`
+          }
+        } else {
+          // Fallback to local server
+          API_BASE_URL = 'http://localhost:5000/api'
+        }
+      } else {
+        // Production or other environments
+        API_BASE_URL = `${window.location.origin}/api`
+      }
+    } else {
+      // Fallback for SSR or development
+      API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+      if (API_BASE_URL && !API_BASE_URL.endsWith('/api')) {
+        API_BASE_URL = `${API_BASE_URL}/api`
+      }
+    }
+  } else {
+    // Ensure API path is appended if not already present
+    if (!API_BASE_URL.endsWith('/api')) {
+      API_BASE_URL = `${API_BASE_URL}/api`
+    }
+  }
+
+  return API_BASE_URL
+}
+
+// Debug logging for API configuration
+const logApiConfig = (serviceName) => {
+  console.log(`${serviceName} API Configuration:`, {
+    hostname: typeof window !== 'undefined' ? window.location.hostname : 'SSR',
+    port: typeof window !== 'undefined' ? window.location.port : 'N/A',
+    protocol: typeof window !== 'undefined' ? window.location.protocol : 'N/A',
+    isReplit: typeof window !== 'undefined' && window.location.hostname.includes('.replit.dev'),
+    finalApiUrl: getApiBaseUrl()
+  })
+}
+
+// Axios instance factory
+export const createAxiosInstance = (config = {}) => {
+  const {
+    serviceName = 'Default',
+    timeout = 10000,
+    withCredentials = true,
+    requireAuth = true,
+    customInterceptors = {}
+  } = config
+
+  // Log configuration
+  logApiConfig(serviceName)
+
+  // Create axios instance
+  const instance = axios.create({
+    baseURL: getApiBaseUrl(),
+    timeout,
+    withCredentials,
+    headers: {
+      'Content-Type': 'application/json',
+      ...config.headers
+    }
+  })
+
+  // Add authentication request interceptor (if required)
+  if (requireAuth) {
+    instance.interceptors.request.use(
+      (requestConfig) => {
+        const token = localStorage.getItem('token')
+        if (token) {
+          requestConfig.headers.Authorization = `Bearer ${token}`
+        }
+        console.log(`${serviceName} API Request:`, {
+          method: requestConfig.method?.toUpperCase(),
+          url: requestConfig.url,
+          baseURL: requestConfig.baseURL,
+          fullURL: `${requestConfig.baseURL}${requestConfig.url}`,
+          hasAuth: !!token
+        })
+        return requestConfig
+      },
+      (error) => {
+        console.error(`${serviceName} API Request Error:`, error)
+        return Promise.reject(error)
+      }
+    )
+  } else {
+    // Simple request logging for non-auth instances
+    instance.interceptors.request.use(
+      (requestConfig) => {
+        console.log(`${serviceName} API Request:`, {
+          method: requestConfig.method?.toUpperCase(),
+          url: requestConfig.url,
+          baseURL: requestConfig.baseURL,
+          fullURL: `${requestConfig.baseURL}${requestConfig.url}`
+        })
+        return requestConfig
+      },
+      (error) => {
+        console.error(`${serviceName} API Request Error:`, error)
+        return Promise.reject(error)
+      }
+    )
+  }
+
+  // Add response interceptor
+  instance.interceptors.response.use(
+    (response) => {
+      console.log(`${serviceName} API Response:`, {
+        status: response.status,
+        url: response.config.url,
+        data: response.data
+      })
+      return response
+    },
+    (error) => {
+      console.error(`${serviceName} API Response Error:`, {
+        status: error.response?.status,
+        url: error.config?.url,
+        message: error.response?.data?.message || error.message,
+        data: error.response?.data
+      })
+
+      // Handle 401 errors for authenticated instances
+      if (requireAuth && error.response?.status === 401) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('candidateToken')
+        // Only redirect if not already on login page to prevent loops
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login'
+        }
+      }
+      return Promise.reject(error)
+    }
+  )
+
+  // Add custom interceptors if provided
+  if (customInterceptors.request) {
+    instance.interceptors.request.use(...customInterceptors.request)
+  }
+  if (customInterceptors.response) {
+    instance.interceptors.response.use(...customInterceptors.response)
+  }
+
+  return instance
+}
+
+// Helper function to make requests with consistent response handling
+export const makeRequest = async (instance, url, options = {}) => {
+  try {
+    const response = await instance({
+      url,
+      method: options.method || 'GET',
+      data: options.data,
+      params: options.params,
+      ...options
+    })
+    return response.data
+  } catch (error) {
+    throw error
+  }
+}
+
+// Role-aware API request helper
+export const makeRoleAwareRequest = async (instance, endpoint, options = {}, roleContext = null) => {
+  // Get role context from localStorage if not provided
+  if (!roleContext) {
+    try {
+      const savedContext = localStorage.getItem('roleContext')
+      if (savedContext) {
+        roleContext = JSON.parse(savedContext)
+      }
+    } catch (error) {
+      console.error('Error parsing role context:', error)
+    }
+  }
+
+  // For Branch Admin viewing employer data, inject employerId in request
+  const isBranchAdminEmployerPath = window.location.pathname.startsWith('/branch-admin/employers/')
+  let targetEmployerId = null
+
+  if (isBranchAdminEmployerPath) {
+    // Always use employerId from current URL when in branch admin employer context
+    const pathMatch = window.location.pathname.match(/\/branch-admin\/employers\/([^/]+)/)
+    if (pathMatch) {
+      targetEmployerId = pathMatch[1]
+      console.log('API Service: Using employerId from URL path:', targetEmployerId)
+    }
+  } else {
+    // Fall back to role context only when not in branch admin employer path
+    targetEmployerId = roleContext?.targetEmployer?.id
+  }
+
+  // Add employerId to request when Branch Admin is viewing employer data
+  const requestOptions = { ...options }
+
+  if (isBranchAdminEmployerPath && targetEmployerId) {
+    // Add employerId to query params for GET requests
+    if (!options.method || options.method === 'GET') {
+      requestOptions.params = {
+        ...options.params,
+        employerId: targetEmployerId
+      }
+    } else {
+      // Add employerId to request body for POST/PUT/PATCH requests
+      requestOptions.data = {
+        ...options.data,
+        employerId: targetEmployerId
+      }
+    }
+  }
+
+  return makeRequest(instance, endpoint, requestOptions)
+}
+
+export default createAxiosInstance

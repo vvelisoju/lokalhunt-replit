@@ -24,7 +24,7 @@ import {
   submitForApproval,
 } from "../../services/employer/ads";
 import { getCompanies } from "../../services/employer/companies";
-import { generateJobDescription } from "../../services/aiService";
+import aiService from "../../services/aiService";
 import { getCities } from "../../services/common/cities";
 import { publicApi } from "../../services/publicApi";
 import { useAuth } from "../../context/AuthContext";
@@ -488,17 +488,17 @@ const AdForm = () => {
         salaryMax: formData.salaryMax,
       };
 
-      const result = await generateJobDescription(jobData);
+      const response = await aiService.generateJobDescription(jobData);
 
-      if (result.success) {
+      if (response.success) {
         setFormData((prev) => ({
           ...prev,
-          description: result.data.description,
+          description: response.data.description,
         }));
         toast.success("Job description generated successfully!");
       } else {
-        console.error("AI Generation Failed:", result.error);
-        toast.error(result.error || "Failed to generate job description");
+        console.error("AI Generation Failed:", response.error);
+        toast.error(response.error || "Failed to generate job description");
       }
     } catch (error) {
       console.error("AI Generation Error:", error);
@@ -1176,7 +1176,7 @@ const AdForm = () => {
                       Save as Draft
                     </Button>
                   </div>
-                  
+
                   {/* Second row - Submit for Approval (full width if available) */}
                   {(!isEditing || (isEditing && currentJobStatus === "DRAFT")) && (
                     <Button

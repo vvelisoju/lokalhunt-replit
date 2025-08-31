@@ -62,7 +62,7 @@ const candidateReducer = (state, action) => {
 export const CandidateProvider = ({ children }) => {
   const [state, dispatch] = useReducer(candidateReducer, initialState)
   const { success: showSuccess, error: showError } = useToast()
-  
+
   // Clear candidate data when user becomes unauthenticated
   useEffect(() => {
     const handleStorageChange = (e) => {
@@ -71,7 +71,7 @@ export const CandidateProvider = ({ children }) => {
         dispatch({ type: 'CLEAR_DATA' })
       }
     }
-    
+
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
@@ -262,8 +262,11 @@ export const CandidateProvider = ({ children }) => {
   }
 
   const clearData = useCallback(() => {
-    console.log('CandidateContext: Clearing all candidate data')
+    console.log('CandidateContext: Clearing all candidate data and resetting state')
     dispatch({ type: 'CLEAR_DATA' })
+    // Also clear any potential cached data in memory
+    setLoading(false)
+    setError(null)
   }, [])
 
   // Make clearData globally accessible for logout

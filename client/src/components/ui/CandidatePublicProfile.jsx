@@ -12,6 +12,7 @@ import {
   ArrowLeftIcon
 } from '@heroicons/react/24/outline'
 import { getImageUrl } from '../../services/candidateApi'
+import { publicProfileService } from '../../services/publicProfileService'
 
 const CandidatePublicProfile = ({ 
   candidateId, 
@@ -34,19 +35,13 @@ const CandidatePublicProfile = ({
     setLoading(true)
     setError(null)
     try {
-      // Use public API to get candidate profile
-      const response = await fetch(`/api/public/candidates/${candidateId}/profile`, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
+      const result = await publicProfileService.getCandidateProfile(candidateId)
 
-      if (!response.ok) {
-        throw new Error('Profile not found or not public')
+      if (result.success) {
+        setProfileData(result.data)
+      } else {
+        throw new Error(result.error || 'Failed to load profile')
       }
-
-      const result = await response.json()
-      setProfileData(result.data || result)
     } catch (error) {
       console.error('Error loading candidate profile:', error)
       setError('Failed to load profile')

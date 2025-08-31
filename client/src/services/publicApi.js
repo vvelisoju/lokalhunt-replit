@@ -1,70 +1,12 @@
-import axios from "axios";
+import { createAxiosInstance } from './axiosFactory'
 
-// Dynamically determine API base URL
-let API_BASE_URL = import.meta.env.VITE_API_URL;
-
-if (!API_BASE_URL) {
-  if (typeof window !== "undefined") {
-    // Check if we're in Replit environment
-    const hostname = window.location.hostname;
-    if (hostname.includes(".replit.dev")) {
-      // In Replit, server runs on port 5000, client on different port
-      // Remove any existing port and add port 5000
-      const baseHostname = hostname.split(":")[0];
-      API_BASE_URL = `${window.location.protocol}//${baseHostname}:5000/api`;
-    } else if (hostname === "localhost" || hostname === "127.0.0.1") {
-      // Local development - check if we have a production API URL in env
-      if (import.meta.env.VITE_API_URL) {
-        API_BASE_URL = import.meta.env.VITE_API_URL;
-        if (!API_BASE_URL.endsWith("/api")) {
-          API_BASE_URL = `${API_BASE_URL}/api`;
-        }
-      } else {
-        // Fallback to local server
-        API_BASE_URL = "http://localhost:5000/api";
-      }
-    } else {
-      // Production or other environments
-      API_BASE_URL = `${window.location.origin}/api`;
-    }
-  } else {
-    // Fallback for SSR or development
-    API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-    if (API_BASE_URL && !API_BASE_URL.endsWith("/api")) {
-      API_BASE_URL = `${API_BASE_URL}/api`;
-    }
-  }
-} else {
-  // Ensure API path is appended if not already present
-  if (!API_BASE_URL.endsWith("/api")) {
-    API_BASE_URL = `${API_BASE_URL}/api`;
-  }
-}
-
-// Debug logging for Public API configuration
-console.log("Public API Configuration:", {
-  hostname: typeof window !== "undefined" ? window.location.hostname : "SSR",
-  isReplit:
-    typeof window !== "undefined" &&
-    window.location.hostname.includes(".replit.dev"),
-  finalApiUrl: `${API_BASE_URL}`,
-});
-
-const api = axios.create({
-  baseURL: `${API_BASE_URL}`,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-// Helper function to handle fetch responses
-const handleResponse = async (response) => {
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-  }
-  return response.json();
-};
+// Create public API instance (no authentication required)
+const api = createAxiosInstance({
+  serviceName: 'Public API',
+  timeout: 10000,
+  withCredentials: false,
+  requireAuth: false
+})
 
 export const publicApi = {
   // Get platform statistics
@@ -100,18 +42,16 @@ export const publicApi = {
   },
 
   // Get job roles
-  getJobRoles: async () => {
-    const response = await fetch(`${API_BASE_URL}/public/job-roles`);
-    return handleResponse(response);
+  async getJobRoles() {
+    const response = await api.get('/public/job-roles');
+    return response.data;
   },
 
   // Get skills
-  getSkills: async (category = null) => {
-    const url = category
-      ? `${API_BASE_URL}/public/skills?category=${encodeURIComponent(category)}`
-      : `${API_BASE_URL}/public/skills`;
-    const response = await fetch(url);
-    return handleResponse(response);
+  async getSkills(category = null) {
+    const params = category ? { category } : {};
+    const response = await api.get('/public/skills', { params });
+    return response.data;
   },
 
   // Search jobs (public endpoint)
