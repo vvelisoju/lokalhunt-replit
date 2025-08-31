@@ -99,14 +99,20 @@ function App() {
   // Initialize Capacitor and push notifications
   const initializeCapacitor = async () => {
     try {
-      // Try to import Capacitor modules dynamically
-      const { Capacitor } = await import('@capacitor/core')
-      const isNative = Capacitor.isNativePlatform()
-      setIsNativePlatform(isNative)
+      // Check if we're in a mobile environment first
+      if (typeof window !== 'undefined' && window.Capacitor) {
+        // Try to import Capacitor modules dynamically
+        const { Capacitor } = await import('@capacitor/core')
+        const isNative = Capacitor.isNativePlatform()
+        setIsNativePlatform(isNative)
 
-      if (isNative) {
-        const { PushNotifications } = await import('@capacitor/push-notifications')
-        await initPushNotifications(PushNotifications)
+        if (isNative) {
+          const { PushNotifications } = await import('@capacitor/push-notifications')
+          await initPushNotifications(PushNotifications)
+        }
+      } else {
+        console.log('Capacitor not available - running in web mode')
+        setIsNativePlatform(false)
       }
     } catch (error) {
       console.log('Capacitor not available - running in web mode')
