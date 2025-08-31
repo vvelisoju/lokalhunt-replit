@@ -47,29 +47,7 @@ export const clearAllAuthData = () => {
   console.log('All authentication data cleared to prevent infinite loops')
 }
 
-export const clearAllAuthData = () => {
-  console.log('AuthUtils: Clearing all authentication data')
-  
-  // Clear tokens
-  localStorage.removeItem('token')
-  localStorage.removeItem('candidateToken')
-  localStorage.removeItem('user')
-  
-  // Clear any other auth-related data
-  sessionStorage.clear()
-  
-  // Clear API headers
-  try {
-    const api = require('../services/api')
-    if (api.default?.defaults?.headers?.common) {
-      delete api.default.defaults.headers.common['Authorization']
-    }
-  } catch (error) {
-    console.log('Could not clear API headers:', error)
-  }
-  
-  console.log('AuthUtils: All auth data cleared')
-}
+
 
 export const performLogout = async (navigate = null) => {
   try {
