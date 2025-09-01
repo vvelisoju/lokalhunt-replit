@@ -56,18 +56,30 @@ const Subscription = () => {
   const loadData = async () => {
     try {
       setIsLoading(true);
+      setError(""); // Clear any previous errors
+      
       const [plansResponse, subscriptionResponse] = await Promise.allSettled([
         subscriptionService.getPlans(),
         subscriptionService.getCurrentSubscription(),
       ]);
 
-      if (plansResponse.status === "fulfilled") {
-        setPlans(plansResponse.value.data || []);
+      if (plansResponse.status === "fulfilled" && plansResponse.value.success) {
+        const plansData = plansResponse.value.data;
+        setPlans(Array.isArray(plansData) ? plansData : []);
+      } else {
+        console.error("Failed to load plans:", plansResponse.reason || plansResponse.value?.error);
+        setError(plansResponse.value?.error || "Failed to load subscription plans");
       }
 
-      if (subscriptionResponse.status === "fulfilled") {
+      if (subscriptionResponse.status === "fulfilled" && subscriptionResponse.value.success) {
         // Handle case where API returns successful response but no subscription data
         setCurrentSubscription(subscriptionResponse.value.data || null);
+      } else if (subscriptionResponse.status === "fulfilled" && !subscriptionResponse.value.success) {
+        // This might be normal if user has no subscription yet
+        console.log("No current subscription:", subscriptionResponse.value?.error);
+        setCurrentSubscription(null);
+      } else {
+        console.error("Failed to load subscription:", subscriptionResponse.reason);
       }
     } catch (error) {
       console.error("Error loading subscription data:", error);

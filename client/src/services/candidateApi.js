@@ -73,26 +73,26 @@ export const candidateApi = {
   refreshToken: () => api.post("/auth/refresh"),
 
   // Profile management
-  getProfile: () => api.get("/candidates/profile"),
-  updateProfile: (profileData) => api.put("/candidates/profile", profileData),
-  getProfileCompletion: () => api.get("/candidates/profile/completion"),
+  getProfile: () => api.get("/candidate/profile"),
+  updateProfile: (profileData) => api.put("/candidate/profile", profileData),
+  getProfileCompletion: () => api.get("/candidate/profile/completeness"),
 
   // Applications
   getApplications: (params = {}) =>
-    api.get("/candidates/applications", { params }),
-  applyToJob: (jobId) => api.post(`/candidates/applications/${jobId}`),
+    api.get("/candidate/applications", { params }),
+  applyToJob: (jobId) => api.post(`/candidate/applications/${jobId}`),
   getApplicationById: (applicationId) =>
-    api.get(`/candidates/applications/${applicationId}`),
+    api.get(`/candidate/applications/${applicationId}`),
   withdrawApplication: (applicationId) =>
-    api.delete(`/candidates/applications/${applicationId}`),
+    api.delete(`/candidate/applications/${applicationId}`),
 
   // Bookmarks
-  getBookmarks: (params = {}) => api.get("/candidates/bookmarks", { params }),
-  addBookmark: (jobId) => api.post(`/candidates/bookmarks/${jobId}`),
-  removeBookmark: (jobId) => api.delete(`/candidates/bookmarks/${jobId}`),
+  getBookmarks: (params = {}) => api.get("/candidate/bookmarks", { params }),
+  addBookmark: (jobId) => api.post(`/candidate/bookmarks/${jobId}`),
+  removeBookmark: (jobId) => api.delete(`/candidate/bookmarks/${jobId}`),
   toggleBookmark: async (jobId) => {
     try {
-      const response = await api.post(`/candidates/bookmarks/${jobId}/toggle`);
+      const response = await api.post(`/candidate/bookmarks/${jobId}`);
       return response.data;
     } catch (error) {
       console.error("Error toggling bookmark:", error);
@@ -111,7 +111,7 @@ export const candidateApi = {
       );
 
       // Step 1: Get upload URL from our backend
-      const uploadUrlResponse = await api.get("/candidates/upload-url");
+      const uploadUrlResponse = await api.get("/candidate/upload-url");
       console.log("📡 Upload URL response:", uploadUrlResponse);
 
       if (!uploadUrlResponse?.data?.data?.uploadURL) {
@@ -138,7 +138,7 @@ export const candidateApi = {
       console.log("✅ File uploaded to storage successfully");
 
       // Step 3: Update resume URL in database with proper metadata
-      const response = await api.post("/candidates/resume", {
+      const response = await api.post("/candidate/resume", {
         resumeUrl: uploadURL.split("?")[0], // Remove query parameters for clean URL
         fileName: file.name,
         fileSize: file.size,
@@ -153,7 +153,7 @@ export const candidateApi = {
   },
   getResume: async () => {
     try {
-      const response = await api.get("/candidates/resume");
+      const response = await api.get("/candidate/resume");
       const resumeData = response.data?.data || response.data;
       
       // Validate resume data before returning
@@ -179,16 +179,16 @@ export const candidateApi = {
       throw error;
     }
   },
-  deleteResume: () => api.delete("/candidates/resume"),
+  deleteResume: () => api.delete("/candidate/resume"),
 
   // Job search
-  searchJobs: (params = {}) => api.get("/jobs", { params }),
+  searchJobs: (params = {}) => api.get("/ads", { params }),
   searchJobsWithStatus: (params = {}) =>
-    api.get("/candidates/jobs/search", { params }),
-  getJobById: (jobId) => api.get(`/candidates/jobs/${jobId}`),
+    api.get("/candidate/jobs/search", { params }),
+  getJobById: (jobId) => api.get(`/candidate/jobs/${jobId}`),
   getJobWithStatus: async (jobId) => {
     try {
-      const response = await api.get(`/candidates/jobs/${jobId}`);
+      const response = await api.get(`/candidate/jobs/${jobId}`);
       return response.data;
     } catch (error) {
       console.error("Error fetching job with status:", error);
@@ -197,28 +197,28 @@ export const candidateApi = {
   },
 
   // Skills and categories
-  getSkills: () => api.get("/skills"),
-  getJobCategories: () => api.get("/job-categories"),
-  getCities: () => api.get("/cities"),
+  getSkills: () => api.get("/public/skills"),
+  getJobCategories: () => api.get("/public/categories"),
+  getCities: () => api.get("/public/cities"),
 
   // Dashboard data
-  getDashboardStats: () => api.get("/candidates/dashboard/stats"),
+  getDashboardStats: () => api.get("/candidate/dashboard/stats"),
   getRecentApplications: () =>
-    api.get("/candidates/dashboard/recent-applications"),
-  getRecommendedJobs: () => api.get("/candidates/dashboard/recommended-jobs"),
+    api.get("/candidate/applications", { params: { limit: 5 } }),
+  getRecommendedJobs: () => api.get("/candidate/jobs/recommended"),
 
   // Messages (if applicable)
-  getMessages: (params = {}) => api.get("/candidates/messages", { params }),
+  getMessages: (params = {}) => api.get("/candidate/messages", { params }),
   markMessageAsRead: (messageId) =>
-    api.put(`/candidates/messages/${messageId}/read`),
+    api.put(`/candidate/messages/${messageId}/read`),
 
   // File upload
-  getUploadUrl: () => api.get("/candidates/upload-url"),
+  getUploadUrl: () => api.get("/candidate/upload-url"),
   getProfileImageUploadUrl: () =>
-    api.get("/candidates/profile-image-upload-url"),
-  getCoverImageUploadUrl: () => api.get("/candidates/cover-image-upload-url"),
-  updateProfilePhoto: (data) => api.put("/candidates/profile-photo", data),
-  updateCoverPhoto: (data) => api.put("/candidates/cover-photo", data),
+    api.get("/candidate/profile-image-upload-url"),
+  getCoverImageUploadUrl: () => api.get("/candidate/cover-image-upload-url"),
+  updateProfilePhoto: (data) => api.put("/candidate/profile-photo", data),
+  updateCoverPhoto: (data) => api.put("/candidate/cover-photo", data),
 
   // Optimized profile photo upload
   uploadOptimizedProfilePhoto: async (file) => {
@@ -228,7 +228,7 @@ export const candidateApi = {
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await api.post("/candidates/profile/photo/upload", formData, {
+      const response = await api.post("/candidate/profile/photo/upload", formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -244,28 +244,28 @@ export const candidateApi = {
 
   // Open to Work status management
   updateOpenToWorkStatus: (openToWork) =>
-    api.patch("/candidates/profile/open-to-work", { openToWork }),
-  getOpenToWorkStatus: () => api.get("/candidates/profile/open-to-work"),
+    api.patch("/candidate/profile/open-to-work", { openToWork }),
+  getOpenToWorkStatus: () => api.get("/candidate/profile/open-to-work"),
 
   // Onboarding management
   saveOnboardingData: (onboardingData) =>
-    api.post("/candidates/onboarding", onboardingData),
-  getOnboardingData: () => api.get("/candidates/onboarding"),
+    api.post("/candidate/onboarding", onboardingData),
+  getOnboardingData: () => api.get("/candidate/onboarding"),
 
   // Application management
   withdrawApplication: (applicationId) =>
-    api.delete(`/candidates/applications/${applicationId}`),
+    api.delete(`/candidate/applications/${applicationId}`),
 
   // Get candidate applications
   async getCandidateApplications() {
-    const response = await candidateApi.get("/applications");
+    const response = await api.get("/candidate/applications");
     return response.data;
   },
 
   // Logout candidate
   async logout() {
     try {
-      const response = await candidateApi.post("/auth/logout");
+      const response = await api.post("/auth/logout");
       return response.data;
     } catch (error) {
       // Don't throw error on logout - proceed with client cleanup

@@ -97,8 +97,8 @@ model User {
   name         String
   firstName    String?  @map("first_name")
   lastName     String?  @map("last_name")
-  email        String   @unique
-  phone        String?
+  email        String?  @unique
+  phone        String   @unique
   passwordHash String   @map("password_hash")
   role         UserRole
   cityId       String?  @map("city_id")
@@ -532,4 +532,15 @@ model EmailTemplate {
   updatedAt DateTime          @updatedAt @map("updated_at")
 
   @@map("email_templates")
+}
+
+// SMS Templates Model
+model SmsTemplate {
+  id           String   @id @default(uuid())
+  templateName String   @unique @map("template_name")
+  message      String   @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("sms_templates")
 }

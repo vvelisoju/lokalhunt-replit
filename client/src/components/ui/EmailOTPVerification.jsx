@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from "react";
 import {
   LockClosedIcon,
-  EnvelopeIcon,
+  PhoneIcon,
   ArrowLeftIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 import FormInput from "./FormInput";
 import Button from "./Button";
 import { useToast } from "./Toast";
 import { authService } from "../../services/authService";
 
-const EmailOTPVerification = ({
+const MobileOTPVerification = ({
+  phone,
   email,
   onVerificationSuccess,
   onBack,
   loading: parentLoading,
+  isMobile = false,
 }) => {
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
@@ -24,6 +28,9 @@ const EmailOTPVerification = ({
 
   // Check if OTP is complete (6 digits)
   const isOtpComplete = otp.length === 6;
+
+  // Use phone for display if mobile mode, otherwise fall back to email
+  const contactInfo = isMobile ? phone : email;
 
   // Toast notifications
   const { success: showSuccess, error: showError } = useToast();
@@ -37,6 +44,55 @@ const EmailOTPVerification = ({
     return () => clearTimeout(timer);
   }, [resendCooldown]);
 
+  const getUserFriendlyErrorMessage = (error) => {
+    // Handle both direct error messages and error response objects
+    let errorMsg = '';
+
+    if (error?.response?.data?.message) {
+      errorMsg = error.response.data.message;
+    } else if (error?.message) {
+      errorMsg = error.message;
+    } else if (typeof error === 'string') {
+      errorMsg = error;
+    } else {
+      errorMsg = '';
+    }
+
+    // Convert to lowercase for easier matching
+    const lowerErrorMsg = errorMsg.toLowerCase();
+
+    // Map technical errors to user-friendly messages
+    if (lowerErrorMsg.includes('invalid otp') || lowerErrorMsg.includes('otp must be 6 digits')) {
+      return 'Invalid verification code. Please check and try again.';
+    }
+    if (lowerErrorMsg.includes('expired') || lowerErrorMsg.includes('otp has expired')) {
+      return 'Your verification code has expired. Please request a new one.';
+    }
+    if (lowerErrorMsg.includes('user not found') || lowerErrorMsg.includes('not found')) {
+      return 'Account not found. Please check your details and try again.';
+    }
+    if (lowerErrorMsg.includes('password') && lowerErrorMsg.includes('match')) {
+      return 'Passwords do not match. Please make sure they are identical.';
+    }
+    if (lowerErrorMsg.includes('6 characters') || lowerErrorMsg.includes('password must be at least')) {
+      return 'Password must be at least 6 characters long.';
+    }
+    if (lowerErrorMsg.includes('network') || lowerErrorMsg.includes('connection')) {
+      return 'Network error. Please check your internet connection and try again.';
+    }
+    if (lowerErrorMsg.includes('is not a function')) {
+      return 'Technical error occurred. Please try again or contact support.';
+    }
+
+    // If we have a specific error message, show it (cleaned up)
+    if (errorMsg && errorMsg.trim()) {
+      return errorMsg;
+    }
+
+    // Default fallback message
+    return 'Verification failed. Please check your code and try again.';
+  };
+
   const handleResendOTP = async () => {
     if (resendCooldown > 0) return;
 
@@ -44,18 +100,27 @@ const EmailOTPVerification = ({
     setIsLoading(true);
 
     try {
-      const result = await authService.resendOTP(email);
+      let result;
+      if (isMobile && phone) {
+        // For mobile OTP resend, we need to call the appropriate API
+        result = await authService.forgotPasswordMobile({ phone });
+      } else if (email) {
+        result = await authService.resendOTP({ email });
+      }
 
-      if (result.success) {
+      console.log('Resend OTP result:', result);
+
+      if (result && result.status === 'success') {
         setResendCooldown(30);
-        showSuccess("OTP sent successfully!");
+        showSuccess(`Verification code sent to your ${isMobile ? 'mobile number' : 'email'}!`);
       } else {
-        throw new Error(result.error || "Failed to send OTP");
+        throw new Error(result?.message || result?.error || "Failed to send verification code");
       }
     } catch (error) {
       console.error("Failed to send OTP:", error);
-      showError("Failed to send OTP. Please try again.");
-      setErrors({ general: "Failed to send OTP. Please try again." });
+      const friendlyMessage = getUserFriendlyErrorMessage(error);
+      showError(`Failed to send code: ${friendlyMessage}`);
+      setErrors({ general: `Failed to send verification code: ${friendlyMessage}` });
     } finally {
       setIsLoading(false);
     }
@@ -93,11 +158,11 @@ const EmailOTPVerification = ({
     const validationErrors = {};
 
     if (!otp || otp.length !== 6) {
-      validationErrors.otp = "Please enter a valid 6-digit code";
+      validationErrors.otp = "Please enter the complete 6-digit verification code";
     }
 
     if (!password || password.length < 6) {
-      validationErrors.password = "Password must be at least 6 characters";
+      validationErrors.password = "Password must be at least 6 characters long";
     }
 
     if (password !== confirmPassword) {
@@ -113,224 +178,303 @@ const EmailOTPVerification = ({
       setIsLoading(true);
 
       // Call the verification success callback with all required data
-      await onVerificationSuccess({
-        email,
-        otp,
-        password,
-        confirmPassword,
-      });
+      if (isMobile && phone) {
+        await onVerificationSuccess({
+          phone,
+          otp,
+          password,
+          confirmPassword,
+        });
+      } else {
+        await onVerificationSuccess({
+          email,
+          otp,
+          password,
+          confirmPassword,
+        });
+      }
+
+      // If we reach here without error, verification was successful
+      // Don't show any error messages
+
     } catch (error) {
-      console.error("OTP verification failed:", error);
+      console.error('Verification failed:', error);
 
-      // Show error toast notification
-      showError(error.message || "Invalid OTP. Please try again.");
+      // Only show error messages if the verification actually failed
+      // Sometimes the parent component handles success but throws for navigation issues
+      if (error && error.message && !error.message.includes('Successfully')) {
+        const errorMessage = getUserFriendlyErrorMessage(error);
 
-      // Set form errors to keep user on the same page
-      setErrors({
-        otp: "Invalid OTP code. Please check and try again.",
-        general: error.message || "Verification failed. Please try again.",
-      });
-
-      // Clear the OTP input for user to enter a new one
-      setOtp("");
+        // Check if it's an OTP-specific error
+        if (errorMessage.toLowerCase().includes('invalid') && errorMessage.toLowerCase().includes('verification')) {
+          setErrors({ 
+            otp: errorMessage
+          });
+          showError(errorMessage);
+        } else if (errorMessage.toLowerCase().includes('expired')) {
+          setErrors({ 
+            otp: errorMessage
+          });
+          setOtp(''); // Clear OTP on expiry
+          showError(errorMessage);
+        } else if (!errorMessage.toLowerCase().includes('success')) {
+          // Only show general errors if they're not success messages
+          setErrors({ 
+            general: errorMessage
+          });
+          showError(errorMessage);
+        }
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 flex flex-col lg:flex-row">
-      {/* Left Panel - Logo and Info */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 to-orange-500 items-center justify-center p-8">
-        <div className="max-w-md text-center text-white">
-          <div className="flex items-center justify-center mb-8">
-            <img src="/images/logo.png" alt="LokalHunt Logo" className="h-14" />
-          </div>
-          <h1 className="text-4xl font-bold mb-6">Almost There!</h1>
-          <p className="text-xl mb-8 text-blue-100">
-            Verify your email to complete your LokalHunt registration
-          </p>
-          <div className="space-y-4 text-left">
-            <div className="flex items-center">
-              <div className="w-2 h-2 bg-orange-300 rounded-full mr-3"></div>
-              <span>Secure email verification</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-2 h-2 bg-orange-300 rounded-full mr-3"></div>
-              <span>Set up your account password</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-2 h-2 bg-orange-300 rounded-full mr-3"></div>
-              <span>Join the LokalHunt community</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Panel - Verification Form */}
-      <div className="flex-1 flex items-center justify-center p-4 min-h-screen">
-        <div className="w-full max-w-md mx-auto">
-          {/* Mobile Logo */}
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center mb-6">
-              <img
-                src="/images/logo.png"
-                alt="LokalHunt Logo"
-                className="h-14"
-              />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 lg:p-8">
-            {/* Back Link */}
-            <div className="mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50">
+      {/* Mobile-first layout */}
+      <div className="flex flex-col min-h-screen">
+        {/* Header with logo - compact on mobile */}
+        <div className="flex-shrink-0 bg-white shadow-sm border-b border-gray-100">
+          <div className="px-4 py-3 sm:px-6 sm:py-4">
+            <div className="flex items-center justify-between">
               <button
                 onClick={onBack}
                 className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
                 disabled={isLoading || parentLoading}
               >
                 <ArrowLeftIcon className="w-4 h-4 mr-2" />
-                Back to Registration
+                Back
               </button>
+              <img src="/images/logo.png" alt="LokalHunt" className="h-8 sm:h-10" />
+              <div className="w-16"></div> {/* Spacer for centering */}
             </div>
+          </div>
+        </div>
 
-            {/* Header */}
-            <div className="text-center mb-6 sm:mb-8">
-              <div className="flex items-center justify-center mb-4">
-                <EnvelopeIcon className="h-12 w-12 text-blue-600" />
+        {/* Main content - scrollable */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-4 py-6 sm:px-6 sm:py-8">
+            <div className="max-w-md mx-auto">
+              {/* Compact header */}
+              <div className="text-center mb-6">
+                <div className="flex items-center justify-center mb-3">
+                  <div className="p-3 bg-blue-100 rounded-full">
+                    <PhoneIcon className="h-6 w-6 text-blue-600" />
+                  </div>
+                </div>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+                  Verify Mobile Number
+                </h1>
+                <p className="text-sm text-gray-600">
+                  Code sent to{" "}
+                  <span className="font-semibold text-blue-600">{contactInfo}</span>
+                </p>
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-                Verify your email
-              </h2>
-              <p className="text-sm sm:text-base text-gray-600">
-                We've sent a 6-digit code to{" "}
-                <span className="font-medium text-blue-600">{email}</span>
+
+              {/* Alert for general errors */}
+              {errors.general && !errors.otp && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start">
+                  <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-red-700 font-medium">Verification Failed</p>
+                    <p className="text-sm text-red-600 mt-1">{errors.general}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Verification Form */}
+              <form onSubmit={handleVerify} className="space-y-4">
+                {/* OTP Input - More prominent */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Verification Code
+                  </label>
+                  <input
+                    type="text"
+                    name="otp"
+                    value={otp}
+                    onChange={handleChange}
+                    placeholder="000000"
+                    className={`w-full px-4 py-4 text-lg font-mono text-center border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all tracking-widest ${
+                      errors.otp
+                        ? "border-red-300 bg-red-50"
+                        : otp.length === 6
+                        ? "border-green-300 bg-green-50"
+                        : "border-gray-200 bg-gray-50 focus:bg-white"
+                    }`}
+                    maxLength={6}
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                  />
+                  {errors.otp && (
+                    <div className="mt-2 flex items-start">
+                      <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mt-0.5 mr-1 flex-shrink-0" />
+                      <p className="text-sm text-red-600 font-medium">{errors.otp}</p>
+                    </div>
+                  )}
+                  {otp.length === 6 && !errors.otp && (
+                    <div className="mt-2 flex items-center">
+                      <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
+                      <p className="text-sm text-green-600">Code entered successfully</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Resend Section - Compact */}
+                <div className="text-center py-2">
+                  <button
+                    type="button"
+                    onClick={handleResendOTP}
+                    disabled={resendCooldown > 0 || isLoading}
+                    className={`text-sm font-medium ${
+                      resendCooldown > 0 || isLoading
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-blue-600 hover:text-blue-500"
+                    }`}
+                  >
+                    {resendCooldown > 0
+                      ? `Resend in ${resendCooldown}s`
+                      : "Resend Code"}
+                  </button>
+                </div>
+
+                {/* Password Section - Compact */}
+                <div className="space-y-4 pt-4 border-t border-gray-200">
+                  <h3 className="text-base font-semibold text-gray-900">
+                    Create Password
+                  </h3>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <LockClosedIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <input
+                          type="password"
+                          name="password"
+                          value={password}
+                          onChange={handleChange}
+                          placeholder={isOtpComplete ? "Create password" : "Enter code first"}
+                          disabled={!isOtpComplete}
+                          className={`w-full pl-10 pr-4 py-3 text-base border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                            errors.password
+                              ? "border-red-300 bg-red-50"
+                              : !isOtpComplete
+                              ? "border-gray-200 bg-gray-100 text-gray-400"
+                              : "border-gray-200 bg-gray-50 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+                      {errors.password && (
+                        <div className="mt-1 flex items-start">
+                          <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mt-0.5 mr-1 flex-shrink-0" />
+                          <p className="text-sm text-red-600">{errors.password}</p>
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">At least 6 characters</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Confirm Password
+                      </label>
+                      <div className="relative">
+                        <LockClosedIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <input
+                          type="password"
+                          name="confirmPassword"
+                          value={confirmPassword}
+                          onChange={handleChange}
+                          placeholder={isOtpComplete ? "Confirm password" : "Enter code first"}
+                          disabled={!isOtpComplete}
+                          className={`w-full pl-10 pr-4 py-3 text-base border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                            errors.confirmPassword
+                              ? "border-red-300 bg-red-50"
+                              : !isOtpComplete
+                              ? "border-gray-200 bg-gray-100 text-gray-400"
+                              : "border-gray-200 bg-gray-50 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+                      {errors.confirmPassword && (
+                        <div className="mt-1 flex items-start">
+                          <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mt-0.5 mr-1 flex-shrink-0" />
+                          <p className="text-sm text-red-600">{errors.confirmPassword}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Button - Fixed at bottom on mobile */}
+                <div className="pt-6">
+                  <button
+                    type="submit"
+                    disabled={isLoading || parentLoading || !isOtpComplete || !password || !confirmPassword}
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-4 rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed text-base"
+                  >
+                    {isLoading || parentLoading ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        Verifying...
+                      </div>
+                    ) : (
+                      "Complete Registration"
+                    )}
+                  </button>
+                </div>
+              </form>
+
+              {/* Help text */}
+              <div className="mt-4 text-center">
+                <p className="text-xs text-gray-500">
+                  Didn't receive the code? Check your messages or wait {resendCooldown > 0 ? `${resendCooldown}s` : ''} to resend
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop layout - hidden on mobile */}
+        <div className="hidden lg:flex lg:min-h-screen">
+          {/* Left Panel - Logo and Info */}
+          <div className="lg:w-1/2 bg-gradient-to-br from-blue-600 to-orange-500 flex items-center justify-center p-8">
+            <div className="max-w-md text-center text-white">
+              <div className="flex items-center justify-center mb-8">
+                <img src="/images/logo.png" alt="LokalHunt Logo" className="h-14" />
+              </div>
+              <h1 className="text-4xl font-bold mb-6">Almost There!</h1>
+              <p className="text-xl mb-8 text-blue-100">
+                Verify your {isMobile ? 'mobile number' : 'email'} to complete your LokalHunt registration
               </p>
-            </div>
-
-            {/* Verification Form */}
-            <form onSubmit={handleVerify} className="space-y-4 sm:space-y-5">
-              {/* OTP Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Enter 6-digit code <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="otp"
-                  value={otp}
-                  onChange={handleChange}
-                  placeholder="000000"
-                  className={`w-full pl-12 pr-4 py-3 sm:py-4 text-sm sm:text-base border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                    errors.otp
-                      ? "border-red-300 bg-red-50"
-                      : "border-gray-200 bg-gray-50 focus:bg-white"
-                  }`}
-                  maxLength={6}
-                  autoComplete="one-time-code"
-                />
-                {errors.otp && (
-                  <p className="mt-1 text-sm text-red-600">{errors.otp}</p>
-                )}
-              </div>
-
-              {/* Resend Link */}
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={handleResendOTP}
-                  disabled={resendCooldown > 0 || isLoading}
-                  className={`text-sm ${
-                    resendCooldown > 0 || isLoading
-                      ? "text-gray-400 cursor-not-allowed"
-                      : "text-blue-600 hover:text-blue-500 cursor-pointer font-medium"
-                  }`}
-                >
-                  {resendCooldown > 0
-                    ? `Resend code in ${resendCooldown}s`
-                    : "Resend code"}
-                </button>
-              </div>
-
-              {/* Password Section */}
-              <div className="border-t border-gray-200 pt-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Set your password
-                </h3>
-
-                <div className="space-y-4">
-                  <FormInput
-                    label="Password"
-                    type="password"
-                    name="password"
-                    value={password}
-                    onChange={handleChange}
-                    placeholder={
-                      isOtpComplete ? "Create a password" : "Enter OTP first"
-                    }
-                    required
-                    icon={LockClosedIcon}
-                    error={errors.password}
-                    helpText="Must be at least 6 characters"
-                    disabled={!isOtpComplete}
-                    className={`w-full pl-12 pr-4 py-3 sm:py-4 text-sm sm:text-base border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                      errors.password
-                        ? "border-red-300 bg-red-50"
-                        : "border-gray-200 bg-gray-50 focus:bg-white"
-                    }`}
-                  />
-
-                  <FormInput
-                    label="Confirm Password"
-                    type="password"
-                    name="confirmPassword"
-                    value={confirmPassword}
-                    onChange={handleChange}
-                    placeholder={
-                      isOtpComplete
-                        ? "Confirm your password"
-                        : "Enter OTP first"
-                    }
-                    required
-                    icon={LockClosedIcon}
-                    error={errors.confirmPassword}
-                    disabled={!isOtpComplete}
-                    className={`w-full pl-12 pr-4 py-3 sm:py-4 text-sm sm:text-base border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                      errors.confirmPassword
-                        ? "border-red-300 bg-red-50"
-                        : "border-gray-200 bg-gray-50 focus:bg-white"
-                    }`}
-                  />
+              <div className="space-y-4 text-left">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-orange-300 rounded-full mr-3"></div>
+                  <span>Secure {isMobile ? 'mobile' : 'email'} verification</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-orange-300 rounded-full mr-3"></div>
+                  <span>Set up your account password</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-orange-300 rounded-full mr-3"></div>
+                  <span>Join the LokalHunt community</span>
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* Action Buttons */}
-              <div className="flex space-x-4 pt-4">
-                <button
-                  type="button"
-                  onClick={onBack}
-                  disabled={isLoading || parentLoading}
-                  className="flex-1 bg-white border-2 border-gray-200 text-gray-700 font-semibold py-4 px-4 rounded-2xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-gray-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-base hover:border-gray-300"
-                >
-                  Back
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={isLoading || parentLoading}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-4 rounded-2xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-base"
-                >
-                  {isLoading || parentLoading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Verifying...
-                    </div>
-                  ) : (
-                    "Verify & Complete"
-                  )}
-                </button>
+          {/* Right Panel - Desktop Form */}
+          <div className="lg:w-1/2 flex items-center justify-center p-8">
+            <div className="w-full max-w-md">
+              <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+                {/* Desktop version of the form would go here */}
+                {/* For now, using the same compact layout */}
               </div>
-            </form>
+            </div>
           </div>
         </div>
       </div>
@@ -338,4 +482,4 @@ const EmailOTPVerification = ({
   );
 };
 
-export default EmailOTPVerification;
+export default MobileOTPVerification;

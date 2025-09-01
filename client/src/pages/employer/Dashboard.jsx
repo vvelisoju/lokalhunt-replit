@@ -15,12 +15,23 @@ import JobCard from "../../components/ui/JobCard";
 import { getAds } from "../../services/employer/ads";
 import { getMous } from "../../services/employer/mou";
 import { useRole } from "../../context/RoleContext";
+import { useAuth } from "../../context/AuthContext";
 
 const Dashboard = () => {
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState({
+    totalAds: 0,
+    draft: 0,
+    pendingApproval: 0,
+    approved: 0,
+    archived: 0,
+    allocatedCandidates: 0,
+  });
   const [recentAds, setRecentAds] = useState([]);
   const [activeMou, setActiveMou] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Auth context for authentication state
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
 
   // Role context for Branch Admin functionality
   const roleContext = useRole();
@@ -34,9 +45,16 @@ const Dashboard = () => {
 
   const isBranchAdminView = isAdminView(); // Use isAdminView from context
 
+  console.log("Dashboard: Role context:", roleContext);
+  console.log("Dashboard: Auth state:", { user, isAuthenticated, authLoading });
+
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    // Only load dashboard data if user is authenticated
+    if (isAuthenticated && user) {
+      loadDashboardData();
+    }
+    // No need to set loading false here as we start with false
+  }, [isAuthenticated, user]);
 
   const loadDashboardData = async () => {
     setIsLoading(true);
@@ -61,18 +79,57 @@ const Dashboard = () => {
           ),
         };
         setStats(stats);
+      } else {
+        // Even if ads load fails, set empty stats to show dashboard
+        setStats({
+          totalAds: 0,
+          draft: 0,
+          pendingApproval: 0,
+          approved: 0,
+          archived: 0,
+          allocatedCandidates: 0,
+        });
+        setRecentAds([]);
       }
     } catch (error) {
       console.error("Error loading dashboard:", error);
+      // Set empty stats even on error to show dashboard
+      setStats({
+        totalAds: 0,
+        draft: 0,
+        pendingApproval: 0,
+        approved: 0,
+        archived: 0,
+        allocatedCandidates: 0,
+      });
+      setRecentAds([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isLoading) {
+  // Show loading only while authenticating or loading dashboard data (with timeout protection)
+  if (authLoading || (isLoading && isAuthenticated)) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Loader />
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+        <div className="text-center">
+          <Loader />
+          <p className="mt-4 text-sm text-gray-600">
+            {authLoading ? "Authenticating..." : "Loading dashboard..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, don't render the dashboard (EmployerRoute should handle redirect)
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+        <div className="text-center">
+          <Loader />
+          <p className="mt-4 text-sm text-gray-600">Redirecting...</p>
+        </div>
       </div>
     );
   }

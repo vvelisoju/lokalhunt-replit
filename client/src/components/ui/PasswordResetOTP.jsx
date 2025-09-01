@@ -7,9 +7,11 @@ import { authService } from '../../services/authService'
 
 const PasswordResetOTP = ({ 
   email, 
+  phone,
+  isMobile = false,
   onResetSuccess, 
   onBack, 
-  loading: parentLoading 
+  loading: parentLoading = false 
 }) => {
   const [otp, setOtp] = useState('')
   const [password, setPassword] = useState('')
@@ -40,18 +42,20 @@ const PasswordResetOTP = ({
     setIsLoading(true)
 
     try {
-      const result = await authService.forgotPassword(email)
+      const result = isMobile
+        ? await authService.forgotPasswordMobile(phone)
+        : await authService.forgotPassword(email)
 
       if (result.success) {
-        showSuccess('Password reset OTP sent successfully!')
+        showSuccess('Verification code sent successfully!')
         setResendCooldown(30)
       } else {
         throw new Error(result.error || 'Failed to resend verification code')
       }
     } catch (error) {
       console.error('Failed to send OTP:', error)
-      showError(error.message || 'Failed to send OTP. Please try again.')
-      setErrors({ general: 'Failed to send OTP. Please try again.' })
+      showError(error.message || 'Failed to send verification code. Please try again.')
+      setErrors({ general: 'Failed to send verification code. Please try again.' })
     } finally {
       setIsLoading(false)
     }
@@ -108,7 +112,9 @@ const PasswordResetOTP = ({
     try {
       setIsLoading(true)
 
-      const result = await authService.resetPassword(email, otp, password, confirmPassword)
+      const result = isMobile 
+        ? await authService.resetPasswordMobile(phone, otp, password, confirmPassword)
+        : await authService.resetPassword(email, otp, password, confirmPassword)
 
       if (result.success) {
         showSuccess('Password reset successfully!')
@@ -120,11 +126,11 @@ const PasswordResetOTP = ({
       console.error('Password reset failed:', error)
 
       // Show error toast notification
-      showError(error.message || 'Invalid OTP. Please try again.')
+      showError(error.message || 'Invalid verification code. Please try again.')
 
       // Set form errors to keep user on the same page
       setErrors({ 
-        otp: 'Invalid OTP code. Please check and try again.',
+        otp: 'Invalid verification code. Please check and try again.',
         general: error.message || 'Password reset failed. Please try again.' 
       })
 
@@ -206,7 +212,7 @@ const PasswordResetOTP = ({
               </h2>
               <p className="text-sm sm:text-base text-gray-600">
                 We've sent a 6-digit code to{' '}
-                <span className="font-medium text-red-600">{email}</span>
+                <span className="font-medium text-red-600">{isMobile ? phone : email}</span>
               </p>
             </div>
 

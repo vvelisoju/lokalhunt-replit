@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/ui/Toast";
 import { authService } from "../services/authService";
-import EmailOTPVerification from "../components/ui/EmailOTPVerification";
+import OTPVerification from "../components/ui/OTPVerification";
 import FormInput from "../components/ui/FormInput";
 import Select from "../components/ui/Select";
 import Button from "../components/ui/Button";
@@ -19,13 +18,13 @@ import {
   BuildingOfficeIcon,
 } from "@heroicons/react/24/outline";
 import CityDropdown from "../components/ui/CityDropdown";
-
+import { useAuth } from "../context/AuthContext";
 
 const Register = () => {
   const { t } = useTranslation();
-  const { register } = useAuth();
   const navigate = useNavigate();
-  const { toast, success, error } = useToast();
+  const { success: showSuccess, error: showError } = useToast();
+  const { updateUser, getDefaultDashboard } = useAuth();
 
   const [activeTab, setActiveTab] = useState("candidate");
   const [currentStep, setCurrentStep] = useState("registration"); // Track current step: 'registration', 'verification'
@@ -33,7 +32,6 @@ const Register = () => {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
-    email: "",
     phone: "",
     city: "",
     role: "CANDIDATE",
@@ -95,12 +93,6 @@ const Register = () => {
       newErrors.lastName = "Last name is required";
     }
 
-    if (!formData.email) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
-    }
-
     if (!formData.phone) {
       newErrors.phone = "Phone number is required";
     } else if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ""))) {
@@ -131,7 +123,6 @@ const Register = () => {
       const data = await authService.register({
         firstName: formData.firstName,
         lastName: formData.lastName,
-        email: formData.email,
         phone: formData.phone,
         role: formData.role,
         cityId: formData.city,
@@ -139,109 +130,72 @@ const Register = () => {
       });
 
       // Check for successful registration and OTP sent
-      if (data.success || data.status === 'success' || data.status === 201) {
-        success("OTP sent to email. Please check your email to verify.");
+      if (data.success || data.status === "success" || data.status === 201) {
+        showSuccess(
+          "OTP sent to your mobile number. Please check your SMS to verify.",
+        );
+
+        // Store company data temporarily for OTP verification
+        if (formData.role === "EMPLOYER" && formData.companyName) {
+          localStorage.setItem(
+            "tempCompanyData",
+            JSON.stringify({
+              companyName: formData.companyName,
+              companyDescription: formData.companyDescription || "",
+              industry: formData.industry || "",
+              companySize: formData.companySize || "",
+              website: formData.website || "",
+            }),
+          );
+        }
+
+        // Move to verification step
+        setCurrentStep("verification");
         setOtpSent(true);
-        setCurrentStep("verification"); // Automatically navigate to verification step
       } else {
         // Handle various error scenarios
-        const errorMessage = data.message || "Registration failed. Please try again.";
-        setErrors({ general: errorMessage });
-        error(errorMessage);
+        let errorMessage =
+          data.message || "Registration failed. Please try again.";
+
+        // Convert email-related errors to phone-related errors
+        if (errorMessage.includes("email already exists")) {
+          errorMessage = "User with this phone number already exists";
+          setErrors({ phone: errorMessage });
+        } else {
+          setErrors({ general: errorMessage });
+        }
+        showError(errorMessage);
       }
     } catch (error) {
       console.error("Registration failed:", error);
-      
+
       // Handle specific error responses
       if (error.response?.data) {
         const errorData = error.response.data;
-        
-        if (error.response.status === 409 || errorData.message?.includes('already exists')) {
-          setErrors({ email: "User with this email already exists" });
-          error("User with this email already exists");
+
+        if (
+          error.response.status === 409 ||
+          errorData.message?.includes("already exists") ||
+          errorData.message?.includes("phone number already exists")
+        ) {
+          setErrors({ phone: "User with this phone number already exists" });
+          showError("User with this phone number already exists");
         } else {
-          const errorMessage = errorData.message || "Registration failed. Please try again.";
+          const errorMessage =
+            errorData.message || "Registration failed. Please try again.";
           setErrors({ general: errorMessage });
-          error(errorMessage);
+          showError(errorMessage);
         }
       } else {
         setErrors({ general: "Registration failed. Please try again." });
-        error("Registration failed. Please try again.");
+        showError("Registration failed. Please try again.");
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleVerificationSuccess = async (verificationData) => {
-    try {
-      setIsLoading(true);
-
-      const data = await authService.verifyOTP({
-        email: formData.email,
-        otp: verificationData.otp,
-        password: verificationData.password,
-        confirmPassword: verificationData.confirmPassword,
-      });
-
-      if (data.success || data.status === 'success') {
-        if (data.data && data.data.token) {
-          localStorage.setItem("token", data.data.token);
-          localStorage.setItem("user", JSON.stringify(data.data.user));
-        }
-
-        console.log("Registration completed successfully", formData, data);
-        success("Registration completed successfully!");
-
-        if (formData.role === "EMPLOYER" && data.data?.token) {
-          try {
-            const profileResponse = await fetch("/api/auth/profile", {
-              method: "GET",
-              headers: {
-                Authorization: `Bearer ${data.data.token}`,
-                "Content-Type": "application/json",
-              },
-            });
-
-            if (profileResponse.ok) {
-              console.log("Employer profile verified successfully");
-            } else {
-              console.warn(
-                "Employer profile verification failed, but proceeding with redirect",
-              );
-            }
-          } catch (profileError) {
-            console.warn("Error verifying employer profile:", profileError);
-          }
-        }
-
-        if (formData.role === "EMPLOYER") {
-          console.log("Redirecting employer to dashboard");
-          navigate("/employer/dashboard", { replace: true });
-        } else {
-          navigate("/candidate/dashboard", { replace: true });
-        }
-        return;
-      } else {
-        throw new Error(data.message || 'Verification failed')
-      }
-    } catch (error) {
-      console.error('Registration completion failed:', error);
-
-      let errorMessage = 'Verification failed. Please try again.';
-
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      error(errorMessage);
-      setCurrentStep('verification');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  
 
   const handleBackToRegistration = () => {
     setCurrentStep("registration");
@@ -251,11 +205,14 @@ const Register = () => {
 
   if (currentStep === "verification") {
     return (
-      <EmailOTPVerification
-        email={formData.email}
-        onVerificationSuccess={handleVerificationSuccess}
+      <OTPVerification
+        phone={formData.phone}
+        email=""
         onBack={handleBackToRegistration}
         loading={isLoading}
+        isMobile={true}
+        mode="registration"
+        registrationData={formData}
       />
     );
   }
@@ -474,33 +431,6 @@ const Register = () => {
 
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  Email Address <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <EnvelopeIcon className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="Enter your email"
-                    className={`w-full pl-12 pr-4 py-3 sm:py-4 text-sm sm:text-base border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                      errors.email
-                        ? "border-red-300 bg-red-50"
-                        : "border-gray-200 bg-gray-50 focus:bg-white"
-                    }`}
-                    required
-                  />
-                </div>
-                {errors.email && (
-                  <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
                   Phone Number <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -512,7 +442,20 @@ const Register = () => {
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    placeholder="Enter your phone number"
+                    placeholder="Enter 10-digit mobile number"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    onInput={(e) => {
+                      // Allow only digits and limit to 10 characters
+                      e.target.value = e.target.value
+                        .replace(/[^0-9]/g, "")
+                        .slice(0, 10);
+                      // Update the form data
+                      setFormData((prev) => ({
+                        ...prev,
+                        phone: e.target.value,
+                      }));
+                    }}
                     className={`w-full pl-12 pr-4 py-3 sm:py-4 text-sm sm:text-base border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
                       errors.phone
                         ? "border-red-300 bg-red-50"
@@ -583,8 +526,6 @@ const Register = () => {
                   "Continue to Verification"
                 )}
               </button>
-
-              
             </form>
 
             <div className="mt-6 sm:mt-8 text-center">

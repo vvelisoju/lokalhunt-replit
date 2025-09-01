@@ -10,6 +10,7 @@ import {
   CheckBadgeIcon,
   CameraIcon,
   TrashIcon,
+  TagIcon,
 } from "@heroicons/react/24/outline";
 
 // AboutContent component for expandable text
@@ -109,6 +110,21 @@ import EditProfileModal from "../../components/profile/EditProfileModal";
 import FileUploadModal from "../../components/ui/FileUploadModal";
 import { ObjectUploader } from "../../components/ObjectUploader.jsx";
 import axios from "axios";
+
+// Assume Badge component is available for rendering skills
+const Badge = ({ children, variant, className }) => {
+  const baseStyle = "px-3 py-1 rounded-full text-xs font-medium";
+  const variants = {
+    primary: "bg-blue-100 text-blue-800 border border-blue-200",
+    secondary: "bg-gray-100 text-gray-800 border border-gray-200",
+  };
+  return (
+    <span className={`${baseStyle} ${variants[variant] || variants.primary} ${className}`}>
+      {children}
+    </span>
+  );
+};
+
 
 const LinkedInProfile = () => {
   const { user } = useCandidateAuth();
@@ -604,7 +620,7 @@ const LinkedInProfile = () => {
       skills: skillsData,
     };
     const result = await updateProfile(updatedProfile);
-    // Use the returned profile data instead of local data to ensure consistency
+    // Use the returned profile data to ensure consistency
     if (result) {
       setProfileData(result);
     }
@@ -1046,7 +1062,7 @@ const LinkedInProfile = () => {
                     </div>
                   )}
                   {/* Years of Experience */}
-                  {(profileData?.experience ||
+                  {(profileData?.experience?.length ||
                     profileData?.totalExperience ||
                     profileData?.yearsOfExperience) && (
                     <div className="flex items-center">
@@ -1054,7 +1070,7 @@ const LinkedInProfile = () => {
                         💼
                       </span>
                       <span className="truncate">
-                        {profileData?.experience ||
+                        {profileData?.experience?.length ||
                           profileData?.totalExperience ||
                           profileData?.yearsOfExperience}{" "}
                         years experience
@@ -1087,7 +1103,7 @@ const LinkedInProfile = () => {
                     </div>
                   )}
                   {/* Experience Level */}
-                  {profileData?.experienceLevel && (
+                  {(profileData?.jobPreferences?.experienceLevel || profileData?.experienceLevel) && (
                     <div className="flex items-center">
                       <span className="w-4 h-4 mr-2 flex-shrink-0 text-xs">
                         📊
@@ -1626,7 +1642,9 @@ const LinkedInProfile = () => {
 
                   {/* Availability & Additional Preferences */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {profileData?.availabilityStatus && (
+                    {(profileData?.availabilityStatus || 
+                      profileData?.profileData?.jobPreferences?.availability ||
+                      profileData?.jobPreferences?.availabilityDate) && (
                       <div className="p-2 sm:p-3 bg-lime-50 rounded-lg border border-lime-200">
                         <h4 className="font-medium text-gray-900 mb-2 text-xs sm:text-sm">
                           Availability
@@ -1638,6 +1656,7 @@ const LinkedInProfile = () => {
                               ?.availability ||
                             profileData?.jobPreferences?.availabilityDate
                           )
+                            ?.toString()
                             ?.replace(/_/g, " ")
                             ?.toLowerCase()
                             ?.replace(/\b\w/g, (l) => l.toUpperCase())}
@@ -1663,15 +1682,15 @@ const LinkedInProfile = () => {
                   </div>
 
                   {/* Travel Willingness */}
-                  {(profileData?.jobPreferences?.travelWillingness ||
-                    profileData?.travelWillingness) && (
+                  {(profileData?.jobPreferences?.travelWillingness !== undefined ||
+                    profileData?.travelWillingness !== undefined) && (
                     <div className="p-2 sm:p-3 bg-amber-50 rounded-lg border border-amber-200">
                       <h4 className="font-medium text-gray-900 mb-2 text-xs sm:text-sm">
                         Travel Preference
                       </h4>
                       <span className="px-2 py-1 bg-amber-100 text-amber-800 text-xs rounded-full font-medium">
-                        {profileData?.jobPreferences?.travelWillingness ||
-                        profileData?.travelWillingness
+                        {(profileData?.jobPreferences?.travelWillingness ||
+                        profileData?.travelWillingness)
                           ? "Willing to travel"
                           : "Prefers local work"}
                       </span>

@@ -3,7 +3,7 @@ import { toast } from "react-hot-toast";
 import Layout from "../../components/candidate/Layout";
 import Profile from "../../components/ui/Profile";
 import { useAuth } from "../../context/AuthContext";
-import { profileService } from "../../services/profileService";
+import { authService } from "../../services/authService";
 
 const AccountSettings = () => {
   const { user } = useAuth();
@@ -17,12 +17,12 @@ const AccountSettings = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const response = await profileService.getProfile();
-      if (response.success) {
-        // Handle the nested data structure: response.data.data.user
-        setProfileData(response.data.data ? response.data.data.user : response.data);
+      const response = await authService.getProfile();
+      if (response && (response.status === "success" || response.success !== false)) {
+        const userData = response.data || response;
+        setProfileData(userData);
       } else {
-        toast.error(response.error || "Failed to load profile data");
+        toast.error(response?.error || "Failed to load profile data");
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -34,11 +34,11 @@ const AccountSettings = () => {
 
   const handleUpdateProfile = async (formData) => {
     try {
-      const response = await profileService.updateProfile(formData);
-      if (response.success) {
+      const response = await authService.updateProfile(formData);
+      if (response && (response.status === "success" || response.success !== false)) {
         await fetchProfile(); // Refresh profile data
       } else {
-        throw new Error(response.error || "Failed to update profile");
+        throw new Error(response?.error || "Failed to update profile");
       }
     } catch (error) {
       console.error("Error updating profile:", error);

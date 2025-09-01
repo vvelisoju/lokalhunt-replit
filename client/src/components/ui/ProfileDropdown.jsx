@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -31,10 +30,10 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
-    
+
     checkMobile()
     window.addEventListener('resize', checkMobile)
-    
+
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
@@ -72,7 +71,7 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
     try {
       // Close dropdown first
       setShowUserMenu(false)
-      
+
       // Call context logout with navigate function (handles both state and cleanup)
       await logout(navigate)
     } catch (error) {
@@ -163,12 +162,12 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
                              user?.profilePhoto || 
                              user?.candidate?.profilePhoto ||
                              user?.candidate?.profileImage;
-    
+
     if (profileImagePath) {
       // Use getImageUrl helper to properly construct the URL
       return getImageUrl(profileImagePath);
     }
-    
+
     // Fallback to generated avatar
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=059669&color=fff`;
   };
@@ -318,7 +317,7 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
               onClick={() => setShowUserMenu(false)}
             />
           )}
-          
+
           {/* Bottom Sheet */}
           <div className={`fixed inset-x-0 bottom-0 z-50 transform transition-transform duration-300 ${
             showUserMenu ? 'translate-y-0' : 'translate-y-full'
@@ -328,9 +327,9 @@ const ProfileDropdown = ({ user, logout, onLanguageChange }) => {
               <div className="flex justify-center pt-3 pb-2">
                 <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
               </div>
-              
+
               <MenuContent />
-              
+
               {/* Safe area padding for devices with home indicator */}
               <div className="pb-safe"></div>
             </div>

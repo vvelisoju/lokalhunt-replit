@@ -1,68 +1,113 @@
 
-import { makeRoleAwareRequest } from '../api';
+import api from '../api'
 
 export const branchAdminSubscriptionService = {
   // Get employer's subscription as Branch Admin
   getEmployerSubscription: async (employerId) => {
-    const response = await makeRoleAwareRequest(`/subscriptions/current?employerId=${employerId}`);
-    return response;
+    try {
+      const response = await api.get(`/subscriptions/current?employerId=${employerId}`)
+      return { success: true, data: response.data.data || response.data }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch employer subscription'
+      }
+    }
   },
 
   // Get all available plans
   getPlans: async () => {
-    const response = await makeRoleAwareRequest('/subscriptions/plans');
-    return response;
+    try {
+      const response = await api.get('/subscriptions/plans')
+      return { success: true, data: response.data.data || response.data }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch plans'
+      }
+    }
   },
 
   // Create subscription for employer as Branch Admin
   createEmployerSubscription: async (employerId, subscriptionData) => {
-    const response = await makeRoleAwareRequest('/subscriptions', {
-      method: 'POST',
-      data: {
+    try {
+      const response = await api.post('/subscriptions', {
         ...subscriptionData,
         employerId
+      })
+      return { success: true, data: response.data.data || response.data }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to create subscription'
       }
-    });
-    return response;
+    }
   },
 
   // Cancel employer subscription as Branch Admin
   cancelEmployerSubscription: async (employerId) => {
-    const response = await makeRoleAwareRequest('/subscriptions/cancel', {
-      method: 'PATCH',
-      data: { employerId }
-    });
-    return response;
+    try {
+      const response = await api.patch('/subscriptions/cancel', { employerId })
+      return { success: true, data: response.data.data || response.data }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to cancel subscription'
+      }
+    }
   },
 
   // Get employer subscription history as Branch Admin
   getEmployerSubscriptionHistory: async (employerId) => {
-    const response = await makeRoleAwareRequest(`/subscriptions/history?employerId=${employerId}`);
-    return response;
+    try {
+      const response = await api.get(`/subscriptions/history?employerId=${employerId}`)
+      return { success: true, data: response.data.data || response.data }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch subscription history'
+      }
+    }
   },
 
   // Get pending subscriptions for branch admin
   getPendingSubscriptions: async (params = {}) => {
-    const response = await makeRoleAwareRequest('/subscriptions/pending', {
-      params
-    });
-    return response;
+    try {
+      const response = await api.get('/subscriptions/pending', { params })
+      return { success: true, data: response.data.data || response.data }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch pending subscriptions'
+      }
+    }
   },
 
-  // Approve subscription (Branch Admin only)
+  // Approve subscription
   approveSubscription: async (subscriptionId) => {
-    const response = await makeRoleAwareRequest(`/subscriptions/subscriptions/${subscriptionId}/approve`, {
-      method: 'POST'
-    });
-    return response;
+    try {
+      const response = await api.patch(`/subscriptions/${subscriptionId}/approve`)
+      return { success: true, data: response.data.data || response.data }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to approve subscription'
+      }
+    }
   },
 
-  // Reject subscription (Branch Admin only)
+  // Reject subscription
   rejectSubscription: async (subscriptionId, reason) => {
-    const response = await makeRoleAwareRequest(`/subscriptions/subscriptions/${subscriptionId}/reject`, {
-      method: 'POST',
-      data: { reason }
-    });
-    return response;
+    try {
+      const response = await api.patch(`/subscriptions/${subscriptionId}/reject`, { reason })
+      return { success: true, data: response.data.data || response.data }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to reject subscription'
+      }
+    }
   }
-};
+}
+
+export default branchAdminSubscriptionService

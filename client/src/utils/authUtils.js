@@ -30,12 +30,6 @@ export const clearAllAuthData = () => {
   sessionStorage.removeItem('authState')
   sessionStorage.removeItem('isAuthenticated')
   
-  // Clear any additional context data
-  localStorage.removeItem('candidateProfile')
-  localStorage.removeItem('employerProfile')
-  sessionStorage.removeItem('candidateProfile')
-  sessionStorage.removeItem('employerProfile')
-  
   // Clear any other auth-related data
   localStorage.removeItem('refreshToken')
   sessionStorage.removeItem('refreshToken')

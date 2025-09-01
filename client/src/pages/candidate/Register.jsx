@@ -10,7 +10,7 @@ import FormInput from '../../components/ui/FormInput'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import CityDropdown from '../../components/ui/CityDropdown'
-import EmailOTPVerification from '../../components/ui/EmailOTPVerification'
+import OTPVerification from '../../components/ui/OTPVerification'
 import { useCandidateAuth } from '../../hooks/useCandidateAuth'
 import { authService } from '../../services/authService'
 
@@ -19,7 +19,6 @@ const Register = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    email: '',
     phone: '',
     cityId: '',
     agreeToTerms: false
@@ -51,11 +50,7 @@ const Register = () => {
       newErrors.lastName = 'Last name is required'
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required'
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid'
-    }
+    
 
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone number is required'
@@ -87,12 +82,23 @@ const Register = () => {
   const handleVerificationSuccess = async (verificationData) => {
     try {
       // Complete registration with verification data using auth API
-      const data = await authService.verifyOTP({
-        email: formData.email,
-        otp: verificationData.otp,
-        password: verificationData.password,
-        confirmPassword: verificationData.confirmPassword,
-      });
+      // Use mobile verification if phone is provided, otherwise fall back to email
+      let data;
+      if (verificationData.phone) {
+        data = await authService.resetPasswordMobile(
+          verificationData.phone,
+          verificationData.otp,
+          verificationData.password,
+          verificationData.confirmPassword
+        );
+      } else {
+        data = await authService.verifyOTP({
+          phone: formData.phone,
+          otp: verificationData.otp,
+          password: verificationData.password,
+          confirmPassword: verificationData.confirmPassword,
+        });
+      };
 
       if (data.success || data.status === 'success') {
         // Store token if provided
@@ -129,11 +135,14 @@ const Register = () => {
   // Show OTP verification step
   if (currentStep === 'verification') {
     return (
-      <EmailOTPVerification
-        email={formData.email}
+      <OTPVerification
+        phone={formData.phone}
+        email=""
         onVerificationSuccess={handleVerificationSuccess}
         onBack={handleBackToRegistration}
-        loading={loading} // This loading state might need to be managed internally in EmailOTPVerification or passed from a context
+        loading={loading}
+        isMobile={true}
+        mode="registration"
       />
     )
   }
@@ -192,17 +201,7 @@ const Register = () => {
               />
             </div>
 
-            <FormInput
-              label="Email address"
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="john.doe@example.com"
-              required
-              icon={EnvelopeIcon}
-              error={errors.email}
-            />
+            
 
             <FormInput
               label="Phone Number"

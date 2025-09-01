@@ -40,6 +40,7 @@ const CompanyProfile = () => {
   }, []);
 
   const loadCompanies = async () => {
+    console.log("Loading companies...");
     setIsLoading(true);
     try {
       const result = await getCompanies();

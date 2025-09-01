@@ -62,7 +62,7 @@ const candidateReducer = (state, action) => {
 export const CandidateProvider = ({ children }) => {
   const [state, dispatch] = useReducer(candidateReducer, initialState)
   const { success: showSuccess, error: showError } = useToast()
-
+  
   // Clear candidate data when user becomes unauthenticated
   useEffect(() => {
     const handleStorageChange = (e) => {
@@ -71,7 +71,7 @@ export const CandidateProvider = ({ children }) => {
         dispatch({ type: 'CLEAR_DATA' })
       }
     }
-
+    
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
@@ -106,11 +106,34 @@ export const CandidateProvider = ({ children }) => {
         // Direct response: { data: profile }
         profile = response.data
       }
-      console.log('Extracted profile data:', profile)
+      
+      // Sanitize profile data to prevent React rendering issues
+      if (profile) {
+        // Ensure arrays are actually arrays
+        if (profile.skills && !Array.isArray(profile.skills)) {
+          profile.skills = []
+        }
+        if (profile.experience && !Array.isArray(profile.experience)) {
+          profile.experience = []
+        }
+        if (profile.education && !Array.isArray(profile.education)) {
+          profile.education = []
+        }
+        
+        // Ensure string fields are actually strings
+        const stringFields = ['bio', 'currentJobTitle', 'location', 'name']
+        stringFields.forEach(field => {
+          if (profile[field] && typeof profile[field] !== 'string') {
+            profile[field] = String(profile[field])
+          }
+        })
+      }
+      
+      console.log('Extracted and sanitized profile data:', profile)
       dispatch({ type: 'SET_PROFILE', payload: profile })
     } catch (error) {
       console.error('Profile fetch error:', error)
-      setError(error.message)
+      setError(error.message || 'Failed to load profile')
     }
   }, [state.profileLoaded, state.profile])
 
@@ -262,11 +285,8 @@ export const CandidateProvider = ({ children }) => {
   }
 
   const clearData = useCallback(() => {
-    console.log('CandidateContext: Clearing all candidate data and resetting state')
+    console.log('CandidateContext: Clearing all candidate data')
     dispatch({ type: 'CLEAR_DATA' })
-    // Also clear any potential cached data in memory
-    setLoading(false)
-    setError(null)
   }, [])
 
   // Make clearData globally accessible for logout

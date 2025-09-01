@@ -17,9 +17,12 @@ const EditAboutModal = ({ isOpen, onClose, currentSummary, onSave }) => {
     setLoading(true)
     try {
       await onSave(summary)
+      // Show success message or toast here if needed
+      console.log('Summary saved successfully')
       onClose()
     } catch (error) {
       console.error('Failed to save summary:', error)
+      // Show error message or toast here if needed
     } finally {
       setLoading(false)
     }

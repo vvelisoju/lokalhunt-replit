@@ -1,9 +1,10 @@
-import { makeRoleAwareRequest } from '../api'
+
+import api from '../api'
 
 export const getAdCandidates = async (adId) => {
   try {
-    const response = await makeRoleAwareRequest(`/employers/ads/${adId}/candidates`)
-    return { success: true, data: response }
+    const response = await api.get(`/employers/ads/${adId}/candidates`)
+    return { success: true, data: response.data }
   } catch (error) {
     return { 
       success: false, 
@@ -14,8 +15,8 @@ export const getAdCandidates = async (adId) => {
 
 export const getAllCandidates = async () => {
   try {
-    const response = await makeRoleAwareRequest('/employers/candidates')
-    return { success: true, data: response }
+    const response = await api.get('/employers/candidates')
+    return { success: true, data: response.data }
   } catch (error) {
     return { 
       success: false, 
@@ -36,14 +37,11 @@ export const updateCandidateStatus = async (allocationId, status, notes = '') =>
       throw new Error(`Invalid status: ${status}. Must be one of: ${validStatuses.join(', ')}`);
     }
 
-    const response = await makeRoleAwareRequest(`/employers/allocations/${allocationId}`, {
-      method: 'PATCH',
-      data: {
-        status,
-        notes: notes || ''
-      }
+    const response = await api.patch(`/employers/allocations/${allocationId}`, {
+      status,
+      notes: notes || ''
     })
-    return { success: true, data: response }
+    return { success: true, data: response.data }
   } catch (error) {
     return { 
       success: false, 

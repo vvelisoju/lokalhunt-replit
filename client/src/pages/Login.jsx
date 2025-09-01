@@ -7,7 +7,7 @@ import Button from "../components/ui/Button";
 import {
   EyeIcon,
   EyeSlashIcon,
-  EnvelopeIcon,
+  PhoneIcon,
   LockClosedIcon,
 } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
@@ -79,8 +79,28 @@ const Login = () => {
     }
   }, [isAuthenticated, user, navigate, location.state, location.pathname]);
 
+  // Show success message from password reset
+  useEffect(() => {
+    if (location.state?.message && location.state?.type === "success") {
+      toast.success(location.state.message, {
+        duration: 4000,
+        style: {
+          background: "#10b981",
+          color: "#ffffff",
+          fontWeight: "600",
+          padding: "16px",
+          borderRadius: "12px",
+          maxWidth: "500px",
+        },
+      });
+
+      // Clear the state to prevent showing the message again on refresh
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.state, navigate, location.pathname]);
+
   const [formData, setFormData] = useState({
-    email: "",
+    phone: "", // Changed from email to phone
     password: "",
   });
   const [errors, setErrors] = useState({});
@@ -98,10 +118,12 @@ const Login = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.email) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
+    // Changed validation for phone number
+    if (!formData.phone) {
+      newErrors.phone = "Mobile number is required";
+    } else if (!/^\d{10}$/.test(formData.phone)) {
+      // Basic 10-digit number validation
+      newErrors.phone = "Please enter a valid 10-digit mobile number";
     }
 
     if (!formData.password) {
@@ -119,17 +141,20 @@ const Login = () => {
     e.stopPropagation();
 
     if (!validateForm()) {
+      // Show validation error message
+      toast.error("Please fill in all required fields correctly.");
       return;
     }
 
     setIsLoading(true);
     setErrors({});
 
-    console.log("Starting login process with:", { email: formData.email });
+    // Changed to use phone instead of email
+    console.log("Starting login process with:", { phone: formData.phone });
 
     try {
       const result = await login({
-        email: formData.email.trim(),
+        phone: formData.phone.trim(), // Use phone number
         password: formData.password,
       });
 
@@ -139,7 +164,7 @@ const Login = () => {
         const user = result.user;
         console.log("Login successful, user:", user, "role:", user?.role);
 
-        toast.success("Login successful!");
+        toast.success("Login successful! Redirecting...");
 
         // Check if user came from a protected route and redirect appropriately
         const returnUrl = location.state?.from?.pathname;
@@ -174,13 +199,50 @@ const Login = () => {
         return;
       }
 
-      // Handle login failure
-      const errorMessage =
-        result.error || "Invalid email or password. Please try again.";
+      // Handle login failure with clearer messages
+      let errorMessage = "Invalid mobile number or password. Please try again.";
+
+      if (result.error) {
+        if (
+          result.error.toLowerCase().includes("verify") ||
+          result.error.toLowerCase().includes("verification")
+        ) {
+          errorMessage =
+            "Please verify your account before logging in. Check your SMS for verification code.";
+        } else if (
+          result.error.toLowerCase().includes("invalid") ||
+          result.error.toLowerCase().includes("incorrect")
+        ) {
+          errorMessage = "Wrong password. Try again or login with OTP.";
+        } else if (
+          result.error.toLowerCase().includes("not found") ||
+          result.error.toLowerCase().includes("exist")
+        ) {
+          errorMessage = "Mobile number not found. Please register.";
+        } else if (
+          result.error.toLowerCase().includes("blocked") ||
+          result.error.toLowerCase().includes("suspended")
+        ) {
+          errorMessage =
+            "Your account has been suspended. Please contact support.";
+        } else {
+          errorMessage = result.error;
+        }
+      }
+
       console.error("Login failed:", errorMessage);
+
+      // Always show error toast for failed login
       toast.error(errorMessage);
 
-      // Clear password field for security but keep email
+      // Also set form errors for visual feedback
+      setErrors({
+        general: errorMessage,
+        phone: "Please check your mobile number",
+        password: "Please check your password",
+      });
+
+      // Clear password field for security but keep phone
       setFormData((prev) => ({ ...prev, password: "" }));
     } catch (error) {
       console.error("Login error:", error);
@@ -194,14 +256,39 @@ const Login = () => {
         const serverMessage = error.response.data?.message;
 
         if (status === 401) {
-          errorMessage =
-            "Invalid email or password. Please check your credentials.";
+          if (serverMessage && serverMessage.toLowerCase().includes("verify")) {
+            errorMessage =
+              "Please verify your account before logging in. Check your SMS for verification code.";
+          } else {
+            errorMessage = "Wrong password. Try again or login with OTP.";
+          }
         } else if (status === 403) {
-          errorMessage = "Account is deactivated. Please contact support.";
+          if (serverMessage && serverMessage.toLowerCase().includes("verify")) {
+            errorMessage =
+              "Please verify your account before logging in. Check your SMS for verification code.";
+          } else {
+            errorMessage = "Account is deactivated. Please contact support.";
+          }
+        } else if (status === 404) {
+          errorMessage = "Mobile number not found. Please register.";
         } else if (status >= 500) {
           errorMessage = "Server error. Please try again later.";
         } else if (serverMessage) {
-          errorMessage = serverMessage;
+          // Handle specific server messages
+          if (
+            serverMessage.toLowerCase().includes("verify") ||
+            serverMessage.toLowerCase().includes("verification")
+          ) {
+            errorMessage =
+              "Please verify your account before logging in. Check your SMS for verification code.";
+          } else if (
+            serverMessage.toLowerCase().includes("not found") ||
+            serverMessage.toLowerCase().includes("exist")
+          ) {
+            errorMessage = "Mobile number not found. Please register.";
+          } else {
+            errorMessage = serverMessage;
+          }
         }
       } else if (error.request) {
         // Network error - request was made but no response received
@@ -212,9 +299,17 @@ const Login = () => {
         errorMessage = `Login failed: ${error.message}`;
       }
 
+      // Always show error toast for exceptions
       toast.error(errorMessage);
 
-      // Clear password field for security but keep email
+      // Also set form errors for visual feedback
+      setErrors({
+        general: errorMessage,
+        phone: "Connection error",
+        password: "Please try again",
+      });
+
+      // Clear password field for security but keep phone
       setFormData((prev) => ({ ...prev, password: "" }));
     } finally {
       setIsLoading(false);
@@ -265,39 +360,75 @@ const Login = () => {
               />
             </div>
 
+            <div className="space-y-3 mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                Welcome! Find Jobs Near You
+              </h2>
+              <div className="space-y-2">
+                <p className="text-gray-600 text-sm sm:text-base">
+                  💼 Get jobs near your home
+                </p>
+                <p className="text-gray-600 text-sm sm:text-base">
+                  🤝 Connect directly with employers in your city
+                </p>
+              </div>
+            </div>
+
             <p className="text-gray-600 text-base lg:text-lg">
-              Sign in to your account
+              Login with your mobile number
             </p>
           </div>
 
           {/* Login Form Card */}
           <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 lg:p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email Field */}
+              {/* General Error Message */}
+              {errors.general && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                  <p className="text-red-600 text-sm text-center">
+                    {errors.general}
+                  </p>
+                </div>
+              )}
+
+              {/* Mobile Number Field */}
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  Email Address <span className="text-red-500">*</span>
+                  Mobile Number <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+                    <PhoneIcon className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
+                    type="tel" // Changed type to tel for phone numbers
+                    name="phone" // Changed name to phone
+                    value={formData.phone}
                     onChange={handleChange}
-                    placeholder="Enter your email"
+                    placeholder="Enter 10-digit mobile number"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    onInput={(e) => {
+                      // Allow only digits and limit to 10 characters
+                      e.target.value = e.target.value
+                        .replace(/[^0-9]/g, "")
+                        .slice(0, 10);
+                      // Update the form data
+                      setFormData((prev) => ({
+                        ...prev,
+                        phone: e.target.value,
+                      }));
+                    }}
                     className={`w-full pl-12 pr-4 py-3 sm:py-4 text-sm sm:text-base border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                      errors.email
+                      errors.phone // Changed error key to phone
                         ? "border-red-300 bg-red-50"
                         : "border-gray-200 bg-gray-50 focus:bg-white"
                     }`}
                     required
                   />
                 </div>
-                {errors.email && (
-                  <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                {errors.phone && ( // Changed error key to phone
+                  <p className="text-red-500 text-sm mt-1">{errors.phone}</p> // Changed error key to phone
                 )}
               </div>
 
@@ -381,15 +512,32 @@ const Login = () => {
               </button>
             </form>
 
+            {/* Trust Signals and Assurance */}
+            <div className="mt-6 space-y-3">
+              <div className="text-center">
+                <p className="text-blue-600 font-medium text-sm">
+                  💼 No fees, direct jobs from local employers
+                </p>
+              </div>
+              <div className="space-y-2 text-center">
+                <p className="text-gray-500 text-xs">
+                  🔒 Your details are safe and private
+                </p>
+                <p className="text-gray-500 text-xs">
+                  ✉️ Only employers can contact you
+                </p>
+              </div>
+            </div>
+
             {/* Register Link */}
             <div className="mt-8 text-center">
-              <p className="text-gray-600">
+              <p className="text-gray-600 text-sm">
                 Don't have an account?{" "}
                 <Link
                   to="/register"
                   className="font-semibold text-blue-600 hover:text-blue-500 transition-colors"
                 >
-                  Create one now
+                  Register free
                 </Link>
               </p>
             </div>

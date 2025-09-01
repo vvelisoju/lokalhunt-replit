@@ -44,6 +44,23 @@ export const authService = {
     try {
       const response = await api.post('/auth/verify-otp', verificationData)
       console.log('AuthService: OTP verification response:', response.data)
+      
+      // Handle successful verification - should return user data and token
+      if (response.data && (response.data.success || response.data.data)) {
+        const responseData = response.data.data || response.data;
+        
+        // Store token and user data if provided
+        if (responseData.token && responseData.user) {
+          localStorage.setItem('token', responseData.token);
+          localStorage.setItem('user', JSON.stringify(responseData.user));
+          // Set auth header for subsequent requests
+          api.defaults.headers.common['Authorization'] = `Bearer ${responseData.token}`;
+          console.log('AuthService: Token and user data stored successfully');
+        }
+        
+        return response.data;
+      }
+      
       return response.data
     } catch (error) {
       console.error('AuthService: OTP verification request failed:', error)
@@ -70,10 +87,12 @@ export const authService = {
     return { success: true }
   },
 
-  // Resend OTP for email verification
-  async resendOTP(email) {
+  // Resend OTP for email or phone verification
+  async resendOTP(data) {
     try {
-      const response = await api.post('/auth/resend-otp', { email })
+      // Handle both old string format and new object format for backward compatibility
+      const requestData = typeof data === 'string' ? { email: data } : data;
+      const response = await api.post('/auth/resend-otp', requestData)
       return {
         success: true,
         data: response.data
@@ -104,14 +123,15 @@ export const authService = {
     }
   },
 
-  // Reset password with OTP
+  // Reset password with OTP - now using unified verify-otp endpoint
   async resetPassword(email, otp, password, confirmPassword) {
     try {
-      const response = await api.post('/auth/reset-password', {
+      const response = await api.post('/auth/verify-otp', {
         email,
         otp,
         password,
-        confirmPassword
+        confirmPassword,
+        isForgotPassword: true
       })
       return {
         success: true,
@@ -119,6 +139,76 @@ export const authService = {
       }
     } catch (error) {
       console.error('Reset password error:', error)
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Password reset failed'
+      }
+    }
+  },
+
+  // Send forgot password OTP via mobile
+  async forgotPasswordMobile(phone) {
+    try {
+      const response = await api.post('/auth/forgot-password-mobile', { phone })
+      return {
+        success: true,
+        data: response.data
+      }
+    } catch (error) {
+      console.error('Forgot password mobile error:', error)
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to send reset SMS'
+      }
+    }
+  },
+
+  // Reset password with mobile OTP - now using unified verify-otp endpoint
+  async resetPasswordMobile(phone, otp, password, confirmPassword) {
+    try {
+      const response = await api.post('/auth/verify-otp', {
+        phone,
+        otp,
+        password,
+        confirmPassword,
+        isForgotPassword: true
+      })
+      
+      // Handle different response formats
+      const responseData = response.data || {}
+      
+      // Check for success in various formats
+      if (responseData.status === 'success' || 
+          responseData.success === true || 
+          (responseData.message && responseData.message.toLowerCase().includes('successfully'))) {
+        return {
+          success: true,
+          status: 'success',
+          data: responseData,
+          message: responseData.message || 'Password reset successfully'
+        }
+      }
+      
+      // Default success response for 200 status
+      return {
+        success: true,
+        data: responseData,
+        message: responseData.message || 'Password reset successfully'
+      }
+    } catch (error) {
+      console.error('Reset password mobile error:', error)
+      
+      // Check if the error response actually contains a success message
+      const errorData = error.response?.data
+      if (errorData?.message && errorData.message.toLowerCase().includes('successfully')) {
+        return {
+          success: true,
+          status: 'success',
+          data: errorData,
+          message: errorData.message
+        }
+      }
+      
       return {
         success: false,
         error: error.response?.data?.message || 'Password reset failed'

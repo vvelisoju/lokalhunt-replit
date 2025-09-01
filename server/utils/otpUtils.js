@@ -6,6 +6,14 @@ const crypto = require('crypto');
  * @returns {string} - 6-digit OTP
  */
 const generateOTP = () => {
+  const environment = process.env.ENVIRONMENT || 'dev';
+  
+  if (environment === 'dev') {
+    console.log('DEV MODE: Using default OTP: 222222');
+    return '222222';
+  }
+  
+  // Production mode - generate random OTP
   return crypto.randomInt(100000, 999999).toString();
 };
 

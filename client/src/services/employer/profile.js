@@ -5,9 +5,9 @@ export const getProfile = async () => {
     const response = await api.get('/employers/profile')
     return { success: true, data: response.data }
   } catch (error) {
-    return { 
-      success: false, 
-      error: error.response?.data?.message || 'Failed to fetch profile' 
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch profile'
     }
   }
 }
@@ -17,9 +17,9 @@ export const updateProfile = async (profileData) => {
     const response = await api.put('/employers/profile', profileData)
     return { success: true, data: response.data }
   } catch (error) {
-    return { 
-      success: false, 
-      error: error.response?.data?.message || 'Failed to update profile' 
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update profile'
     }
   }
 }
@@ -29,9 +29,9 @@ export const updatePassword = async (passwordData) => {
     const response = await api.put('/employers/change-password', passwordData)
     return { success: true, data: response.data }
   } catch (error) {
-    return { 
-      success: false, 
-      error: error.response?.data?.message || 'Failed to update password' 
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update password'
     }
   }
 }

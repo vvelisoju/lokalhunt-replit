@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const { PrismaClient } = require("@prisma/client");
 const { generateOTP, getOTPExpiration, isOTPExpired, isValidOTPFormat } = require("../utils/otpUtils");
 const { sendEmail } = require("./emailController");
+const { sendOTPSMS } = require("../utils/smsUtils");
 
 const prisma = new PrismaClient();
 
@@ -40,28 +41,36 @@ class AuthController {
       console.log("Computed fullName:", fullName);
 
       // Validation
-      if (!fullName || !email) {
+      if (!fullName || (!email && !phone)) {
         return res
           .status(400)
           .json(
             createErrorResponse(
-              "Name (or firstName/lastName) and email are required",
+              "Name (or firstName/lastName) and at least one of email or phone are required",
               400,
             ),
           );
       }
 
-      // Check if user already exists
-      const existingUser = await prisma.user.findUnique({
-        where: { email },
-      });
+      // Check if user already exists by phone or email
+      let existingUser = null;
+      if (phone) {
+        existingUser = await prisma.user.findFirst({
+          where: { phone },
+        });
+      }
 
       if (existingUser) {
-        return res
-          .status(409)
-          .json(
-            createErrorResponse("User with this email already exists", 409),
-          );
+        if (existingUser.phone === phone) {
+          return res
+            .status(409)
+            .json(createErrorResponse("User with this phone number already exists", 409));
+        }
+        // if (existingUser.email === email) {
+        //   return res
+        //     .status(409)
+        //     .json(createErrorResponse("User with this email already exists", 409));
+        // }
       }
 
       // Generate OTP
@@ -100,34 +109,38 @@ class AuthController {
         },
       });
 
-      // Send OTP via email
-      const emailResult = await sendEmail("OTP_VERIFICATION", email, {
-        otp,
-        email,
-        firstName,
-      });
+      // Send OTP via email if email is provided
+      if (email) {
+        const emailResult = await sendEmail("OTP_VERIFICATION", email, {
+          otp,
+          email,
+          firstName,
+        });
 
-      // Log email result but don't fail registration if email fails
-      if (!emailResult.success) {
-        console.warn('Failed to send OTP email:', emailResult.error);
-        // In development, we can still continue the registration flow
-        // In production, you might want to handle this differently
+        // Log email result but don't fail registration if email fails
+        if (!emailResult.success) {
+          console.warn('Failed to send OTP email:', emailResult.error);
+        }
       }
 
-      // Store user data temporarily for role-specific profile creation later
-      if (role === "EMPLOYER" && companyName) {
-        // Store company data temporarily in a way that can be retrieved during verification
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            // Store company data in a temporary field or handle it differently
-            // For now, we'll create the employer profile after verification
-          }
+      // Send OTP via SMS if phone number is provided
+      let smsResult = { success: true };
+      if (phone) {
+        console.log(`Registration OTP generated: ${otp} for phone: ${phone}`);
+        smsResult = await sendOTPSMS(phone, 'register_otp', {
+          otp,
+          name: fullName
         });
+
+        if (!smsResult.success) {
+          console.warn('Failed to send OTP SMS:', smsResult.error);
+        } else {
+          console.log('OTP SMS result:', smsResult.message);
+        }
       }
 
       res.status(201).json(
-        createResponse("OTP sent to email. Please verify to complete registration.", {
+        createResponse("OTP sent. Please verify to complete registration.", {
           user,
           requiresVerification: true,
         }),
@@ -140,169 +153,353 @@ class AuthController {
   // Verify OTP and complete registration (Step 2)
   async verifyOTPAndCompleteRegistration(req, res, next) {
     try {
-      const {
-        email,
-        otp,
-        password,
-        confirmPassword,
-        companyName,
-        companyDescription,
-        industry,
-        companySize,
-        website,
-        contactDetails,
-      } = req.body;
+      const { phone, email, otp, isForgotPassword, password, confirmPassword, registrationData } = req.body;
 
-      // Validation
-      if (!email || !otp || !password || !confirmPassword) {
-        return res
-          .status(400)
-          .json(createErrorResponse("Email, OTP, password, and confirm password are required", 400));
+      // Determine identifier type and value
+      const identifier = phone || email;
+      const identifierType = phone ? 'phone' : 'email';
+
+      if (!identifier || !otp) {
+        return res.status(400).json(
+          createErrorResponse('Phone/Email and OTP are required', 400)
+        );
       }
 
-      if (password !== confirmPassword) {
-        return res
-          .status(400)
-          .json(createErrorResponse("Passwords do not match", 400));
+      // Handle forgot password flow
+      if (isForgotPassword) {
+        // Validation for forgot password
+        if (!password || !confirmPassword) {
+          return res
+            .status(400)
+            .json(createErrorResponse("Password and confirm password are required", 400));
+        }
+
+        if (password !== confirmPassword) {
+          return res
+            .status(400)
+            .json(createErrorResponse("Passwords do not match", 400));
+        }
+
+        if (!isValidOTPFormat(otp)) {
+          return res
+            .status(400)
+            .json(createErrorResponse("Please enter a valid 6-digit verification code", 400));
+        }
+
+        if (password.length < 6) {
+          return res
+            .status(400)
+            .json(createErrorResponse("Password must be at least 6 characters long", 400));
+        }
+
+        // Find user by phone or email
+        let user;
+        if (phone) {
+          user = await prisma.user.findFirst({
+            where: { phone },
+          });
+        } else if (email) {
+          user = await prisma.user.findUnique({
+            where: { email },
+          });
+        }
+
+        if (!user) {
+          return res
+            .status(404)
+            .json(createErrorResponse("User not found", 404));
+        }
+
+        // Validate OTP
+        if (user.otp !== otp) {
+          return res
+            .status(400)
+            .json(createErrorResponse("Invalid OTP. Please check your verification code and try again.", 400));
+        }
+
+        if (isOTPExpired(user.otpExpiresAt)) {
+          return res
+            .status(400)
+            .json(createErrorResponse("OTP has expired. Please request a new verification code.", 400));
+        }
+
+        // Hash new password
+        const passwordHash = await bcrypt.hash(password, 12);
+
+        // Update user with new password, verify them, and clear OTP
+        const updatedUser = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            passwordHash,
+            isVerified: true,
+            otp: null,
+            otpExpiresAt: null,
+          },
+          select: {
+            id: true,
+            name: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            role: true,
+            cityId: true,
+            isVerified: true,
+            createdAt: true,
+          },
+        });
+
+        // If user was not verified before, create role-specific profiles
+        if (!user.isVerified) {
+          if (user.role === "CANDIDATE") {
+            await prisma.candidate.create({
+              data: { userId: user.id },
+            });
+          } else if (user.role === "EMPLOYER") {
+            // Create employer profile
+            const employer = await prisma.employer.create({
+              data: {
+                userId: user.id,
+                contactDetails: null,
+                isVerified: false,
+              },
+            });
+
+            // Assign basic subscription
+            const basicPlan = await prisma.plan.findFirst({
+              where: { name: "Self-Service" },
+            });
+
+            if (basicPlan) {
+              await prisma.subscription.create({
+                data: {
+                  employerId: employer.id,
+                  planId: basicPlan.id,
+                  status: "ACTIVE",
+                  startDate: new Date(),
+                },
+              });
+            }
+          } else if (user.role === "BRANCH_ADMIN") {
+            await prisma.branchAdmin.create({
+              data: {
+                userId: user.id,
+                assignedCityId: user.cityId,
+              },
+            });
+          }
+        }
+
+        // Generate JWT token for forgot password flow (same as registration)
+        const token = jwt.sign(
+          {
+            userId: updatedUser.id,
+            role: updatedUser.role,
+            email: updatedUser.email,
+            phone: updatedUser.phone
+          },
+          process.env.JWT_SECRET,
+          { expiresIn: '30d' }
+        );
+
+        return res.status(200).json(
+          createResponse("Password reset successfully", {
+            message: "Your password has been reset successfully",
+            user: {
+              id: updatedUser.id,
+              name: updatedUser.name,
+              firstName: updatedUser.firstName,
+              lastName: updatedUser.lastName,
+              email: updatedUser.email,
+              phone: updatedUser.phone,
+              role: updatedUser.role,
+              isVerified: updatedUser.isVerified,
+              isActive: true
+            },
+            token,
+          }),
+        );
       }
 
-      if (!isValidOTPFormat(otp)) {
-        return res
-          .status(400)
-          .json(createErrorResponse("OTP must be 6 digits", 400));
+      // For registration flow - check pending registration
+      let userData;
+      if (phone) {
+        userData = await prisma.user.findFirst({
+          where: { phone },
+        });
+      } else if (email) {
+        userData = await prisma.user.findUnique({
+          where: { email },
+        });
       }
 
-      if (password.length < 6) {
-        return res
-          .status(400)
-          .json(createErrorResponse("Password must be at least 6 characters long", 400));
-      }
-
-      // Find user
-      const user = await prisma.user.findUnique({
-        where: { email },
-      });
-
-      if (!user) {
+      if (!userData) {
         return res
           .status(404)
           .json(createErrorResponse("User not found", 404));
       }
 
-      if (user.isVerified) {
-        return res
-          .status(400)
-          .json(createErrorResponse("User is already verified", 400));
-      }
-
       // Validate OTP
-      if (user.otp !== otp) {
+      if (userData.otp !== otp) {
         return res
           .status(400)
           .json(createErrorResponse("Invalid OTP", 400));
       }
 
-      if (isOTPExpired(user.otpExpiresAt)) {
+      if (isOTPExpired(userData.otpExpiresAt)) {
         return res
           .status(400)
           .json(createErrorResponse("OTP has expired", 400));
       }
 
-      // Hash password
-      const passwordHash = await bcrypt.hash(password, 12);
+      // For registration flow, password is required in verification data
+      if (!userData.isVerified && (!password || !confirmPassword)) {
+        return res
+          .status(400)
+          .json(createErrorResponse("Password and confirm password are required for registration", 400));
+      }
 
-      // Update user with password and verification status
-      const updatedUser = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          passwordHash,
+      if (!userData.isVerified && password !== confirmPassword) {
+        return res
+          .status(400)
+          .json(createErrorResponse("Passwords do not match", 400));
+      }
+
+      if (!userData.isVerified && password.length < 6) {
+        return res
+          .status(400)
+          .json(createErrorResponse("Password must be at least 6 characters long", 400));
+      }
+
+      // Start transaction for user updates
+      const result = await prisma.$transaction(async (transactionPrisma) => {
+        let updatedUser;
+        let profileData = null;
+
+        // Update user data
+        const updateData = {
           isVerified: true,
           otp: null,
           otpExpiresAt: null,
-        },
-        select: {
-          id: true,
-          name: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-          role: true,
-          cityId: true,
-          isVerified: true,
-          createdAt: true,
-        },
+        };
+
+        // For registration flow, set password
+        if (!userData.isVerified && password) {
+          const passwordHash = await bcrypt.hash(password, 12);
+          updateData.passwordHash = passwordHash;
+          updateData.isActive = true;
+        }
+
+        updatedUser = await transactionPrisma.user.update({
+          where: { id: userData.id },
+          data: updateData,
+          select: {
+            id: true,
+            name: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            role: true,
+            cityId: true,
+            isVerified: true,
+            createdAt: true,
+          },
+        });
+
+        // Create role-specific profiles if user was not verified before (registration flow)
+        if (!userData.isVerified) {
+          if (userData.role === 'EMPLOYER') {
+            // Create employer profile
+            const employer = await transactionPrisma.employer.create({
+              data: {
+                userId: userData.id,
+                contactDetails: {}
+              }
+            });
+
+            // Create default company if company data is provided
+            if (registrationData?.companyName && registrationData?.cityId) {
+              console.log('Creating default company:', {
+                name: registrationData.companyName,
+                cityId: registrationData.cityId
+              });
+
+              await transactionPrisma.company.create({
+                data: {
+                  employerId: employer.id,
+                  name: registrationData.companyName,
+                  cityId: registrationData.cityId,
+                  isDefault: true,
+                  isActive: true
+                }
+              });
+            }
+
+            profileData = employer;
+          } else if (userData.role === 'CANDIDATE') {
+            // Create candidate profile
+            profileData = await transactionPrisma.candidate.create({
+              data: {
+                userId: userData.id
+              }
+            });
+          } else if (userData.role === 'BRANCH_ADMIN') {
+            // Create branch admin profile
+            profileData = await transactionPrisma.branchAdmin.create({
+              data: {
+                userId: userData.id,
+                assignedCityId: userData.cityId
+              }
+            });
+          }
+        }
+
+        return { user: updatedUser, profileData };
       });
 
-      // Create role-specific profiles
-      if (user.role === "CANDIDATE") {
-        await prisma.candidate.create({
-          data: { userId: user.id },
-        });
-      } else if (user.role === "EMPLOYER") {
-        // Create employer profile
-        const employer = await prisma.employer.create({
-          data: {
-            userId: user.id,
-            contactDetails: contactDetails || null,
-            isVerified: false,
+      // Generate JWT token for registration flow
+      let token = null;
+      if (!userData.isVerified) {
+        token = jwt.sign(
+          {
+            userId: result.user.id,
+            role: result.user.role,
+            email: result.user.email,
+            phone: result.user.phone
           },
-        });
-
-        // Create company if provided
-        if (companyName) {
-          await prisma.company.create({
-            data: {
-              employerId: employer.id,
-              name: companyName,
-              description: companyDescription || null,
-              cityId: user.cityId,
-              industry: industry || null,
-              size: companySize || null,
-              website: website || null,
-              isDefault: true,
-            },
-          });
-        }
-
-        // Assign basic subscription
-        const basicPlan = await prisma.plan.findFirst({
-          where: { name: "Self-Service" },
-        });
-
-        if (basicPlan) {
-          await prisma.subscription.create({
-            data: {
-              employerId: employer.id,
-              planId: basicPlan.id,
-              status: "ACTIVE",
-              startDate: new Date(),
-            },
-          });
-        }
-      } else if (user.role === "BRANCH_ADMIN") {
-        await prisma.branchAdmin.create({
-          data: {
-            userId: user.id,
-            assignedCityId: user.cityId,
-          },
-        });
+          process.env.JWT_SECRET,
+          { expiresIn: '30d' }
+        );
       }
 
-      // Generate JWT token
-      const token = jwt.sign(
-        { userId: user.id, role: user.role },
-        process.env.JWT_SECRET || "lokalhunt-secret",
-        { expiresIn: "7d" },
+      // Determine response message and status
+      const responseMessage = userData.isVerified
+        ? 'Password reset successfully'
+        : 'Registration completed successfully';
+
+      const statusCode = userData.isVerified ? 200 : 201;
+
+      res.status(statusCode).json(
+        createResponse(responseMessage, {
+          user: {
+            id: result.user.id,
+            name: result.user.name,
+            firstName: result.user.firstName,
+            lastName: result.user.lastName,
+            email: result.user.email,
+            phone: result.user.phone,
+            role: result.user.role,
+            isVerified: result.user.isVerified,
+            isActive: result.user.isActive || result.user.isVerified
+          },
+          ...(token && { token }),
+          ...(result.profileData && { profile: result.profileData })
+        })
       );
 
-      res.status(200).json(
-        createResponse("Registration completed successfully", {
-          user: updatedUser,
-          token,
-        }),
-      );
     } catch (error) {
+      console.error('OTP verification error:', error);
       next(error);
     }
   }
@@ -366,16 +563,226 @@ class AuthController {
     }
   }
 
+  // Forgot Password via Mobile - Send OTP
+  async forgotPasswordMobile(req, res, next) {
+    try {
+      const { phone } = req.body;
+
+      if (!phone) {
+        return res
+          .status(400)
+          .json(createErrorResponse("Phone number is required", 400));
+      }
+
+      // Find user by phone number
+      const user = await prisma.user.findFirst({
+        where: { phone },
+      });
+
+      if (!user) {
+        return res
+          .status(404)
+          .json(createErrorResponse("User not found with this phone number", 404));
+      }
+
+      // Generate new OTP for password reset
+      const otp = generateOTP();
+      const otpExpiresAt = getOTPExpiration();
+
+      // Update user with new OTP
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          otp,
+          otpExpiresAt,
+        },
+      });
+
+      // Send OTP SMS for password reset
+      try {
+        console.log(`Forgot password OTP generated: ${otp} for phone: ${phone}`);
+        const smsResult = await sendOTPSMS(phone, 'forgot_password_otp', {
+          otp,
+          name: user.name
+        });
+
+        if (!smsResult.success) {
+          throw new Error(smsResult.error);
+        } else {
+          console.log('Forgot password OTP SMS result:', smsResult.message);
+        }
+      } catch (smsError) {
+        console.error('Failed to send password reset OTP SMS:', smsError);
+        return res
+          .status(500)
+          .json(createErrorResponse("Failed to send password reset OTP SMS", 500));
+      }
+
+      res.status(200).json(
+        createResponse("Password reset OTP sent successfully", {
+          message: "OTP has been sent to your phone for password reset",
+        }),
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // Reset Password with OTP
   async resetPasswordWithOTP(req, res, next) {
     try {
-      const { email, otp, password, confirmPassword } = req.body;
+      const {
+        email,
+        phone, // Added phone number to the request body for lookup
+        otp,
+        password,
+        confirmPassword,
+      } = req.body;
 
       // Validation
-      if (!email || !otp || !password || !confirmPassword) {
+      if ((!email && !phone) || !otp || !password || !confirmPassword) {
         return res
           .status(400)
-          .json(createErrorResponse("Email, OTP, password, and confirm password are required", 400));
+          .json(createErrorResponse("Phone number, verification code, and passwords are required", 400));
+      }
+
+      if (password !== confirmPassword) {
+        return res
+          .status(400)
+          .json(createErrorResponse("Passwords do not match", 400));
+      }
+
+      if (!isValidOTPFormat(otp)) {
+        return res
+          .status(400)
+          .json(createErrorResponse("Please enter a valid 6-digit verification code", 400));
+      }
+
+      if (password.length < 6) {
+        return res
+          .status(400)
+          .json(createErrorResponse("Password must be at least 6 characters long", 400));
+      }
+
+      // Find user by phone first, then by email if phone not provided
+      let user;
+      if (phone) {
+        user = await prisma.user.findFirst({
+          where: { phone },
+        });
+      } else if (email) {
+        user = await prisma.user.findUnique({
+          where: { email },
+        });
+      }
+
+      if (!user) {
+        return res
+          .status(404)
+          .json(createErrorResponse("User not found", 404));
+      }
+
+      // Validate OTP
+      if (user.otp !== otp) {
+        return res
+          .status(400)
+          .json(createErrorResponse("Invalid OTP. Please check your verification code and try again.", 400));
+      }
+
+      if (isOTPExpired(user.otpExpiresAt)) {
+        return res
+          .status(400)
+          .json(createErrorResponse("OTP has expired. Please request a new verification code.", 400));
+      }
+
+      // Hash new password
+      const passwordHash = await bcrypt.hash(password, 12);
+
+      // Update user with new password, verify them, and clear OTP
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          isVerified: true, // Verify user upon successful password reset
+          otp: null,
+          otpExpiresAt: null,
+        },
+        select: {
+          id: true,
+          name: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          role: true,
+          cityId: true,
+          isVerified: true,
+          createdAt: true,
+        },
+      });
+
+      // If user was not verified before, create role-specific profiles
+      if (!user.isVerified) {
+        if (user.role === "CANDIDATE") {
+          await prisma.candidate.create({
+            data: { userId: user.id },
+          });
+        } else if (user.role === "EMPLOYER") {
+          // Create employer profile
+          const employer = await prisma.employer.create({
+            data: {
+              userId: user.id,
+              contactDetails: null,
+              isVerified: false,
+            },
+          });
+
+          // Assign basic subscription
+          const basicPlan = await prisma.plan.findFirst({
+            where: { name: "Self-Service" },
+          });
+
+          if (basicPlan) {
+            await prisma.subscription.create({
+              data: {
+                employerId: employer.id,
+                planId: basicPlan.id,
+                status: "ACTIVE",
+                startDate: new Date(),
+              },
+            });
+          }
+        } else if (user.role === "BRANCH_ADMIN") {
+          await prisma.branchAdmin.create({
+            data: {
+              userId: user.id,
+              assignedCityId: user.cityId,
+            },
+          });
+        }
+      }
+
+      res.status(200).json(
+        createResponse("Password reset successfully", {
+          message: "Your password has been reset successfully and your account is now verified",
+          user: updatedUser,
+        }),
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Reset Password with Mobile OTP
+  async resetPasswordWithMobileOTP(req, res, next) {
+    try {
+      const { phone, otp, password, confirmPassword } = req.body;
+
+      // Validation
+      if (!phone || !otp || !password || !confirmPassword) {
+        return res
+          .status(400)
+          .json(createErrorResponse("Phone, OTP, password, and confirm password are required", 400));
       }
 
       if (password !== confirmPassword) {
@@ -396,15 +803,15 @@ class AuthController {
           .json(createErrorResponse("Password must be at least 6 characters long", 400));
       }
 
-      // Find user
-      const user = await prisma.user.findUnique({
-        where: { email },
+      // Find user by phone
+      const user = await prisma.user.findFirst({
+        where: { phone },
       });
 
       if (!user) {
         return res
           .status(404)
-          .json(createErrorResponse("User not found", 404));
+          .json(createErrorResponse("User not found with this phone number", 404));
       }
 
       // Validate OTP
@@ -501,18 +908,21 @@ class AuthController {
   // Resend OTP
   async resendOTP(req, res, next) {
     try {
-      const { email } = req.body;
+      const { email, phone } = req.body; // Allow resending OTP to email or phone
 
-      if (!email) {
+      if (!email && !phone) {
         return res
           .status(400)
-          .json(createErrorResponse("Email is required", 400));
+          .json(createErrorResponse("Email or phone number is required", 400));
       }
 
-      // Find user
-      const user = await prisma.user.findUnique({
-        where: { email },
-      });
+      // Find user by phone or email
+      let user;
+      if (phone) {
+        user = await prisma.user.findFirst({ where: { phone } });
+      } else if (email) {
+        user = await prisma.user.findUnique({ where: { email } });
+      }
 
       if (!user) {
         return res
@@ -533,27 +943,40 @@ class AuthController {
         },
       });
 
-      // Determine email template based on user verification status
-      const emailTemplate = user.isVerified ? 'PASSWORD_RESET_OTP' : 'OTP_VERIFICATION';
-      const emailSubject = user.isVerified ? 'Password Reset OTP' : 'Email Verification OTP';
-
-      // Send OTP email
-      try {
-        await sendEmail(emailTemplate, email, {
+      // Determine the recipient and template based on provided identifier
+      let sendResult = { success: false };
+      if (phone) {
+        console.log(`Resend OTP generated: ${otp} for phone: ${phone}`);
+        sendResult = await sendOTPSMS(phone, user.isVerified ? 'forgot_password_otp' : 'register_otp', {
+          otp,
+          name: user.name
+        });
+        if (!sendResult.success) {
+          console.error('Failed to send OTP SMS:', sendResult.error);
+        } else {
+          console.log('Resend OTP SMS result:', sendResult.message);
+        }
+      } else if (email) {
+        const emailTemplate = user.isVerified ? 'PASSWORD_RESET_OTP' : 'OTP_VERIFICATION';
+        sendResult = await sendEmail(emailTemplate, email, {
           username: user.name,
           appName: 'LokalHunt',
           otp: otp
         });
-      } catch (emailError) {
-        console.error('Failed to send OTP email:', emailError);
+        if (!sendResult.success) {
+          console.error('Failed to send OTP email:', sendResult.error);
+        }
+      }
+
+      if (!sendResult.success) {
         return res
           .status(500)
-          .json(createErrorResponse("Failed to send OTP email", 500));
+          .json(createErrorResponse("Failed to send OTP", 500));
       }
 
       res.status(200).json(
         createResponse("OTP sent successfully", {
-          message: "New OTP has been sent to your email",
+          message: "New OTP has been sent to your registered phone number or email",
         }),
       );
     } catch (error) {
@@ -564,25 +987,38 @@ class AuthController {
   // Login user
   async login(req, res, next) {
     try {
-      const { email, password } = req.body;
+      const { email, password, phone } = req.body; // Allow login with email or phone
 
       // Validation
-      if (!email || !password) {
+      if ((!email && !phone) || !password) {
         return res
           .status(400)
-          .json(createErrorResponse("Email and password are required", 400));
+          .json(createErrorResponse("Email or phone number and password are required", 400));
       }
 
-      // Find user
-      const user = await prisma.user.findUnique({
-        where: { email },
-        include: {
-          candidate: true,
-          employer: true,
-          branchAdmin: true,
-          city: true,
-        },
-      });
+      // Find user by phone or email
+      let user;
+      if (phone) {
+        user = await prisma.user.findFirst({
+          where: { phone },
+          include: {
+            candidate: true,
+            employer: true,
+            branchAdmin: true,
+            city: true,
+          },
+        });
+      } else if (email) {
+        user = await prisma.user.findUnique({
+          where: { email },
+          include: {
+            candidate: true,
+            employer: true,
+            branchAdmin: true,
+            city: true,
+          },
+        });
+      }
 
       if (!user) {
         return res
@@ -594,7 +1030,7 @@ class AuthController {
       if (!user.isVerified) {
         return res
           .status(403)
-          .json(createErrorResponse("Please verify your email before logging in", 403));
+          .json(createErrorResponse("Please verify your account before logging in", 403));
       }
 
       // Check password

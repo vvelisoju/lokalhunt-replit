@@ -1,84 +1,90 @@
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import FormInput from "../components/ui/FormInput";
+import Button from "../components/ui/Button";
+import Alert from "../components/ui/Alert";
+import OTPVerification from "../components/ui/OTPVerification";
+import { PhoneIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { toast } from "react-hot-toast";
+import { authService } from "../services/authService";
 
-import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import FormInput from '../components/ui/FormInput'
-import Button from '../components/ui/Button'
-import Alert from '../components/ui/Alert'
-import PasswordResetOTP from '../components/ui/PasswordResetOTP'
-import { EnvelopeIcon, ArrowLeftIcon } from '@heroicons/react/24/outline'
-import { toast } from 'react-hot-toast'
-import { authService } from '../services/authService'
 
 const ForgotPassword = () => {
-  const [email, setEmail] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [currentStep, setCurrentStep] = useState('email') // 'email' or 'otp'
-  const [errors, setErrors] = useState({})
-  const navigate = useNavigate()
+  const [phone, setPhone] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentStep, setCurrentStep] = useState("phone"); // 'phone' or 'otp'
+  
+
+  const [errors, setErrors] = useState({});
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setEmail(e.target.value)
-    if (errors.email) {
-      setErrors(prev => ({ ...prev, email: '' }))
+    setPhone(e.target.value);
+    if (errors.phone) {
+      setErrors((prev) => ({ ...prev, phone: "" }));
     }
-  }
+  };
 
-  const validateEmail = () => {
-    const newErrors = {}
-    
-    if (!email) {
-      newErrors.email = 'Email is required'
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email address'
+  const validatePhone = () => {
+    const newErrors = {};
+
+    if (!phone) {
+      newErrors.phone = "Mobile number is required";
+    } else if (!/^[6-9]\d{9}$/.test(phone)) {
+      newErrors.phone = "Please enter a valid 10-digit mobile number";
     }
-    
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    
-    if (!validateEmail()) return
-    
-    setIsLoading(true)
+    e.preventDefault();
+
+    if (!validatePhone()) return;
+
+    setIsLoading(true);
     try {
-      const result = await authService.forgotPassword(email)
+      const result = await authService.forgotPasswordMobile(phone);
 
       if (result.success) {
-        toast.success('Password reset OTP sent successfully!')
-        setCurrentStep('otp')
+        toast.success("Password reset OTP sent successfully!");
+        setCurrentStep("otp");
       } else {
-        throw new Error(result.error || 'Failed to send reset email')
+        throw new Error(result.error || "Failed to send reset SMS");
       }
     } catch (error) {
-      console.error('Forgot password error:', error)
-      toast.error(error.message || 'Failed to send reset email. Please try again.')
-      setErrors({ email: error.message || 'Failed to send reset email. Please try again.' })
+      console.error("Forgot password error:", error);
+      toast.error(
+        error.message || "Failed to send reset SMS. Please try again.",
+      );
+      setErrors({
+        phone: error.message || "Failed to send reset SMS. Please try again.",
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  const handleResetSuccess = async () => {
-    toast.success('Password reset successfully! Please log in with your new password.')
-    navigate('/login')
-  }
+  
 
-  const handleBackToEmail = () => {
-    setCurrentStep('email')
-  }
+  const handleBackToPhone = () => {
+    setCurrentStep("phone");
+  };
 
   // Show OTP verification step
-  if (currentStep === 'otp') {
+  if (currentStep === "otp") {
     return (
-      <PasswordResetOTP
-        email={email}
-        onResetSuccess={handleResetSuccess}
-        onBack={handleBackToEmail}
+      <OTPVerification
+        phone={phone}
+        onBack={handleBackToPhone}
         loading={isLoading}
+        isMobile={true}
+        mode="forgot-password"
+        title="Reset Password"
+        subtitle={`Enter the code sent to ${phone} and create a new password`}
       />
-    )
+    );
   }
 
   return (
@@ -91,12 +97,13 @@ const ForgotPassword = () => {
           </div>
           <h1 className="text-4xl font-bold mb-6">Forgot Password?</h1>
           <p className="text-xl mb-8 text-blue-100 leading-relaxed">
-            No worries! We'll send you a verification code to reset your password securely
+            No worries! We'll send you a verification code via SMS to reset your
+            password securely
           </p>
           <div className="space-y-4 text-left">
             <div className="flex items-center">
               <div className="w-3 h-3 bg-orange-300 rounded-full mr-4 flex-shrink-0"></div>
-              <span className="text-lg">Enter your email address</span>
+              <span className="text-lg">Enter your mobile number</span>
             </div>
             <div className="flex items-center">
               <div className="w-3 h-3 bg-orange-300 rounded-full mr-4 flex-shrink-0"></div>
@@ -132,7 +139,7 @@ const ForgotPassword = () => {
           <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 lg:p-8">
             {/* Back Link */}
             <div className="mb-6">
-              <Link 
+              <Link
                 to="/login"
                 className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
               >
@@ -147,37 +154,40 @@ const ForgotPassword = () => {
                 Forgot Password
               </h2>
               <p className="text-gray-600 text-center text-sm">
-                Enter your email address and we'll send you a verification code to reset your password
+                Enter your mobile number and we'll send you a verification code
+                via SMS to reset your password
               </p>
             </div>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email Field */}
+              {/* Mobile Number Field */}
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  Email Address <span className="text-red-500">*</span>
+                  Mobile Number <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+                    <PhoneIcon className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
-                    type="email"
-                    name="email"
-                    value={email}
+                    type="tel"
+                    name="phone"
+                    value={phone}
                     onChange={handleChange}
-                    placeholder="Enter your email address"
+                    placeholder="Enter your 10-digit mobile number"
                     className={`w-full pl-12 pr-4 py-4 text-base border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                      errors.email
+                      errors.phone
                         ? "border-red-300 bg-red-50"
                         : "border-gray-200 bg-gray-50 focus:bg-white"
                     }`}
+                    maxLength={10}
+                    pattern="[6-9][0-9]{9}"
                     required
                   />
                 </div>
-                {errors.email && (
-                  <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                {errors.phone && (
+                  <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
                 )}
               </div>
 
@@ -201,9 +211,9 @@ const ForgotPassword = () => {
             {/* Sign In Link */}
             <div className="mt-8 text-center">
               <p className="text-gray-600">
-                Remember your password?{' '}
-                <Link 
-                  to="/login" 
+                Remember your password?{" "}
+                <Link
+                  to="/login"
                   className="font-semibold text-blue-600 hover:text-blue-500 transition-colors"
                 >
                   Sign In
@@ -214,7 +224,7 @@ const ForgotPassword = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ForgotPassword
+export default ForgotPassword;

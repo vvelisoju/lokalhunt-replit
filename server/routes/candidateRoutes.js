@@ -21,6 +21,12 @@ const upload = multer({
 
 const router = express.Router();
 
+// Add middleware with proper error handling
+router.use((req, res, next) => {
+  console.log(`Candidate route accessed: ${req.method} ${req.path}`);
+  next();
+});
+
 // All routes require CANDIDATE role
 router.use(authenticateToken);
 router.use(requireRole('CANDIDATE'));

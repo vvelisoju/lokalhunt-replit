@@ -6,15 +6,13 @@ const {
   ObjectStorageService,
   ObjectNotFoundError,
 } = require("./objectStorage");
-const emailController = require("./controllers/emailController");
-const emailRoutes = require("./routes/emailRoutes");
 
+// Import centralized routes
+const apiRoutes = require("./routes/index");
 const app = express();
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || "development";
 const prisma = new PrismaClient();
-
-// Email service handled by Brevo API in emailController
 
 // Graceful shutdown handler
 const gracefulShutdown = async (signal) => {
@@ -157,7 +155,7 @@ app.get("/api", (req, res) => {
       endpoints: {
         auth: "/api/auth",
         profile: "/api/profile",
-        candidates: "/api/candidates",
+        candidate: "/api/candidate",
         employers: "/api/employers",
         branchAdmins: "/api/branch-admins",
         ads: "/api/ads",
@@ -171,30 +169,8 @@ app.get("/api", (req, res) => {
   });
 });
 
-// Import routes
-const authRoutes = require("./routes/authRoutes");
-const candidateRoutes = require("./routes/candidateRoutes");
-const employerRoutes = require("./routes/employerRoutes");
-const branchAdminRoutes = require("./routes/branchAdminRoutes");
-const adRoutes = require("./routes/adRoutes");
-const publicRoutes = require("./routes/publicRoutes");
-const aiRoutes = require("./routes/aiRoutes");
-const profileRoutes = require("./routes/profileRoutes");
-const subscriptionRoutes = require("./routes/subscriptionRoutes");
-const sharedRoutes = require("./routes/sharedRoutes"); // Import shared routes
-
-// Use routes - mounted under /api to match client expectations
-app.use("/api/auth", authRoutes);
-app.use("/api/profile", profileRoutes);
-app.use("/api/candidates", candidateRoutes);
-app.use("/api/employers", employerRoutes);
-app.use("/api/branch-admins", branchAdminRoutes);
-app.use("/api/ads", adRoutes);
-app.use("/api/public", publicRoutes);
-app.use("/api/ai", aiRoutes);
-app.use("/api/subscriptions", subscriptionRoutes);
-app.use("/api/shared", sharedRoutes); // Use shared routes
-app.use("/api/email", emailRoutes); // Use email routes
+// Use centralized routes - all mounted under /api
+app.use("/api", apiRoutes);
 
 // Object storage serving routes
 app.get("/objects/:objectPath(*)", async (req, res) => {
@@ -322,7 +298,7 @@ app.use("*", (req, res) => {
     availableEndpoints: {
       auth: "/api/auth",
       profile: "/api/profile",
-      candidates: "/api/candidates",
+      candidate: "/api/candidate",
       employers: "/api/employers",
       branchAdmins: "/api/branch-admins",
       ads: "/api/ads",
