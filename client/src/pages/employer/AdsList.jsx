@@ -124,7 +124,7 @@ const AdsList = () => {
       const result = await getAds(params);
 
       if (result.success) {
-        const adsData = result.data.data || [];
+        const adsData = result.data || [];
 
         console.log("Loaded ads:", adsData);
         setAds({
@@ -321,6 +321,7 @@ const AdsList = () => {
                       0,
                     bookmarkedCount:
                       ad._count?.employerBookmarks || ad.bookmarkedCount || 0,
+                    rejectionReason: ad.rejectionReason || "",
                   }}
                   variant="employer"
                   onSubmit={() =>
@@ -351,6 +352,7 @@ const AdsList = () => {
                     submit: false,
                     archive: false,
                   }}
+                  onRefresh={loadAds}
                 />
               ))}
             </div>

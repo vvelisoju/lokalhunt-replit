@@ -18,19 +18,16 @@ export const profileService = {
     }
   },
 
-  // Update profile
+  // Update profile (basic info)
   async updateProfile(profileData) {
     try {
-      const response = await api.put('/profile', profileData);
-      return {
-        success: true,
-        data: response.data
-      };
+      const response = await api.put('/auth/profile', profileData);
+      return { success: true, data: response.data };
     } catch (error) {
-      console.error('Update profile error:', error);
+      console.error('Error updating profile:', error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to update profile'
+        error: error.response?.data?.message || error.response?.data?.error || 'Failed to update profile'
       };
     }
   },
@@ -38,16 +35,13 @@ export const profileService = {
   // Update password
   async updatePassword(passwordData) {
     try {
-      const response = await api.put('/profile/password', passwordData);
-      return {
-        success: true,
-        data: response.data
-      };
+      const response = await api.put('/auth/change-password', passwordData);
+      return { success: true, data: response.data };
     } catch (error) {
-      console.error('Update password error:', error);
+      console.error('Error updating password:', error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to update password'
+        error: error.response?.data?.message || error.response?.data?.error || 'Failed to update password'
       };
     }
   },

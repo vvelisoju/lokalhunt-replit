@@ -141,10 +141,7 @@ const Register = () => {
             "tempCompanyData",
             JSON.stringify({
               companyName: formData.companyName,
-              companyDescription: formData.companyDescription || "",
-              industry: formData.industry || "",
-              companySize: formData.companySize || "",
-              website: formData.website || "",
+              cityId: formData.city,
             }),
           );
         }
@@ -195,8 +192,6 @@ const Register = () => {
     }
   };
 
-  
-
   const handleBackToRegistration = () => {
     setCurrentStep("registration");
     setOtpSent(false);
@@ -212,7 +207,11 @@ const Register = () => {
         loading={isLoading}
         isMobile={true}
         mode="registration"
-        registrationData={formData}
+        registrationData={{
+          companyName: formData.companyName,
+          cityId: formData.city,
+          role: formData.role,
+        }}
       />
     );
   }

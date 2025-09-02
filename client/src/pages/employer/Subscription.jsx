@@ -21,7 +21,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { useRole } from "../../context/RoleContext";
 import { toast } from "react-hot-toast";
-
+import Loading from "../../components/ui/Loading";
 const Subscription = () => {
   const { t } = useTranslation();
 
@@ -57,7 +57,7 @@ const Subscription = () => {
     try {
       setIsLoading(true);
       setError(""); // Clear any previous errors
-      
+
       const [plansResponse, subscriptionResponse] = await Promise.allSettled([
         subscriptionService.getPlans(),
         subscriptionService.getCurrentSubscription(),
@@ -67,19 +67,36 @@ const Subscription = () => {
         const plansData = plansResponse.value.data;
         setPlans(Array.isArray(plansData) ? plansData : []);
       } else {
-        console.error("Failed to load plans:", plansResponse.reason || plansResponse.value?.error);
-        setError(plansResponse.value?.error || "Failed to load subscription plans");
+        console.error(
+          "Failed to load plans:",
+          plansResponse.reason || plansResponse.value?.error,
+        );
+        setError(
+          plansResponse.value?.error || "Failed to load subscription plans",
+        );
       }
 
-      if (subscriptionResponse.status === "fulfilled" && subscriptionResponse.value.success) {
+      if (
+        subscriptionResponse.status === "fulfilled" &&
+        subscriptionResponse.value.success
+      ) {
         // Handle case where API returns successful response but no subscription data
         setCurrentSubscription(subscriptionResponse.value.data || null);
-      } else if (subscriptionResponse.status === "fulfilled" && !subscriptionResponse.value.success) {
+      } else if (
+        subscriptionResponse.status === "fulfilled" &&
+        !subscriptionResponse.value.success
+      ) {
         // This might be normal if user has no subscription yet
-        console.log("No current subscription:", subscriptionResponse.value?.error);
+        console.log(
+          "No current subscription:",
+          subscriptionResponse.value?.error,
+        );
         setCurrentSubscription(null);
       } else {
-        console.error("Failed to load subscription:", subscriptionResponse.reason);
+        console.error(
+          "Failed to load subscription:",
+          subscriptionResponse.reason,
+        );
       }
     } catch (error) {
       console.error("Error loading subscription data:", error);
@@ -221,10 +238,11 @@ const Subscription = () => {
     // If no current subscription, can select any plan
     if (!currentSubscription) return true;
 
-    // If HR-Assist is pending approval, disable Self-Service plan selection (except for branch admin)
+    // If HR-Assist is active or pending approval, disable Self-Service plan selection (except for branch admin)
     if (
       currentSubscription.plan?.name === "HR-Assist" &&
-      currentSubscription.status === "PENDING_APPROVAL" &&
+      (currentSubscription.status === "ACTIVE" ||
+        currentSubscription.status === "PENDING_APPROVAL") &&
       plan.name === "Self-Service" &&
       !isBranchAdmin()
     ) {
@@ -241,11 +259,7 @@ const Subscription = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
-      </div>
-    );
+    return <Loading />;
   }
 
   return (
@@ -312,7 +326,8 @@ const Subscription = () => {
                 </p>
               </div>
               <div className="flex items-center">
-                {currentSubscription.status === "ACTIVE" &&
+                {isBranchAdmin() &&
+                  currentSubscription.status === "ACTIVE" &&
                   currentSubscription.plan?.name !== "Self-Service" && (
                     <Button
                       variant="secondary"
@@ -552,9 +567,10 @@ const Subscription = () => {
                 {!canSelectPlan(plan) && (
                   <div
                     className={`w-full py-3 text-center rounded-lg font-semibold ${
-                      // Special case for Self-Service when HR-Assist is pending
+                      // Special case for Self-Service when HR-Assist is active or pending
                       currentSubscription?.plan?.name === "HR-Assist" &&
-                      currentSubscription?.status === "PENDING_APPROVAL" &&
+                      (currentSubscription?.status === "ACTIVE" ||
+                        currentSubscription?.status === "PENDING_APPROVAL") &&
                       plan.name === "Self-Service"
                         ? "bg-gray-100 text-gray-500 border border-gray-200"
                         : currentSubscription?.status === "PENDING_APPROVAL"
@@ -563,9 +579,10 @@ const Subscription = () => {
                     }`}
                   >
                     {currentSubscription?.plan?.name === "HR-Assist" &&
-                    currentSubscription?.status === "PENDING_APPROVAL" &&
+                    (currentSubscription?.status === "ACTIVE" ||
+                      currentSubscription?.status === "PENDING_APPROVAL") &&
                     plan.name === "Self-Service"
-                      ? "Unavailable during HR-Assist approval"
+                      ? "Unavailable with HR-Assist plan"
                       : currentSubscription?.status === "PENDING_APPROVAL"
                         ? "Pending Approval"
                         : "Current Active Plan"}

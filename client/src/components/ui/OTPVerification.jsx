@@ -250,6 +250,13 @@ const OTPVerification = ({
             const companyData = JSON.parse(storedCompanyData);
             if (companyData.companyName) {
               verificationData.companyName = companyData.companyName;
+              verificationData.cityId = companyData.cityId;
+
+              // Also add to registrationData object for backward compatibility
+              verificationData.registrationData = {
+                companyName: companyData.companyName,
+                cityId: companyData.cityId,
+              };
             }
           } catch (error) {
             console.error("Error parsing stored company data:", error);
@@ -280,9 +287,13 @@ const OTPVerification = ({
 
         // Show appropriate success message
         if (mode === "registration") {
-          showSuccess("🎉 Registration completed successfully! Welcome to your dashboard!");
+          showSuccess(
+            "🎉 Registration completed successfully! Welcome to your dashboard!",
+          );
         } else {
-          showSuccess("🎉 Password reset successfully! Welcome back to your dashboard!");
+          showSuccess(
+            "🎉 Password reset successfully! Welcome back to your dashboard!",
+          );
         }
 
         // Store authentication data if provided
@@ -354,9 +365,13 @@ const OTPVerification = ({
         const token = errorData.token;
 
         if (mode === "registration") {
-          showSuccess("🎉 Registration completed successfully! Welcome to your dashboard!");
+          showSuccess(
+            "🎉 Registration completed successfully! Welcome to your dashboard!",
+          );
         } else {
-          showSuccess("🎉 Password reset successfully! Welcome back to your dashboard!");
+          showSuccess(
+            "🎉 Password reset successfully! Welcome back to your dashboard!",
+          );
         }
 
         // Store authentication data if provided
@@ -382,9 +397,10 @@ const OTPVerification = ({
 
         return {
           success: true,
-          message: mode === "registration"
-            ? "Registration completed successfully! Welcome to your dashboard!"
-            : "Password reset successfully! Welcome back to your dashboard!",
+          message:
+            mode === "registration"
+              ? "Registration completed successfully! Welcome to your dashboard!"
+              : "Password reset successfully! Welcome back to your dashboard!",
           data: errorData,
         };
       }

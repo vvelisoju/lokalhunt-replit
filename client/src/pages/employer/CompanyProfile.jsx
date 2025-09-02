@@ -46,7 +46,7 @@ const CompanyProfile = () => {
       const result = await getCompanies();
       if (result.success) {
         // The API returns companies array in triple nested data
-        setCompanies(result.data.data || []);
+        setCompanies(result.data || []);
       } else {
         toast.error(result.error);
       }

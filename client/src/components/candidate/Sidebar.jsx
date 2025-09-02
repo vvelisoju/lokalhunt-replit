@@ -81,7 +81,8 @@ const Sidebar = ({ isOpen, onClose }) => {
       `}
       >
         {/* Mobile Header with Close Button */}
-        <div className="flex items-center justify-between h-16 px-4 lg:px-4 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-secondary-50 lg:justify-center lg:border-neutral-200">
+        <div className="relative flex items-center justify-center h-20 px-4 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-secondary-50 lg:border-neutral-200">
+          {/* Centered Logo */}
           <Link
             to="/candidate/dashboard"
             onClick={onClose}
@@ -90,14 +91,14 @@ const Sidebar = ({ isOpen, onClose }) => {
             <img
               src={logoImage}
               alt="LokalHunt"
-              className="h-12 lg:h-14 w-auto object-contain"
+              className="h-14 lg:h-16 w-auto object-contain"
             />
           </Link>
 
-          {/* Close button - visible only on mobile */}
+          {/* Close button - positioned absolutely on mobile */}
           <button
             onClick={onClose}
-            className="lg:hidden p-2 rounded-full hover:bg-white hover:bg-opacity-80 transition-all duration-200 active:scale-95"
+            className="lg:hidden absolute right-4 top-1/2 transform -translate-y-1/2 p-2 rounded-full hover:bg-white hover:bg-opacity-80 transition-all duration-200 active:scale-95"
             aria-label="Close menu"
           >
             <XMarkIcon className="h-6 w-6 text-gray-700" />
@@ -105,8 +106,8 @@ const Sidebar = ({ isOpen, onClose }) => {
         </div>
 
         {/* Navigation - Mobile optimized spacing */}
-        <nav className="mt-6 px-4 lg:mt-8 lg:px-4">
-          <ul className="space-y-1 lg:space-y-2">
+        <nav className="mt-8 px-4 lg:mt-8 lg:px-4">
+          <ul className="space-y-2 lg:space-y-2">
             {navigation.map((item) => {
               const Icon = item.icon;
               return (
@@ -115,8 +116,8 @@ const Sidebar = ({ isOpen, onClose }) => {
                     to={item.href}
                     onClick={onClose}
                     className={`
-                      group flex items-center px-4 lg:px-3 py-4 lg:py-2.5 text-base lg:text-sm font-medium rounded-xl lg:rounded-lg 
-                      transition-all duration-200 active:scale-[0.98] lg:hover:scale-[1.02]
+                      group flex items-center px-5 lg:px-3 py-5 lg:py-3 text-lg lg:text-sm font-medium rounded-2xl lg:rounded-lg 
+                      transition-all duration-200 active:scale-[0.98] lg:hover:scale-[1.02] min-h-[56px] lg:min-h-[44px]
                       ${
                         isActive(item.href)
                           ? "bg-gradient-to-r from-green-500 to-blue-500 text-white shadow-lg lg:shadow-md"
@@ -124,8 +125,8 @@ const Sidebar = ({ isOpen, onClose }) => {
                       }
                     `}
                   >
-                    <Icon className="mr-4 lg:mr-3 h-6 w-6 lg:h-5 lg:w-5 flex-shrink-0" />
-                    <span className="font-medium lg:font-medium">
+                    <Icon className="mr-5 lg:mr-3 h-7 w-7 lg:h-5 lg:w-5 flex-shrink-0" />
+                    <span className="font-semibold lg:font-medium text-base lg:text-sm">
                       {item.name}
                     </span>
                   </Link>
@@ -180,8 +181,8 @@ const Sidebar = ({ isOpen, onClose }) => {
           </div>
         </div> */}
 
-        {/* Mobile-specific bottom spacing */}
-        <div className="h-8 lg:h-0"></div>
+        {/* Mobile-specific bottom spacing and safe area */}
+        <div className="h-16 lg:h-0 pb-safe"></div>
       </div>
     </>
   );

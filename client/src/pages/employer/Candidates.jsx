@@ -10,6 +10,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   XMarkIcon,
+  AdjustmentsHorizontalIcon, // Import AdjustmentsHorizontalIcon
 } from "@heroicons/react/24/outline";
 import FormInput from "../../components/ui/FormInput";
 import Select from "../../components/ui/Select";
@@ -20,12 +21,13 @@ import CandidateCard from "../../components/ui/CandidateCard";
 import AllocationStatusBadge from "../../components/ui/AllocationStatusBadge";
 import AllocationStatusSelect from "../../components/ui/AllocationStatusSelect";
 import {
-  getAllCandidates,
+  getCandidates,
   updateCandidateStatus,
 } from "../../services/employer/candidates";
 import { getAds } from "../../services/employer/ads";
 import { useRole } from "../../context/RoleContext";
 import { toast } from "react-hot-toast";
+import Loading from "../../components/ui/Loading";
 
 const Candidates = () => {
   const [searchParams] = useSearchParams();
@@ -38,12 +40,16 @@ const Candidates = () => {
     can = () => false,
     targetEmployer = null,
     getCurrentEmployerId = () => null,
+    employerPlan = "SELF_SERVICE", // Default plan, will be fetched
   } = roleContext || {};
 
   const [candidates, setCandidates] = useState([]);
+  const [premiumCandidates, setPremiumCandidates] = useState([]); // State for premium candidates
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [showCandidateModal, setShowCandidateModal] = useState(false);
+
+  const [viewMode, setViewMode] = useState("ALL"); // "ALL" or "PREMIUM"
 
   // Get ad filter from URL params
   const adIdFilter = searchParams.get("adId");
@@ -82,6 +88,7 @@ const Candidates = () => {
     { value: "BOTH", label: "Any Gender" },
   ];
 
+  // Load initial data
   useEffect(() => {
     loadCandidates();
     loadApprovedAds();
@@ -91,31 +98,30 @@ const Candidates = () => {
   const loadCandidates = async () => {
     setIsLoading(true);
     try {
-      const result = await getAllCandidates();
+      const result = await getCandidates();
 
       if (result.success) {
-        // Based on the API response structure, candidates are in result.data.data.candidates
         let allCandidates = [];
-
         if (
           result.data &&
-          result.data.data &&
-          Array.isArray(result.data.data.candidates)
+          result.data &&
+          Array.isArray(result.data.candidates)
         ) {
-          allCandidates = result.data.data.candidates;
+          allCandidates = result.data.candidates;
         } else if (result.data && Array.isArray(result.data.candidates)) {
           allCandidates = result.data.candidates;
-        } else if (result.data && Array.isArray(result.data.data)) {
-          allCandidates = result.data.data;
+        } else if (result.data && Array.isArray(result.data)) {
+          allCandidates = result.data;
         } else if (result.data && Array.isArray(result.data)) {
           allCandidates = result.data;
         }
 
         console.log("Loaded candidates:", allCandidates);
 
-        // If we have an ad filter, only show candidates for that specific ad
+        // Filter candidates based on the selected ad
+        let filteredCandidates = allCandidates;
         if (selectedAd) {
-          allCandidates = allCandidates.filter((candidate) => {
+          filteredCandidates = allCandidates.filter((candidate) => {
             return (
               candidate.allocations &&
               candidate.allocations.some(
@@ -125,10 +131,24 @@ const Candidates = () => {
           });
         }
 
-        setCandidates(allCandidates);
+        // Separate premium candidates if employer has HR-Assist plan
+        if (employerPlan === "HR_ASSIST") {
+          const premium = filteredCandidates.filter(
+            (candidate) => candidate.isPremium,
+          );
+          const regular = filteredCandidates.filter(
+            (candidate) => !candidate.isPremium,
+          );
+          setCandidates(regular);
+          setPremiumCandidates(premium);
+        } else {
+          setCandidates(filteredCandidates);
+          setPremiumCandidates([]); // Clear premium candidates if not HR-Assist
+        }
       } else {
         toast.error(result.error || "Failed to load candidates");
         setCandidates([]);
+        setPremiumCandidates([]);
       }
     } catch (error) {
       console.error("Error loading candidates:", error);
@@ -136,6 +156,7 @@ const Candidates = () => {
         "Failed to load candidates - " + (error.message || "Unknown error"),
       );
       setCandidates([]);
+      setPremiumCandidates([]);
     } finally {
       setIsLoading(false);
     }
@@ -145,14 +166,9 @@ const Candidates = () => {
     try {
       const result = await getAds({ status: "APPROVED", limit: 100 });
       if (result.success) {
-        // Handle the API response structure properly
         let ads = [];
-        if (
-          result.data &&
-          result.data.data &&
-          Array.isArray(result.data.data)
-        ) {
-          ads = result.data.data;
+        if (result.data && result.data && Array.isArray(result.data)) {
+          ads = result.data;
         } else if (result.data && Array.isArray(result.data)) {
           ads = result.data;
         }
@@ -186,7 +202,6 @@ const Candidates = () => {
         ];
         setEducationQualifications(qualifications);
       } else {
-        // Fallback to static data if API fails
         const qualifications = [
           { value: "", label: "All Education Levels" },
           { value: "HIGH_SCHOOL", label: "High School" },
@@ -200,7 +215,6 @@ const Candidates = () => {
       }
     } catch (error) {
       console.error("Error loading education qualifications:", error);
-      // Fallback to static data
       const qualifications = [
         { value: "", label: "All Education Levels" },
         { value: "HIGH_SCHOOL", label: "High School" },
@@ -216,7 +230,6 @@ const Candidates = () => {
 
   const handleStatusUpdate = async (allocationId, status, notes = "") => {
     try {
-      // Validate status before API call
       const validStatuses = [
         "APPLIED",
         "SHORTLISTED",
@@ -241,7 +254,6 @@ const Candidates = () => {
       const result = await updateCandidateStatus(allocationId, status, notes);
       if (result.success) {
         toast.success("Candidate status updated successfully");
-        // Reload candidates to get updated data
         await loadCandidates();
       } else {
         toast.error(result.error || "Failed to update candidate status");
@@ -255,110 +267,110 @@ const Candidates = () => {
     }
   };
 
-  const filteredCandidates = candidates.filter((candidate) => {
-    // Search filter - check name, email, job title
-    const candidateName = candidate.user?.name || candidate.name || "";
-    const candidateEmail = candidate.user?.email || candidate.email || "";
-    const candidateJobTitle =
-      candidate.currentJobTitle || candidate.jobTitle || "";
+  // Filter logic remains the same for both regular and premium candidates
+  const applyFilters = (candidateList) => {
+    return candidateList.filter((candidate) => {
+      const candidateName = candidate.user?.name || candidate.name || "";
+      const candidateEmail = candidate.user?.email || candidate.email || "";
+      const candidateJobTitle =
+        candidate.currentJobTitle || candidate.jobTitle || "";
 
-    const matchesSearch =
-      !searchTerm ||
-      candidateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      candidateEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      candidateJobTitle.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch =
+        !searchTerm ||
+        candidateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        candidateEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        candidateJobTitle.toLowerCase().includes(searchTerm.toLowerCase());
 
-    // Status filter - check allocations for status
-    const matchesStatus =
-      !statusFilter ||
-      (candidate.allocations &&
-        candidate.allocations.some(
-          (allocation) => allocation.status === statusFilter,
-        ));
+      const matchesStatus =
+        !statusFilter ||
+        (candidate.allocations &&
+          candidate.allocations.some(
+            (allocation) => allocation.status === statusFilter,
+          ));
 
-    // Skills filter - handle both array and string formats
-    const candidateSkills = candidate.skills || candidate.tags || [];
-    const skillsArray = Array.isArray(candidateSkills)
-      ? candidateSkills
-      : typeof candidateSkills === "string"
-        ? candidateSkills.split(",").map((s) => s.trim())
-        : [];
+      const candidateSkills = candidate.skills || candidate.tags || [];
+      const skillsArray = Array.isArray(candidateSkills)
+        ? candidateSkills
+        : typeof candidateSkills === "string"
+          ? candidateSkills.split(",").map((s) => s.trim())
+          : [];
 
-    const matchesSkill =
-      !skillFilter ||
-      skillsArray.some((skill) =>
-        skill.toLowerCase().includes(skillFilter.toLowerCase()),
+      const matchesSkill =
+        !skillFilter ||
+        skillsArray.some((skill) =>
+          skill.toLowerCase().includes(skillFilter.toLowerCase()),
+        );
+
+      const matchesAd =
+        !selectedAd ||
+        (candidate.allocations &&
+          candidate.allocations.some(
+            (allocation) => allocation.adId === selectedAd,
+          ));
+
+      const candidateGender =
+        candidate.profile_data?.gender ||
+        candidate.gender ||
+        candidate.user?.gender ||
+        "";
+      const matchesGender =
+        !genderFilter ||
+        candidateGender.toLowerCase() === genderFilter.toLowerCase();
+
+      const candidateEducation =
+        candidate.profile_data?.education?.level ||
+        candidate.education?.level ||
+        candidate.educationLevel ||
+        "";
+      const matchesEducation =
+        !educationFilter || candidateEducation === educationFilter;
+
+      const candidateExp =
+        parseInt(
+          candidate.experience ||
+            candidate.experienceYears ||
+            candidate.totalExperience,
+        ) || 0;
+      const matchesExperience =
+        !experienceFilter ||
+        (() => {
+          switch (experienceFilter) {
+            case "0-1":
+              return candidateExp >= 0 && candidateExp <= 1;
+            case "1-3":
+              return candidateExp >= 1 && candidateExp <= 3;
+            case "3-5":
+              return candidateExp >= 3 && candidateExp <= 5;
+            case "5-10":
+              return candidateExp >= 5 && candidateExp <= 10;
+            case "10+":
+              return candidateExp >= 10;
+            default:
+              return true;
+          }
+        })();
+
+      const matchesAppliedOnly =
+        !appliedOnlyFilter ||
+        (candidate.allocations && candidate.allocations.length > 0);
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesSkill &&
+        matchesAd &&
+        matchesGender &&
+        matchesEducation &&
+        matchesExperience &&
+        matchesAppliedOnly
       );
+    });
+  };
 
-    // Job Ad filter
-    const matchesAd =
-      !selectedAd ||
-      (candidate.allocations &&
-        candidate.allocations.some(
-          (allocation) => allocation.adId === selectedAd,
-        ));
-
-    // Gender filter - check profile data or user data
-    const candidateGender =
-      candidate.profile_data?.gender ||
-      candidate.gender ||
-      candidate.user?.gender ||
-      "";
-    const matchesGender =
-      !genderFilter ||
-      candidateGender.toLowerCase() === genderFilter.toLowerCase();
-
-    // Education filter - check profile data for education level
-    const candidateEducation =
-      candidate.profile_data?.education?.level ||
-      candidate.education?.level ||
-      candidate.educationLevel ||
-      "";
-    const matchesEducation =
-      !educationFilter || candidateEducation === educationFilter;
-
-    // Experience filter - Parse experience ranges and match
-    const candidateExp =
-      parseInt(
-        candidate.experience ||
-          candidate.experienceYears ||
-          candidate.totalExperience,
-      ) || 0;
-    const matchesExperience =
-      !experienceFilter ||
-      (() => {
-        switch (experienceFilter) {
-          case "0-1":
-            return candidateExp >= 0 && candidateExp <= 1;
-          case "1-3":
-            return candidateExp >= 1 && candidateExp <= 3;
-          case "3-5":
-            return candidateExp >= 3 && candidateExp <= 5;
-          case "5-10":
-            return candidateExp >= 5 && candidateExp <= 10;
-          case "10+":
-            return candidateExp >= 10;
-          default:
-            return true;
-        }
-      })();
-
-    // Applied candidates only filter - show only candidates who have applied to employer's ads
-    const matchesAppliedOnly =
-      !appliedOnlyFilter ||
-      (candidate.allocations && candidate.allocations.length > 0);
-
-    return (
-      matchesSearch &&
-      matchesStatus &&
-      matchesSkill &&
-      matchesAd &&
-      matchesGender &&
-      matchesEducation &&
-      matchesExperience &&
-      matchesAppliedOnly
-    );
-  });
+  const displayedCandidates =
+    viewMode === "PREMIUM"
+      ? applyFilters(premiumCandidates)
+      : applyFilters(candidates);
 
   // Update candidates when ad filter changes
   useEffect(() => {
@@ -383,11 +395,7 @@ const Candidates = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader />
-      </div>
-    );
+    return <Loading />;
   }
 
   return (
@@ -411,175 +419,232 @@ const Candidates = () => {
 
           <div className="text-xs lg:text-sm text-gray-500 bg-white px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg border flex items-center">
             <UserGroupIcon className="h-3 w-3 lg:h-4 lg:w-4 mr-1 flex-shrink-0" />
-            <span className="font-medium">{filteredCandidates.length}</span>
+            <span className="font-medium">{displayedCandidates.length}</span>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-3 lg:px-6 py-3 lg:py-5 mb-3 lg:mb-8">
-          {/* Primary Filters - Mobile Optimized */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:gap-4 mb-3 lg:mb-4">
-            {/* Mobile: Only Job Ad and Status visible */}
-            <div className="lg:hidden">
-              <Select
-                label="Job Ad"
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+          {/* Primary Filters Row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <FormInput
+              label="Global Search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by name, email, or job title..."
+              icon={MagnifyingGlassIcon}
+            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Job Ad
+              </label>
+              <select
                 value={selectedAd}
-                onChange={(value) => setSelectedAd(value)}
-                options={[...approvedAds]}
-                placeholder="All Job Ads"
-              />
-            </div>
-            <div className="lg:hidden">
-              <AllocationStatusSelect
-                label="Status"
-                value={statusFilter}
-                onChange={(value) => setStatusFilter(value)}
-                includeAll={true}
-                placeholder="All Statuses"
-              />
-            </div>
-
-            {/* Desktop: All primary filters visible */}
-            <div className="hidden lg:block lg:col-span-1">
-              <FormInput
-                label="Global Search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by name, email, or job title..."
-                icon={MagnifyingGlassIcon}
-              />
-            </div>
-            <div className="hidden lg:block">
-              <Select
-                label="Job Ad"
-                value={selectedAd}
-                onChange={(value) => setSelectedAd(value)}
-                options={[...approvedAds]}
-                placeholder="All Job Ads"
-              />
-            </div>
-            <div className="hidden lg:block">
-              <AllocationStatusSelect
-                label="Status"
-                value={statusFilter}
-                onChange={(value) => setStatusFilter(value)}
-                includeAll={true}
-                placeholder="All Statuses"
-              />
-            </div>
-            <div className="hidden lg:flex lg:items-end">
-              <Button
-                variant="outline"
-                onClick={resetAllFilters}
-                className="w-full flex items-center justify-center gap-2 text-gray-600 hover:text-gray-900"
-                title="Reset all filters"
+                onChange={(e) => setSelectedAd(e.target.value)}
+                className="w-full py-2.5 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               >
-                <XMarkIcon className="h-4 w-4" />
-                Reset Filters
-              </Button>
+                <option value="">All Job Ads</option>
+                {approvedAds.map((ad) => (
+                  <option key={ad.value} value={ad.value}>
+                    {ad.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Status
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full py-2.5 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">All Statuses</option>
+                {/* Assuming AllocationStatusSelect component provides options or we define them here */}
+                {/* For demonstration, using hardcoded options if AllocationStatusSelect is not available */}
+                {[
+                  { id: "APPLIED", label: "Applied" },
+                  { id: "SHORTLISTED", label: "Shortlisted" },
+                  { id: "INTERVIEW_SCHEDULED", label: "Interview Scheduled" },
+                  { id: "INTERVIEW_COMPLETED", label: "Interview Completed" },
+                  { id: "HIRED", label: "Hired" },
+                  { id: "HOLD", label: "On Hold" },
+                  { id: "REJECTED", label: "Rejected" },
+                ].map((status) => (
+                  <option key={status.id} value={status.id}>
+                    {status.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          {/* More Filters Toggle */}
-          <div className="border-t border-gray-200 pt-3">
-            <div className="flex items-center justify-between">
+          {/* Advanced Filters Toggle */}
+          <div className="border-t border-gray-200 pt-4">
+            <div className="flex items-center justify-between mb-4">
               <button
                 onClick={() => setShowMoreFilters(!showMoreFilters)}
-                className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors duration-200"
               >
-                <FunnelIcon className="h-4 w-4" />
-                More Filters
-                {showMoreFilters ? (
-                  <ChevronUpIcon className="h-4 w-4" />
-                ) : (
-                  <ChevronDownIcon className="h-4 w-4" />
-                )}
-                {(searchTerm ||
-                  genderFilter ||
+                <AdjustmentsHorizontalIcon className="h-4 w-4 mr-2" />
+                Advanced Filters
+                <ChevronDownIcon
+                  className={`h-4 w-4 ml-2 transform transition-transform duration-200 ${
+                    showMoreFilters ? "rotate-180" : ""
+                  }`}
+                />
+                {(genderFilter ||
                   educationFilter ||
                   skillFilter ||
                   experienceFilter ||
                   appliedOnlyFilter) && (
-                  <span className="ml-1 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                  <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
                     {
                       [
-                        searchTerm,
                         genderFilter,
                         educationFilter,
                         skillFilter,
                         experienceFilter,
                         appliedOnlyFilter,
                       ].filter(Boolean).length
-                    }
+                    }{" "}
+                    active
                   </span>
                 )}
               </button>
 
-              {/* Reset Filters - Mobile Visible */}
-              <div className="lg:hidden">
+              <div className="flex items-center space-x-3">
+                {/* Active Filters Count */}
+                {(searchTerm ||
+                  selectedAd ||
+                  statusFilter ||
+                  genderFilter ||
+                  educationFilter ||
+                  skillFilter ||
+                  experienceFilter ||
+                  appliedOnlyFilter) && (
+                  <span className="text-sm text-gray-500">
+                    {
+                      [
+                        searchTerm,
+                        selectedAd,
+                        statusFilter,
+                        genderFilter,
+                        educationFilter,
+                        skillFilter,
+                        experienceFilter,
+                        appliedOnlyFilter,
+                      ].filter(Boolean).length
+                    }{" "}
+                    filters active
+                  </span>
+                )}
+
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
-                  onClick={resetAllFilters}
-                  className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900 px-3 py-1.5"
-                  title="Reset all filters"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setSelectedAd("");
+                    setStatusFilter("");
+                    setGenderFilter("");
+                    setEducationFilter("");
+                    setSkillFilter("");
+                    setExperienceFilter("");
+                    setAppliedOnlyFilter(false);
+                    setShowMoreFilters(false); // Also close advanced filters
+                  }}
+                  className="text-gray-600 hover:text-gray-900 border-gray-300 hover:border-gray-400"
                 >
-                  <XMarkIcon className="h-3.5 w-3.5" />
-                  <span className="text-xs">Reset</span>
+                  Clear All
                 </Button>
               </div>
             </div>
 
-            {/* Additional Filters - Collapsible */}
+            {/* Expandable Advanced Filters */}
             {showMoreFilters && (
-              <div className="mt-4 p-3 lg:p-4 bg-gray-50 rounded-lg space-y-3 lg:space-y-0">
-                {/* Global Search - Mobile Only */}
-                <div className="lg:hidden">
-                  <FormInput
-                    label="Global Search"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search by name, email, or job title..."
-                    icon={MagnifyingGlassIcon}
-                  />
+              <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                {/* First Row of Advanced Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Gender Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Gender
+                    </label>
+                    <select
+                      value={genderFilter}
+                      onChange={(e) => setGenderFilter(e.target.value)}
+                      className="w-full py-2 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    >
+                      <option value="">All Genders</option>
+                      <option value="MALE">Male</option>
+                      <option value="FEMALE">Female</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+
+                  {/* Education Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Minimum Education
+                    </label>
+                    <select
+                      value={educationFilter}
+                      onChange={(e) => setEducationFilter(e.target.value)}
+                      className="w-full py-2 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    >
+                      <option value="">All Education Levels</option>
+                      {educationQualifications.map((edu) => (
+                        <option key={edu.value} value={edu.value}>
+                          {edu.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Skills Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Skills
+                    </label>
+                    <input
+                      type="text"
+                      value={skillFilter}
+                      onChange={(e) => setSkillFilter(e.target.value)}
+                      placeholder="e.g., JavaScript, React, Python"
+                      className="w-full py-2 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    />
+                  </div>
+
+                  {/* Experience Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Experience Level
+                    </label>
+                    <select
+                      value={experienceFilter}
+                      onChange={(e) => setExperienceFilter(e.target.value)}
+                      className="w-full py-2 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    >
+                      <option value="">All Experience Levels</option>
+                      <option value="0-1">0-1 years (Fresher)</option>
+                      <option value="1-3">1-3 years (Junior)</option>
+                      <option value="3-5">3-5 years (Mid-level)</option>
+                      <option value="5-10">5-10 years (Senior)</option>
+                      <option value="10+">10+ years (Expert)</option>
+                    </select>
+                  </div>
                 </div>
 
-                {/* Filter Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:gap-4">
-                  <Select
-                    label="Gender"
-                    value={genderFilter}
-                    onChange={(value) => setGenderFilter(value)}
-                    options={genderOptions}
-                  />
-                  <Select
-                    label="Education"
-                    value={educationFilter}
-                    onChange={(value) => setEducationFilter(value)}
-                    options={educationQualifications}
-                  />
-                  <FormInput
-                    label="Skills"
-                    value={skillFilter}
-                    onChange={(e) => setSkillFilter(e.target.value)}
-                    placeholder="Filter by skills..."
-                  />
-                  <Select
-                    label="Experience"
-                    value={experienceFilter}
-                    onChange={(value) => setExperienceFilter(value)}
-                    options={experienceOptions}
-                  />
-                </div>
-
-                {/* Applied Candidates Only Toggle */}
-                <div className="pt-2">
-                  <label className="flex items-center space-x-2 cursor-pointer">
+                {/* Toggle Options */}
+                <div className="space-y-3 pt-2 border-t border-gray-200">
+                  <label className="flex items-center space-x-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors duration-200">
                     <input
                       type="checkbox"
                       checked={appliedOnlyFilter}
                       onChange={(e) => setAppliedOnlyFilter(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                     />
                     <span className="text-sm font-medium text-gray-700">
                       Show only candidates who have applied to my job ads
@@ -587,37 +652,26 @@ const Candidates = () => {
                   </label>
                 </div>
 
-                {/* Clear More Filters */}
-                <div className="pt-3 border-t border-gray-200 flex justify-between items-center">
+                {/* Advanced Filter Actions */}
+                <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                  <span className="text-xs text-gray-500">
+                    Use these filters to narrow down candidates based on
+                    specific criteria
+                  </span>
                   <Button
                     variant="secondary"
                     size="sm"
                     onClick={() => {
-                      setSearchTerm("");
                       setGenderFilter("");
                       setEducationFilter("");
                       setSkillFilter("");
                       setExperienceFilter("");
                       setAppliedOnlyFilter(false);
                     }}
-                    className="text-gray-600 hover:text-gray-900"
+                    className="text-gray-600 hover:text-gray-900 border-gray-300 hover:border-gray-400"
                   >
-                    Clear More Filters
+                    Clear Advanced Filters
                   </Button>
-
-                  {/* Desktop Reset All Filters */}
-                  <div className="hidden lg:block">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={resetAllFilters}
-                      className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-                      title="Reset all filters"
-                    >
-                      <XMarkIcon className="h-4 w-4" />
-                      Reset All Filters
-                    </Button>
-                  </div>
                 </div>
               </div>
             )}
@@ -625,9 +679,9 @@ const Candidates = () => {
         </div>
 
         {/* Candidates Grid */}
-        {filteredCandidates.length > 0 ? (
+        {displayedCandidates.length > 0 ? (
           <div className="space-y-2 lg:space-y-4">
-            {filteredCandidates.map((candidate) => (
+            {displayedCandidates.map((candidate) => (
               <CandidateCard
                 key={candidate.id}
                 candidate={candidate}

@@ -15,16 +15,20 @@ import {
   PencilIcon,
   DocumentArrowDownIcon
 } from '@heroicons/react/24/outline'
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import Button from './Button'
 import Modal from './Modal'
 import { toast } from 'react-hot-toast'
 
-const CandidateCard = ({
-  candidate,
+const CandidateCard = ({ 
+  candidate, 
+  onSelect, 
+  isSelected, 
+  variant = "default", 
+  showPremiumBadge = false,
   onStatusUpdate,
-  onViewProfile,
-  loading = {},
-  className = ''
+  className = "",
+  loading = {}
 }) => {
   const navigate = useNavigate()
   const [showNotesModal, setShowNotesModal] = useState(false)

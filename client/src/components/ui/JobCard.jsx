@@ -5,6 +5,7 @@ import Modal from "./Modal";
 import TextArea from "./TextArea";
 import { useAuth } from "../../context/AuthContext";
 import { approveAd, rejectAd } from "../../services/branch-admin/ads";
+import { reopenAd } from "../../services/employer/ads";
 import { toast } from "react-hot-toast";
 import {
   MapPinIcon,
@@ -20,6 +21,7 @@ import {
   UserGroupIcon, // Added for candidate count
   BookmarkIcon, // Added for bookmarked count
   UserIcon, // Added for gender preference
+  CheckIcon, // Imported CheckIcon
 } from "@heroicons/react/24/outline";
 import {
   BookmarkIcon as BookmarkSolidIcon,
@@ -35,6 +37,7 @@ const JobCard = ({
   onRemoveBookmark,
   onSubmit,
   onArchive,
+  onReopen, // Optional external reopen handler
   onApprove, // Optional external approve handler
   onReject, // Optional external reject handler
   onViewCandidates, // Added prop to handle viewing candidates
@@ -64,6 +67,17 @@ const JobCard = ({
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
 
+  // State for generic loading indicators used in buttons
+  const [isLoading, setIsLoading] = useState({
+    approve: false,
+    reject: false,
+    close: false,
+    reopen: false,
+  });
+
+  // State for reopen confirmation modal
+  const [showReopenModal, setShowReopenModal] = useState(false);
+
   // Internal approve handler - show confirmation modal
   const handleInternalApprove = async (jobId) => {
     setShowApproveModal(true);
@@ -75,19 +89,20 @@ const JobCard = ({
     try {
       const result = await approveAd(job.id);
       if (result.success) {
-        toast.success("Job ad approved successfully");
-        setShowApproveModal(false);
+        toast.success("Ad approved successfully");
+        // Call the onRefresh callback if provided to refresh the component
         if (onRefresh) {
           onRefresh();
         }
       } else {
-        toast.error(result.error || "Failed to approve job ad");
+        toast.error(result.error || "Failed to approve ad");
       }
     } catch (error) {
-      console.error("Error approving job ad:", error);
-      toast.error(error.response?.data?.message || "Failed to approve job ad");
+      console.error("Error approving ad:", error);
+      toast.error("Failed to approve ad");
     } finally {
       setInternalLoading((prev) => ({ ...prev, approve: false }));
+      setShowApproveModal(false);
     }
   };
 
@@ -112,20 +127,21 @@ const JobCard = ({
     try {
       const result = await rejectAd(job.id, rejectReason);
       if (result.success) {
-        toast.success("Job ad rejected successfully");
-        setShowRejectModal(false);
-        setRejectReason("");
+        toast.success("Ad rejected successfully");
+        // Call the onRefresh callback if provided to refresh the component
         if (onRefresh) {
           onRefresh();
         }
       } else {
-        toast.error(result.error || "Failed to reject job ad");
+        toast.error(result.error || "Failed to reject ad");
       }
     } catch (error) {
-      console.error("Error rejecting job ad:", error);
-      toast.error(error.response?.data?.message || "Failed to reject job ad");
+      console.error("Error rejecting ad:", error);
+      toast.error("Failed to reject ad");
     } finally {
       setInternalLoading((prev) => ({ ...prev, reject: false }));
+      setShowRejectModal(false);
+      setRejectReason("");
     }
   };
 
@@ -133,6 +149,39 @@ const JobCard = ({
   const handleRejectCancel = () => {
     setShowRejectModal(false);
     setRejectReason("");
+  };
+
+  // Internal reopen handler with confirmation modal
+  const handleInternalReopen = async (jobId) => {
+    setShowReopenModal(true);
+  };
+
+  // Handle reopen confirmation
+  const handleReopenConfirm = async () => {
+    setIsLoading((prev) => ({ ...prev, reopen: true }));
+    try {
+      const result = await reopenAd(job.id);
+      if (result.success) {
+        toast.success("Job reopened successfully");
+        // Call the onRefresh callback if provided to refresh the component
+        if (onRefresh) {
+          onRefresh();
+        }
+      } else {
+        toast.error(result.error || "Failed to reopen job");
+      }
+    } catch (error) {
+      console.error("Error reopening job:", error);
+      toast.error("Failed to reopen job");
+    } finally {
+      setIsLoading((prev) => ({ ...prev, reopen: false }));
+      setShowReopenModal(false);
+    }
+  };
+
+  // Handle reopen modal close
+  const handleReopenCancel = () => {
+    setShowReopenModal(false);
   };
 
   // Helper function to get correct job route based on status
@@ -294,8 +343,12 @@ const JobCard = ({
 
       case "employer":
         // Employer ads page actions
-        // Only show Edit button if job is not approved
-        if (applicationStatus !== "APPROVED") {
+        // Only show Edit button if job is not approved, not closed, and not rejected
+        if (
+          applicationStatus !== "APPROVED" &&
+          applicationStatus !== "CLOSED" &&
+          applicationStatus !== "REJECTED"
+        ) {
           actions.push(
             <Button
               key="edit"
@@ -409,19 +462,54 @@ const JobCard = ({
         if (applicationStatus === "APPROVED") {
           actions.push(
             <Button
-              key="archive"
+              key="close"
               variant="ghost"
               size="sm"
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation();
-                onArchive?.(job.id);
+                if (onArchive) {
+                  await onArchive(job.id);
+                  // Refresh the component after successful close action
+                  if (onRefresh) {
+                    onRefresh();
+                  }
+                }
               }}
-              disabled={loading.archive}
+              disabled={loading.archive || loading.close}
               className="bg-red-600 hover:bg-red-700 text-white flex items-center touch-manipulation"
             >
               <XMarkIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
               <span className="text-xs sm:text-sm">
-                {loading.archive ? "Closing..." : "Close Job"}
+                {loading.archive || loading.close ? "Closing..." : "Close Job"}
+              </span>
+            </Button>,
+          );
+        }
+
+        // Add reopen button for closed jobs
+        if (applicationStatus === "CLOSED") {
+          actions.push(
+            <Button
+              key="reopen"
+              variant="success"
+              size="sm"
+              onClick={async (e) => {
+                e.stopPropagation();
+                // Use external handler if provided, otherwise use internal
+                if (onReopen) {
+                  onReopen(job.id);
+                } else {
+                  handleInternalReopen(job.id);
+                }
+              }}
+              disabled={loading.reopen || isLoading.reopen}
+              className="bg-green-600 hover:bg-green-700 text-white flex items-center touch-manipulation"
+            >
+              <CheckIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+              <span className="text-xs sm:text-sm">
+                {loading.reopen || isLoading.reopen
+                  ? "Reopening..."
+                  : "Re-Open Job"}
               </span>
             </Button>,
           );
@@ -435,8 +523,9 @@ const JobCard = ({
           actions.push(
             <Button
               key="approve"
+              variant="success"
               size="sm"
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation();
                 // Use external handler if provided, otherwise use internal
                 if (onApprove) {
@@ -445,24 +534,29 @@ const JobCard = ({
                   handleInternalApprove(job.id);
                 }
               }}
-              disabled={loading?.approve || internalLoading.approve}
-              className="bg-green-600 hover:bg-green-700 text-white flex items-center touch-manipulation"
+              disabled={loading?.approve}
+              className="bg-green-600 hover:bg-green-700 text-white"
             >
-              <CheckBadgeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
-              <span className="text-xs sm:text-sm">
-                {loading?.approve || internalLoading.approve
-                  ? "Approving..."
-                  : "Approve"}
-              </span>
+              {loading?.approve ? (
+                <div className="flex items-center space-x-1">
+                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Approving...</span>
+                </div>
+              ) : (
+                <>
+                  <CheckIcon className="h-3 w-3 mr-1" />
+                  Approve
+                </>
+              )}
             </Button>,
           );
 
           actions.push(
             <Button
               key="reject"
-              variant="ghost"
+              variant="danger"
               size="sm"
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation();
                 // Use external handler if provided, otherwise use internal
                 if (onReject) {
@@ -471,15 +565,20 @@ const JobCard = ({
                   handleInternalReject(job.id);
                 }
               }}
-              disabled={loading?.reject || internalLoading.reject}
-              className="text-red-600 hover:text-red-700 flex items-center touch-manipulation"
+              disabled={loading?.reject}
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
-              <XMarkIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
-              <span className="text-xs sm:text-sm">
-                {loading?.reject || internalLoading.reject
-                  ? "Rejecting..."
-                  : "Reject"}
-              </span>
+              {loading?.reject ? (
+                <div className="flex items-center space-x-1">
+                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Rejecting...</span>
+                </div>
+              ) : (
+                <>
+                  <XMarkIcon className="h-3 w-3 mr-1" />
+                  Reject
+                </>
+              )}
             </Button>,
           );
         }
@@ -499,11 +598,16 @@ const JobCard = ({
               // Check if user is a candidate and route accordingly
               if (user?.role === "CANDIDATE") {
                 // For candidates, navigate to candidate job view with context
-                const fromParam = location.pathname.includes("/candidate/") ? "jobs" : "public";
+                const fromParam = location.pathname.includes("/candidate/")
+                  ? "jobs"
+                  : "public";
                 navigate(`/candidate/jobs/${job.id}?from=${fromParam}`);
               } else {
                 // For public users or other roles, navigate to public job detail page
-                const jobRoute = getJobRoute(job.id, job.status || applicationStatus);
+                const jobRoute = getJobRoute(
+                  job.id,
+                  job.status || applicationStatus,
+                );
                 navigate(jobRoute);
               }
             }}
@@ -574,7 +678,7 @@ const JobCard = ({
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h4 className="font-medium text-blue-900 mb-2">{job.title}</h4>
             <p className="text-blue-700 text-sm">
-              {job.company?.name || job.companyName}
+              {job.company?.name || job.companyName || "Company Name"}
             </p>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
@@ -635,6 +739,43 @@ const JobCard = ({
         </div>
       </Modal>
 
+      {/* Reopen Confirmation Modal */}
+      <Modal
+        isOpen={showReopenModal}
+        onClose={handleReopenCancel}
+        title="Reopen Job Advertisement"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Are you sure you want to reopen this job? It will become active and
+            visible to candidates again.
+          </p>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h4 className="font-medium text-green-900 mb-2">{job.title}</h4>
+            <p className="text-green-700 text-sm">
+              {job.company?.name || job.companyName || "Company Name"}
+            </p>
+          </div>
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={handleReopenCancel}
+              disabled={isLoading.reopen}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleReopenConfirm}
+              disabled={isLoading.reopen}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isLoading.reopen ? "Reopening..." : "Reopen Job"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       <div
         className={`bg-white border-0 rounded-2xl shadow-sm hover:shadow-lg active:shadow-md transition-all duration-200 ${onClick ? "cursor-pointer active:scale-[0.98]" : ""} ${className}`}
         onClick={onClick}
@@ -671,14 +812,18 @@ const JobCard = ({
                         ? "bg-amber-100 text-amber-800"
                         : applicationStatus === "APPROVED"
                           ? "bg-emerald-100 text-emerald-800"
-                          : applicationStatus === "ARCHIVED"
+                          : applicationStatus === "CLOSED"
                             ? "bg-red-100 text-red-800"
-                            : "bg-gray-100 text-gray-800"
+                            : applicationStatus === "REJECTED"
+                              ? "bg-orange-100 text-orange-800"
+                              : "bg-gray-100 text-gray-800"
                   }`}
                 >
                   {applicationStatus === "PENDING_APPROVAL"
                     ? "Pending"
-                    : applicationStatus.replace("_", " ")}
+                    : applicationStatus === "CLOSED"
+                      ? "Closed"
+                      : applicationStatus.replace("_", " ")}
                 </span>
               )}
               {applicationStatus &&
@@ -855,6 +1000,25 @@ const JobCard = ({
               {job.description}
             </p>
           )}
+
+          {/* Rejection Reason - Show for rejected ads in all variants */}
+          {(applicationStatus === "REJECTED" || job.status === "REJECTED") &&
+            (job.rejectionReason || job.rejectionComments) &&
+            (job.rejectionReason?.trim() || job.rejectionComments?.trim()) && (
+              <div className="mb-3 sm:mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <XMarkIcon className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-red-800 mb-1">
+                      Rejection Reason:
+                    </p>
+                    <p className="text-xs text-red-700 leading-relaxed break-words">
+                      {(job.rejectionReason || job.rejectionComments)?.trim()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
           {/* Skills - Mobile Optimized */}
           {Array.isArray(job.skills) && job.skills.length > 0 && (

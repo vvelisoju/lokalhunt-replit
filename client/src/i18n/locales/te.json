@@ -23,7 +23,11 @@
     "helpSupport": "సహాయం / మద్దతు",
     "completeProfile": "మీ ప్రొఫైల్‌ను పూర్తి చేయండి",
     "percentComplete": "{{percent}}% పూర్తయింది",
-    "testInterface": "టెస్ట్ ఇంటర్‌ఫేస్"
+    "testInterface": "టెస్ట్ ఇంటర్‌ఫేస్",
+    "myAds": "నా ప్రకటనలు",
+    "candidates": "అభ్యర్థులు",
+    "premiumCandidates": "ప్రీమియం అభ్యర్థులు",
+    "companies": "కంపెనీలు"
   },
   "stats": {
     "applications": "దరఖాస్తులు",
@@ -42,7 +46,7 @@
     "status": {
       "pending": "పెండింగ్‌లో",
       "approved": "ఆమోదించబడింది",
-      "rejected": "తిరస్కరించబడింది", 
+      "rejected": "తిరస్కరించబడింది",
       "interview": "ఇంటర్వ్యూ"
     }
   },

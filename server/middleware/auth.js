@@ -19,7 +19,19 @@ const authenticateToken = (req, res, next) => {
       );
     }
 
-    req.user = decoded;
+    // Ensure consistent user ID structure
+    req.user = {
+      ...decoded,
+      id: decoded.id || decoded.userId || decoded.sub
+    };
+    
+    console.log('Auth middleware: Setting req.user:', {
+      id: req.user.id,
+      userId: req.user.userId,
+      role: req.user.role,
+      tokenStructure: Object.keys(decoded)
+    });
+    
     next();
   });
 };
@@ -54,7 +66,11 @@ const optionalAuth = (req, res, next) => {
 
   jwt.verify(token, process.env.JWT_SECRET || 'lokalhunt-secret', (err, decoded) => {
     if (!err) {
-      req.user = decoded;
+      // Ensure consistent user ID structure
+      req.user = {
+        ...decoded,
+        id: decoded.id || decoded.userId || decoded.sub
+      };
     }
     next();
   });
@@ -71,11 +87,17 @@ const requireRoleOrAdminAccess = (...allowedRoles) => {
 
     const userRole = req.user.role;
     
-    // Get employerId from various sources
+    // Get employerId from various sources (including URL path)
     const employerIdFromQuery = req.query.employerId;
     const employerIdFromBody = req.body.employerId;
     const employerIdFromParams = req.params.employerId;
-    const targetEmployerId = employerIdFromParams || employerIdFromQuery || employerIdFromBody;
+    
+    // Also check if we're in a Branch Admin context accessing employer routes
+    const pathParts = req.path.split('/');
+    const employerIdFromPath = pathParts.includes('employers') ? 
+      pathParts[pathParts.indexOf('employers') + 1] : null;
+    
+    const targetEmployerId = employerIdFromParams || employerIdFromQuery || employerIdFromBody || employerIdFromPath;
 
     console.log(`[AUTH DEBUG] User: ${req.user.userId}, Role: ${userRole}, AllowedRoles: [${allowedRoles.join(', ')}], TargetEmployerId: ${targetEmployerId}`);
 

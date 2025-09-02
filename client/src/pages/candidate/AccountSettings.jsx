@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { toast } from "react-hot-toast";
 import Layout from "../../components/candidate/Layout";
 import Profile from "../../components/ui/Profile";
 import { useAuth } from "../../context/AuthContext";
 import { authService } from "../../services/authService";
+import { profileService } from "../../services/profileService";
+import { useToast } from "../../components/ui/Toast";
 
 const AccountSettings = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const { success, error } = useToast();
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -18,15 +20,18 @@ const AccountSettings = () => {
     try {
       setLoading(true);
       const response = await authService.getProfile();
-      if (response && (response.status === "success" || response.success !== false)) {
+      if (
+        response &&
+        (response.status === "success" || response.success !== false)
+      ) {
         const userData = response.data || response;
         setProfileData(userData);
       } else {
-        toast.error(response?.error || "Failed to load profile data");
+        error(response?.error || "Failed to load profile data");
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
-      toast.error("Failed to load profile data");
+      error("Failed to load profile data");
     } finally {
       setLoading(false);
     }
@@ -34,15 +39,29 @@ const AccountSettings = () => {
 
   const handleUpdateProfile = async (formData) => {
     try {
+      console.log("Updating candidate profile with data:", formData);
+
+      // Use authService for user-related updates to maintain consistent user structure
       const response = await authService.updateProfile(formData);
-      if (response && (response.status === "success" || response.success !== false)) {
+      console.log("Profile update response:", response);
+
+      if (response && (response.status === "success" || response.success)) {
         await fetchProfile(); // Refresh profile data
+        success("Profile updated successfully");
+        
+        // Always refresh user data to update ProfileDropdown with flat user structure
+        if (refreshUser) {
+          await refreshUser();
+        }
       } else {
-        throw new Error(response?.error || "Failed to update profile");
+        const errorMessage = response?.error || response?.message || "Failed to update profile";
+        console.error("Profile update failed:", errorMessage);
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error("Error updating profile:", error);
-      throw error;
+      const errorMessage = error.response?.data?.message || error.message || "Failed to update profile";
+      throw new Error(errorMessage);
     }
   };
 
@@ -50,7 +69,7 @@ const AccountSettings = () => {
     try {
       const response = await profileService.updatePassword(passwordData);
       if (response.success) {
-        toast.success("Password updated successfully");
+        success("Password updated successfully");
       } else {
         throw new Error(response.error || "Failed to update password");
       }

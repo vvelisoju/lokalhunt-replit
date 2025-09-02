@@ -22,7 +22,8 @@ enum AdStatus {
   DRAFT
   PENDING_APPROVAL
   APPROVED
-  ARCHIVED
+  CLOSED
+  REJECTED
 }
 
 enum AllocationStatus {
@@ -97,7 +98,7 @@ model User {
   name         String
   firstName    String?  @map("first_name")
   lastName     String?  @map("last_name")
-  email        String?  @unique
+  email        String?
   phone        String   @unique
   passwordHash String   @map("password_hash")
   role         UserRole
@@ -273,6 +274,9 @@ model Ad {
   isActive                Boolean  @default(true) @map("is_active")
   approvedAt              DateTime? @map("approved_at")
   approvedBy              String?  @map("approved_by") // Branch Admin ID
+  rejectionReason         String?  @map("rejection_reason") // Reason for rejection
+  rejectedAt              DateTime? @map("rejected_at")
+  rejectedBy              String?  @map("rejected_by") // Branch Admin ID who rejected
   createdAt               DateTime @default(now()) @map("created_at")
   updatedAt               DateTime @updatedAt @map("updated_at")
 

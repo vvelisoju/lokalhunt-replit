@@ -21,7 +21,7 @@ const Employers = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const roleContext = useRole();
   const { viewAsAdmin, setTargetEmployerContext } = roleContext || {};
-  
+
   const [employers, setEmployers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -70,7 +70,7 @@ const Employers = () => {
       planId: searchParams.get('planId') || '',
       subscriptionStatus: searchParams.get('subscriptionStatus') || ''
     };
-    
+
     setFilters(urlFilters);
     setPagination(prev => ({ ...prev, page }));
     loadEmployers();
@@ -97,7 +97,7 @@ const Employers = () => {
         planId: searchParams.get('planId') || '',
         subscriptionStatus: searchParams.get('subscriptionStatus') || ''
       };
-      
+
       const params = {
         page: currentPage,
         limit: pagination.limit,
@@ -105,7 +105,7 @@ const Employers = () => {
       };
 
       const response = await getEmployers(params);
-      
+
       if (response.success) {
         const data = response.data.data || response.data;
         setEmployers(data.employers || []);
@@ -179,20 +179,20 @@ const Employers = () => {
     }
   };
 
-  
+
 
   const handleView = (employerId) => {
     // Find the employer data to set context
     const employer = employers.find(emp => emp.id === employerId);
-    
+
     if (employer && setTargetEmployerContext && viewAsAdmin) {
       // Set the target employer context for sidebar navigation
       setTargetEmployerContext(employer);
-      
+
       // Use viewAsAdmin to set the context and navigate
       viewAsAdmin(employer);
     }
-    
+
     // Navigate to the employer dashboard using standard employer components
     navigate(`/branch-admin/employers/${employerId}/dashboard`);
   };
@@ -238,7 +238,7 @@ const Employers = () => {
         </Button>
       </div>
 
-      
+
 
       {/* Simplified Filters */}
       <div className="bg-white p-6 rounded-lg shadow-sm border">
@@ -270,7 +270,7 @@ const Employers = () => {
           <p className="text-sm text-gray-600">
             {pagination.total} employers found in your branch
           </p>
-          
+
           {Object.values(filters).some(value => value) && (
             <Button
               variant="outline"

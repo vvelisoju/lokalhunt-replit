@@ -69,18 +69,16 @@ const JobAdsTab = ({
               return (
                 <div key={ad.id} className="relative">
                   <JobCard
+                    key={ad.id}
                     job={jobData}
                     variant="employer"
                     applicationStatus={ad.status}
-                    onClick={() => onViewAd(ad)}
                     userRole="BRANCH_ADMIN"
-                    onRefresh={onRefresh}
-                    showCompanyInfo={true}
-                    showLocationInfo={true}
-                    showSalaryInfo={true}
-                    showSkillsInfo={true}
-                    showStatusBadge={true}
-                    customStatusBadge={getStatusBadge(ad.status)}
+                    onRefresh={onRefresh} // Pass the refresh callback
+                    showApplicationDate={false}
+                    showCandidatesCount={true}
+                    loading={{}}
+                    className="hover:shadow-lg transition-shadow"
                   />
                 </div>
               );

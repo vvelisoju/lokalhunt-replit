@@ -201,7 +201,7 @@ const AdsApprovals = () => {
                   variant="employer"
                   applicationStatus={ad.status}
                   userRole="BRANCH_ADMIN"
-                  onRefresh={handleRefresh}
+                  onRefresh={loadAds} // Use loadAds for immediate refresh
                   loading={{}}
                   className="hover:shadow-lg transition-shadow"
                 />

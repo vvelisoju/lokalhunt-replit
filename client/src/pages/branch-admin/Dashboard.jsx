@@ -11,6 +11,7 @@ import KpiCards from "../../components/branch-admin/KpiCards";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import EmptyState from "../../components/branch-admin/EmptyState";
+import JobCard from "../../components/ui/JobCard";
 import {
   getBranchStats,
   getQuickActions,
@@ -20,6 +21,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [quickActions, setQuickActions] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false); // Added for general refresh
 
   useEffect(() => {
     loadDashboardData();
@@ -56,6 +58,18 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadDashboardData();
+    setRefreshing(false);
+  };
+
+  // Add refresh callback for job cards in recent ads section
+  const handleAdActionRefresh = async () => {
+    // Refresh the entire dashboard to get updated ad statuses
+    await loadDashboardData();
   };
 
   const QuickActionCard = ({
@@ -126,6 +140,39 @@ const Dashboard = () => {
       )}
     </Card>
   );
+
+  // Function to load recent ads specifically
+  const loadRecentAds = async () => {
+    try {
+      const actionsResponse = await getQuickActions();
+      if (actionsResponse.success) {
+        setQuickActions((prev) => ({
+          ...prev,
+          recentActivity: actionsResponse.data.recentActivity,
+        }));
+      } else {
+        console.warn("Failed to reload recent ads:", actionsResponse.error);
+      }
+    } catch (error) {
+      console.error("Error reloading recent ads:", error);
+    }
+  };
+
+  // Function to load stats specifically
+  const loadStats = async () => {
+    try {
+      const statsResponse = await getBranchStats();
+      if (statsResponse.success) {
+        setStats(statsResponse.data);
+      } else {
+        toast.error(statsResponse.error);
+      }
+    } catch (error) {
+      toast.error("Failed to reload stats");
+      console.error("Error reloading stats:", error);
+    }
+  };
+
 
   return (
     <div className="space-y-8">
@@ -282,7 +329,7 @@ const Dashboard = () => {
           to="/branch-admin/employers?status=PENDING_APPROVAL"
           variant="primary"
         >
-          Review Pending Employers 123
+          Review Pending Employers
         </Button>
         <Button
           as={Link}

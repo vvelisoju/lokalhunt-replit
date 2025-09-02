@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { toast } from "react-hot-toast";
 import Profile from "../../components/ui/Profile";
 import { useAuth } from "../../context/AuthContext";
 import { authService } from "../../services/authService"; // Changed import
+import { useToast } from "../../components/ui/Toast";
 
 const AccountSettings = () => {
   const { user, refreshUser } = useAuth(); // Added refreshUser
+  const { success, error } = useToast();
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,11 +53,11 @@ const AccountSettings = () => {
         setProfileData(userData);
       } else {
         console.error("Profile fetch failed:", response.error);
-        toast.error(response.error || "Failed to load profile data");
+        error(response.error || "Failed to load profile data");
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
-      toast.error("Failed to load profile data");
+      error("Failed to load profile data");
     } finally {
       setLoading(false);
     }
@@ -71,13 +72,13 @@ const AccountSettings = () => {
         if (refreshUser) {
           await refreshUser();
         }
-        toast.success("Profile updated successfully");
+        success("Profile updated successfully");
       } else {
         throw new Error(response?.error || "Failed to update profile");
       }
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast.error(error.message || "Failed to update profile");
+      error(error.message || "Failed to update profile");
       throw error;
     }
   };
@@ -86,13 +87,13 @@ const AccountSettings = () => {
     try {
       const response = await authService.updatePassword(passwordData); // Changed method call
       if (response && (response.status === "success" || response.success !== false)) {
-        toast.success("Password updated successfully");
+        success("Password updated successfully");
       } else {
         throw new Error(response?.error || "Failed to update password");
       }
     } catch (error) {
       console.error("Error updating password:", error);
-      toast.error(error.message || "Failed to update password");
+      error(error.message || "Failed to update password");
       throw error;
     }
   };

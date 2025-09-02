@@ -50,7 +50,7 @@ router.use("/profile", profileRoutes);
 
 router.use("/candidate", candidateRoutes);
 router.use("/employers", employerRoutes);
-router.use("/branch-admin", branchAdminRoutes);
+router.use("/branch-admins", branchAdminRoutes);
 router.use("/ads", adRoutes);
 router.use("/public", publicRoutes);
 router.use("/shared", sharedRoutes);

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import {
   UserIcon,
@@ -49,6 +49,7 @@ const Profile = ({
     newPassword: "",
     confirmPassword: "",
   });
+  const [passwordAlert, setPasswordAlert] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -112,48 +113,83 @@ const Profile = ({
   };
 
   const handleSave = async () => {
+    console.log("Attempting to save profile...");
     if (!validateForm()) {
+      console.log("Form validation failed.");
       return;
     }
     try {
       setIsSubmitting(true);
+      console.log("Calling onUpdateProfile with data:", formData);
+      console.log(
+        "onUpdateProfile is a function:",
+        typeof onUpdateProfile === "function",
+      );
+
+      // Ensure onUpdateProfile is a function before calling it
+      if (typeof onUpdateProfile !== "function") {
+        throw new Error(
+          "Profile update function is not available or not provided.",
+        );
+      }
+
       // Send city directly as the API expects it
       await onUpdateProfile(formData);
       setEditMode(false);
+      console.log("Profile update successful.");
       // Don't show toast here as it's handled in the parent component
     } catch (error) {
+      console.error("Error during profile save:", error);
       toast.error(error.message || "Failed to update profile");
     } finally {
       setIsSubmitting(false);
+      console.log("Finished profile save attempt.");
     }
   };
 
   const handlePasswordChange = async () => {
+    // Clear any existing alerts
+    setPasswordAlert(null);
+
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error("New passwords do not match");
+      setPasswordAlert({
+        type: "error",
+        message: "New passwords do not match",
+      });
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters long");
+      setPasswordAlert({
+        type: "error",
+        message: "Password must be at least 6 characters long",
+      });
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
-      await onUpdatePassword({
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
+      await onUpdatePassword(passwordData);
+      setPasswordAlert({
+        type: "success",
+        message: "Password updated successfully",
       });
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-      setPasswordMode(false);
-      // Don't show toast here as it's handled in the parent component
+
+      // Close modal after a short delay to show success message
+      setTimeout(() => {
+        setPasswordMode(false);
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+        setPasswordAlert(null);
+      }, 2000);
     } catch (error) {
-      toast.error(error.message || "Failed to update password");
+      setPasswordAlert({
+        type: "error",
+        message: error.message || "Failed to update password",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -177,16 +213,9 @@ const Profile = ({
       newErrors.lastName = "Last name is required";
     }
 
-    if (!formData.email?.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    // Email is optional, but if provided, must be valid
+    if (formData.email?.trim() && !/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Email is invalid";
-    }
-
-    if (!formData.phone?.trim()) {
-      newErrors.phone = "Phone number is required";
-    } else if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) {
-      newErrors.phone = "Phone number must be exactly 10 digits";
     }
 
     if (!formData.city) {
@@ -200,31 +229,19 @@ const Profile = ({
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
-    // Special handling for phone number - only allow digits and limit to 10
-    if (name === 'phone') {
-      const digitsOnly = value.replace(/\D/g, '');
-      if (digitsOnly.length <= 10) {
-        setFormData(prev => ({
-          ...prev,
-          [name]: digitsOnly
-        }));
-      }
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
-    }
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
 
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ""
+        [name]: "",
       }));
     }
   };
-
 
   if (loading) {
     return (
@@ -323,7 +340,7 @@ const Profile = ({
                   {(profileData?.lastName || "").toString()}
                 </h2>
                 <p className="text-gray-600 text-sm truncate">
-                  {(profileData?.email || "No email").toString()}
+                  {(profileData?.email || "Not provided").toString()}
                 </p>
                 {userType === "employer" && profileData?.companyName && (
                   <p className="text-gray-500 text-xs truncate">
@@ -402,28 +419,6 @@ const Profile = ({
                   </div>
                 </div>
 
-                {/* Email */}
-                <div className="space-y-3 lg:col-span-2">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <span className="text-gray-600 text-sm font-medium">
-                        @
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email Address
-                      </label>
-                      <p className="text-gray-900 font-medium text-sm lg:text-base">
-                        {(profileData?.email || "Not provided").toString()}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Email cannot be changed
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Phone */}
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3">
@@ -432,24 +427,46 @@ const Profile = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Phone <span className="text-red-500">*</span>
+                        Phone Number <span className="text-red-500">*</span>
                       </label>
+                      <p className="text-gray-900 font-medium text-sm lg:text-base">
+                        {(profileData?.phone || "Not provided").toString()}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Phone number cannot be changed
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <span className="text-gray-600 text-sm font-medium">
+                        @
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
                       {editMode ? (
                         <FormInput
-                          label="Phone"
-                          name="phone"
-                          type="tel"
-                          value={formData.phone || ""}
+                          label="Email Address (Optional)"
+                          name="email"
+                          type="email"
+                          value={formData.email || ""}
                           onChange={handleInputChange}
-                          icon={PhoneIcon}
-                          placeholder="Enter your 10-digit phone number"
-                          required
-                          error={errors.phone}
+                          placeholder="Enter your email address"
+                          error={errors.email}
                         />
                       ) : (
-                        <p className="text-gray-900 font-medium text-sm lg:text-base">
-                          {(profileData?.phone || "Not provided").toString()}
-                        </p>
+                        <>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Email Address (Optional)
+                          </label>
+                          <p className="text-gray-900 font-medium text-sm lg:text-base">
+                            {(profileData?.email || "Not provided").toString()}
+                          </p>
+                        </>
                       )}
                     </div>
                   </div>
@@ -491,14 +508,13 @@ const Profile = ({
             </div>
 
             {/* Company Information for Employers */}
-            {userType === "employer" && (
+            {/* {userType === "employer" && (
               <div className="space-y-6">
                 <h3 className="text-sm lg:text-base font-medium text-gray-900 uppercase tracking-wider">
                   Company Information
                 </h3>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Company Name */}
                   <div className="space-y-3">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -527,7 +543,6 @@ const Profile = ({
                     </div>
                   </div>
 
-                  {/* Industry */}
                   <div className="space-y-3">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -558,7 +573,7 @@ const Profile = ({
                 </div>
               </div>
             )}
-
+ */}
             {/* Branch Admin Information */}
             {userType === "branchAdmin" && (
               <div className="space-y-6">
@@ -616,10 +631,30 @@ const Profile = ({
             newPassword: "",
             confirmPassword: "",
           });
+          setPasswordAlert(null); // Clear alert on modal close
         }}
         title="Change Password"
       >
         <div className="space-y-6 p-1 sm:p-0">
+          {/* Password Alert Message */}
+          {/* {passwordAlert && (
+            <div
+              className={`p-4 rounded-lg flex items-center ${
+                passwordAlert.type === "success"
+                  ? "bg-green-100 border border-green-300 text-green-800"
+                  : "bg-red-100 border border-red-300 text-red-800"
+              }`}
+              role="alert"
+            >
+              {passwordAlert.type === "success" ? (
+                <CheckIcon className="h-5 w-5 mr-2" />
+              ) : (
+                <XMarkIcon className="h-5 w-5 mr-2" />
+              )}
+              <span>{passwordAlert.message}</span>
+            </div>
+          )} */}
+
           {/* Password Requirements Info */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
             <div className="flex items-start space-x-2">
@@ -627,8 +662,12 @@ const Profile = ({
                 <span className="text-blue-600 text-xs font-medium">i</span>
               </div>
               <div>
-                <p className="text-sm font-medium text-blue-800 mb-1">Password Requirements</p>
-                <p className="text-xs text-blue-700">Must be at least 6 characters long</p>
+                <p className="text-sm font-medium text-blue-800 mb-1">
+                  Password Requirements
+                </p>
+                <p className="text-xs text-blue-700">
+                  Must be at least 6 characters long
+                </p>
               </div>
             </div>
           </div>
@@ -748,7 +787,7 @@ const Profile = ({
           </div>
 
           {/* Mobile-Optimized Button Layout */}
-          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-100">
+          <div className="flex flex-col gap-4 sm:flex-row sm:gap-4 pt-6 border-t border-gray-100">
             <Button
               variant="outline"
               onClick={() => {
@@ -758,6 +797,7 @@ const Profile = ({
                   newPassword: "",
                   confirmPassword: "",
                 });
+                setPasswordAlert(null); // Clear alert on modal close
               }}
               className="flex-1 h-12 text-base font-medium rounded-xl border-2 border-gray-200 hover:border-gray-300 order-2 sm:order-1"
             >
@@ -777,7 +817,7 @@ const Profile = ({
             >
               {isSubmitting ? (
                 <div className="flex items-center justify-center">
-                  <Loader />
+                  {/* <Loader /> */}
                   <span className="ml-2">Updating...</span>
                 </div>
               ) : (

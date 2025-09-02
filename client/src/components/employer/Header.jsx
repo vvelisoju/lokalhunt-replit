@@ -1,6 +1,6 @@
 import React from 'react'
-import { 
-  Bars3Icon, 
+import {
+  Bars3Icon,
   BellIcon,
   ArrowLeftIcon,
   PlusIcon
@@ -10,6 +10,8 @@ import { useAuth } from '../../context/AuthContext'
 import { useTranslation } from 'react-i18next'
 import { useRole } from '../../context/RoleContext'
 import ProfileDropdown from '../ui/ProfileDropdown'
+import Button from '../ui/Button' // Assuming Button component is imported from a local UI library
+import { UserCircleIcon } from '@heroicons/react/24/solid' // Assuming UserCircleIcon is used
 
 const Header = ({ onMenuClick }) => {
   const { user, logout } = useAuth()
@@ -19,6 +21,15 @@ const Header = ({ onMenuClick }) => {
   const changeLanguage = (lng) => {
     i18n.changeLanguage(lng)
   }
+
+  // Dummy functions for illustration, replace with actual implementations if needed
+  const onNotificationClick = () => {
+    console.log('Notification clicked');
+  };
+  const onToggleMenu = () => {
+    console.log('Toggle menu clicked');
+  };
+
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
@@ -43,27 +54,29 @@ const Header = ({ onMenuClick }) => {
           </div>
         </div>
       )}
-      
+
       <div className="px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-20 sm:h-16">
           {/* Left side - Mobile menu button and logo */}
           <div className="flex items-center">
             {/* Mobile menu button */}
             <button
               type="button"
-              className="lg:hidden p-2 rounded-md text-gray-500 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500 mr-2"
+              className="lg:hidden p-3 sm:p-2 rounded-md text-gray-500 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               onClick={onMenuClick}
             >
-              <Bars3Icon className="h-6 w-6" aria-hidden="true" />
+              <Bars3Icon className="h-8 sm:h-6 w-8 sm:w-6" aria-hidden="true" />
             </button>
 
             {/* Logo - shown on mobile, hidden on desktop */}
             <div className="lg:hidden flex items-center">
-              <img 
-                src="/images/logo.png" 
-                alt="LokalHunt" 
-                className="h-8 w-auto"
-              />
+              <Link to="/employer" className="flex items-center">
+                <img
+                  src="/images/logo.png"
+                  alt="LokalHunt"
+                  className="h-12 sm:h-8 w-auto"
+                />
+              </Link>
             </div>
 
             {/* Page title - hidden on mobile, shown on desktop */}
@@ -76,14 +89,14 @@ const Header = ({ onMenuClick }) => {
 
           {/* Right side - Post Job + notifications and user menu */}
           <div className="flex items-center space-x-3">
-            {/* Post Job Button */}
+            {/* Post Job Button - Hidden on mobile */}
             <Link
               to={
                 isAdminView()
                   ? `/branch-admin/employers/${targetEmployer?.id}/ads/new`
                   : "/employer/ads/new"
               }
-              className="w-8 h-8 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center transition-colors duration-200"
+              className="hidden sm:flex w-8 h-8 bg-green-600 hover:bg-green-700 rounded-full items-center justify-center transition-colors duration-200"
               title="Post Job"
             >
               <PlusIcon className="w-4 h-4 text-white" />
@@ -98,9 +111,9 @@ const Header = ({ onMenuClick }) => {
             </button>
 
             {/* User profile dropdown */}
-            <ProfileDropdown 
-              user={{...user, role: 'EMPLOYER'}} 
-              logout={logout} 
+            <ProfileDropdown
+              user={{...user, role: 'EMPLOYER'}}
+              logout={logout}
               onLanguageChange={changeLanguage}
             />
           </div>

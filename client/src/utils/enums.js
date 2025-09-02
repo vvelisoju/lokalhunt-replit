@@ -11,7 +11,8 @@ export const AdStatus = {
   DRAFT: 'DRAFT',
   PENDING_APPROVAL: 'PENDING_APPROVAL',
   APPROVED: 'APPROVED',
-  ARCHIVED: 'ARCHIVED'
+  CLOSED: 'CLOSED',
+  REJECTED: 'REJECTED'
 }
 
 export const AllocationStatus = {

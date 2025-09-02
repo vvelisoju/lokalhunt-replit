@@ -76,8 +76,31 @@ export const authService = {
 
   // Update profile
   async updateProfile(profileData) {
-    const response = await api.put('/auth/profile', profileData)
-    return response.data.data
+    try {
+      console.log('AuthService: Making profile update request to /auth/profile');
+      const response = await api.put('/auth/profile', profileData);
+      console.log('AuthService: Profile update response:', response.data);
+      
+      // Handle different response formats
+      if (response.data) {
+        return {
+          success: true,
+          status: 'success',
+          data: response.data.data || response.data,
+          message: response.data.message || 'Profile updated successfully'
+        };
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('AuthService: Profile update request failed:', error);
+      
+      // Return a consistent error format
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message || 'Failed to update profile'
+      };
+    }
   },
 
   // Logout

@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useCandidateAuth } from "../hooks/useCandidateAuth";
-import FormInput from "../components/ui/FormInput";
-import Button from "../components/ui/Button";
+
 import {
   EyeIcon,
   EyeSlashIcon,
@@ -16,7 +14,6 @@ import { toast } from "react-hot-toast";
 const Login = () => {
   const { t } = useTranslation();
   const { login, user, isAuthenticated } = useAuth();
-  const candidateAuth = useCandidateAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || "/";

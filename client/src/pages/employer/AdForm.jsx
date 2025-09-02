@@ -38,10 +38,10 @@ const AdForm = () => {
 
   // Extract 'from' parameter from URL to determine redirect destination
   const searchParams = new URLSearchParams(location.search);
-  const fromParam = searchParams.get('from');
+  const fromParam = searchParams.get("from");
 
   // Check if this is a Branch Admin editing an employer's ad
-  const isBranchAdminEdit = user?.role === 'BRANCH_ADMIN' && employerId;
+  const isBranchAdminEdit = user?.role === "BRANCH_ADMIN" && employerId;
 
   const isEditing = !!adId;
 
@@ -222,7 +222,7 @@ const AdForm = () => {
 
       if (companiesResult.success) {
         console.log("Companies loaded for dropdown:", companiesResult.data);
-        const companiesList = companiesResult.data.data || [];
+        const companiesList = companiesResult.data || [];
         companiesOptions = companiesList.map((company) => ({
           value: company.id,
           label: company.name,
@@ -243,11 +243,16 @@ const AdForm = () => {
       setLoadingCategories(true);
       setLoadingEducation(true);
 
-      const [citiesResult, categoriesResult, educationResult] = await Promise.all([
-        getCities().catch(err => ({ success: false, error: err.message })),
-        publicApi.getCategories().catch(err => ({ success: false, error: err.message })),
-        publicApi.getEducationQualifications().catch(err => ({ success: false, error: err.message }))
-      ]);
+      const [citiesResult, categoriesResult, educationResult] =
+        await Promise.all([
+          getCities().catch((err) => ({ success: false, error: err.message })),
+          publicApi
+            .getCategories()
+            .catch((err) => ({ success: false, error: err.message })),
+          publicApi
+            .getEducationQualifications()
+            .catch((err) => ({ success: false, error: err.message })),
+        ]);
 
       // Process cities
       let defaultCityId = "";
@@ -281,14 +286,20 @@ const AdForm = () => {
           })),
         );
       } else {
-        console.error("Failed to load categories:", categoriesResult.error || "Unknown error");
+        console.error(
+          "Failed to load categories:",
+          categoriesResult.error || "Unknown error",
+        );
         toast.error("Failed to load categories");
       }
       setLoadingCategories(false);
 
       // Process education qualifications
       if (educationResult.status === "success") {
-        console.log("Education qualifications loaded successfully:", educationResult.data);
+        console.log(
+          "Education qualifications loaded successfully:",
+          educationResult.data,
+        );
         setEducationQualifications(
           educationResult.data.map((qualification) => ({
             value: qualification.id,
@@ -296,7 +307,10 @@ const AdForm = () => {
           })),
         );
       } else {
-        console.error("Failed to load education qualifications:", educationResult.error || "Unknown error");
+        console.error(
+          "Failed to load education qualifications:",
+          educationResult.error || "Unknown error",
+        );
         toast.error("Failed to load education qualifications");
       }
       setLoadingEducation(false);
@@ -337,12 +351,12 @@ const AdForm = () => {
         // Use Branch Admin API to get ad details
         const apiResponse = await fetch(`/api/branch-admins/ads/${adId}`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         });
         const result = await apiResponse.json();
-        if (!result.status || result.status !== 'success') {
-          throw new Error(result.message || 'Failed to load ad');
+        if (!result.status || result.status !== "success") {
+          throw new Error(result.message || "Failed to load ad");
         }
         response = { success: true, data: result.data };
       } else {
@@ -351,7 +365,7 @@ const AdForm = () => {
 
       if (response.success) {
         console.log("Ad data loaded successfully:", response.data);
-        const ad = response.data.data || response.data;
+        const ad = response.data?.data || response.data;
 
         // Set current job status for conditional rendering
         setCurrentJobStatus(ad.status);
@@ -390,9 +404,7 @@ const AdForm = () => {
         // Handle skills mapping - check multiple possible locations
         let skills = "";
         if (ad.skills) {
-          skills = Array.isArray(ad.skills)
-            ? ad.skills.join(", ")
-            : ad.skills;
+          skills = Array.isArray(ad.skills) ? ad.skills.join(", ") : ad.skills;
         } else if (categorySpecificFields.skills) {
           skills = Array.isArray(categorySpecificFields.skills)
             ? categorySpecificFields.skills.join(", ")
@@ -431,7 +443,6 @@ const AdForm = () => {
     }
   };
 
-
   const handleChange = (e, fieldName = null) => {
     let name, value;
 
@@ -439,7 +450,7 @@ const AdForm = () => {
     if (fieldName) {
       name = fieldName;
       value = e;
-    } 
+    }
     // Handle event object calls (from regular inputs)
     else if (e && e.target) {
       name = e.target.name;
@@ -593,60 +604,73 @@ const AdForm = () => {
         if (isBranchAdminEdit) {
           // Use Branch Admin API for updates
           response = await fetch(`/api/employers/ads/${adId}`, {
-            method: 'PUT',
+            method: "PUT",
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
-            body: JSON.stringify({ ...adData, employerId })
+            body: JSON.stringify({ ...adData, employerId }),
           });
           const result = await response.json();
-          response = { success: result.status === 'success', data: result.data, error: result.message };
+          response = {
+            success: result.status === "success",
+            data: result.data,
+            error: result.message,
+          };
         } else {
           response = await updateAd(adId, adData);
         }
       } else {
         if (isBranchAdminEdit) {
           // Branch Admin creating ad for employer
-          response = await fetch('/api/employers/ads', {
-            method: 'POST',
+          response = await fetch("/api/employers/ads", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
-            body: JSON.stringify({ ...adData, employerId })
+            body: JSON.stringify({ ...adData, employerId }),
           });
           const result = await response.json();
-          response = { success: result.status === 'success', data: result.data, error: result.message };
+          response = {
+            success: result.status === "success",
+            data: result.data,
+            error: result.message,
+          };
         } else {
           response = await createAd(adData);
         }
       }
 
       if (response.success) {
-        toast.success(isEditing ? 'Ad updated successfully' : 'Ad created successfully');
+        toast.success(
+          isEditing ? "Ad updated successfully" : "Ad created successfully",
+        );
 
         // Enhanced redirection logic based on 'from' parameter
         if (isBranchAdminEdit) {
-          if (fromParam === 'approval') {
-            navigate('/branch-admin/ads'); // ads approval page
-          } else if (fromParam === 'employer') {
+          if (fromParam === "approval") {
+            navigate("/branch-admin/ads"); // ads approval page
+          } else if (fromParam === "employer") {
             navigate(`/branch-admin/employers/${employerId}/ads`); // employer ads page
           } else {
             // Fallback: check sessionStorage for backward compatibility
-            const redirectUrl = sessionStorage.getItem('redirectAfterEdit');
+            const redirectUrl = sessionStorage.getItem("redirectAfterEdit");
             if (redirectUrl) {
-              sessionStorage.removeItem('redirectAfterEdit');
+              sessionStorage.removeItem("redirectAfterEdit");
               navigate(redirectUrl);
             } else {
-              navigate('/branch-admin/ads'); // default fallback
+              navigate("/branch-admin/ads"); // default fallback
             }
           }
         } else {
-          navigate('/employer/ads');
+          navigate("/employer/ads");
         }
       } else {
-        toast.error(response.error || (isEditing ? 'Failed to update ad' : 'Failed to create ad'));
+        toast.error(
+          response.error ||
+            (isEditing ? "Failed to update ad" : "Failed to create ad"),
+        );
       }
     } catch (error) {
       toast.error(isEditing ? "Failed to update ad" : "Failed to create ad");
@@ -658,22 +682,22 @@ const AdForm = () => {
   const handleCancel = () => {
     // Use same redirection logic as submit handler for cancel button
     if (isBranchAdminEdit) {
-      if (fromParam === 'approval') {
-        navigate('/branch-admin/ads');
-      } else if (fromParam === 'employer') {
+      if (fromParam === "approval") {
+        navigate("/branch-admin/ads");
+      } else if (fromParam === "employer") {
         navigate(`/branch-admin/employers/${employerId}/ads`);
       } else {
         // Fallback: check sessionStorage for backward compatibility
-        const redirectUrl = sessionStorage.getItem('redirectAfterEdit');
+        const redirectUrl = sessionStorage.getItem("redirectAfterEdit");
         if (redirectUrl) {
-          sessionStorage.removeItem('redirectAfterEdit');
+          sessionStorage.removeItem("redirectAfterEdit");
           navigate(redirectUrl);
         } else {
-          navigate('/branch-admin/ads');
+          navigate("/branch-admin/ads");
         }
       }
     } else {
-      navigate('/employer/ads');
+      navigate("/employer/ads");
     }
   };
 
@@ -720,7 +744,7 @@ const AdForm = () => {
                 <Select
                   name="companyId"
                   value={formData.companyId}
-                  onChange={(value) => handleChange(value, 'companyId')}
+                  onChange={(value) => handleChange(value, "companyId")}
                   options={companies}
                   placeholder="Select your company"
                   required
@@ -740,7 +764,7 @@ const AdForm = () => {
                 <Select
                   name="city"
                   value={formData.city}
-                  onChange={(value) => handleChange(value, 'city')}
+                  onChange={(value) => handleChange(value, "city")}
                   options={cities}
                   placeholder="Select job location"
                   required
@@ -788,7 +812,7 @@ const AdForm = () => {
                 <Select
                   name="employmentType"
                   value={formData.employmentType}
-                  onChange={(value) => handleChange(value, 'employmentType')}
+                  onChange={(value) => handleChange(value, "employmentType")}
                   options={employmentTypes}
                   placeholder="Select employment type"
                   required
@@ -808,7 +832,7 @@ const AdForm = () => {
                 <Select
                   name="experienceLevel"
                   value={formData.experienceLevel}
-                  onChange={(value) => handleChange(value, 'experienceLevel')}
+                  onChange={(value) => handleChange(value, "experienceLevel")}
                   options={experienceLevels}
                   placeholder="Select required experience"
                   required
@@ -869,7 +893,9 @@ const AdForm = () => {
                 <Select
                   name="educationQualificationId"
                   value={formData.educationQualificationId}
-                  onChange={(value) => handleChange(value, 'educationQualificationId')}
+                  onChange={(value) =>
+                    handleChange(value, "educationQualificationId")
+                  }
                   options={educationQualifications}
                   placeholder="Select education requirement"
                   disabled={loadingEducation}
@@ -1178,7 +1204,8 @@ const AdForm = () => {
                   </div>
 
                   {/* Second row - Submit for Approval (full width if available) */}
-                  {(!isEditing || (isEditing && currentJobStatus === "DRAFT")) && (
+                  {(!isEditing ||
+                    (isEditing && currentJobStatus === "DRAFT")) && (
                     <Button
                       type="button"
                       onClick={() => handleSubmit("submit")}

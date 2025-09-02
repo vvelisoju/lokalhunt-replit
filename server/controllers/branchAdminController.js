@@ -1296,14 +1296,23 @@ class BranchAdminController {
           );
       }
 
-      const newStatus = action === "approve" ? "APPROVED" : "ARCHIVED";
+      const newStatus = action === "approve" ? "APPROVED" : "REJECTED";
+      const updateData = {
+        status: newStatus,
+      };
+
+      if (action === "approve") {
+        updateData.approvedAt = new Date();
+        updateData.approvedBy = req.user.userId;
+      } else {
+        updateData.rejectedAt = new Date();
+        updateData.rejectedBy = req.user.userId;
+        updateData.rejectionReason = req.body.reason || "No reason provided";
+      }
+
       const updatedAd = await req.prisma.ad.update({
         where: { id: adId },
-        data: {
-          status: newStatus,
-          approvedAt: action === "approve" ? new Date() : null,
-          approvedBy: action === "approve" ? req.user.userId : null,
-        },
+        data: updateData,
         include: {
           company: true,
           location: true,
@@ -1559,7 +1568,7 @@ class BranchAdminController {
   // NEW MISSING METHODS
   // =======================
 
-  // Get employers with pagination (filtered by branch admin's city)
+  // Get employers with pagination (all employers - no city restriction)
   async getEmployers(req, res, next) {
     try {
       const {
@@ -1574,7 +1583,7 @@ class BranchAdminController {
 
       const offset = (page - 1) * limit;
 
-      // Get branch admin info to filter by their assigned city
+      // Get branch admin info
       const branchAdmin = await req.prisma.branchAdmin.findUnique({
         where: { userId: req.user.userId },
       });
@@ -1585,37 +1594,33 @@ class BranchAdminController {
           .json(createErrorResponse("Branch Admin profile not found", 404));
       }
 
-      // Build where condition for employers in the same city who have companies
+      // Build where condition for all employers with active users
       const whereCondition = {
         user: {
           role: "EMPLOYER",
-          //cityId: branchAdmin.assignedCityId
-        },
-        companies: {
-          some: {
-            isActive: true,
-          },
+          isActive: true,
         },
       };
 
-      // Add search filter
+      // Add search filter - fix the OR condition structure
       if (search) {
         whereCondition.OR = [
           {
             user: {
               name: { contains: search, mode: "insensitive" },
-              role: "EMPLOYER",
             },
           },
           {
             user: {
               email: { contains: search, mode: "insensitive" },
-              role: "EMPLOYER",
             },
           },
           {
             companies: {
-              some: { name: { contains: search, mode: "insensitive" } },
+              some: {
+                name: { contains: search, mode: "insensitive" },
+                isActive: true,
+              },
             },
           },
         ];
@@ -1642,7 +1647,7 @@ class BranchAdminController {
         }
       }
 
-      // Add plan filter - fix the planId handling
+      // Add plan filter
       if (
         planId &&
         planId !== "[object Object]" &&
@@ -1704,7 +1709,7 @@ class BranchAdminController {
             },
             ads: {
               where: {
-                status: "APPROVED",
+                status: { in: ["APPROVED", "PENDING_APPROVAL"] },
                 isActive: true,
               },
               select: {
@@ -1731,7 +1736,7 @@ class BranchAdminController {
               select: {
                 ads: {
                   where: {
-                    status: "APPROVED",
+                    status: { in: ["APPROVED", "PENDING_APPROVAL"] },
                     isActive: true,
                   },
                 },
@@ -1769,10 +1774,6 @@ class BranchAdminController {
       // Enhance employer data with subscription details
       const enhancedEmployers = filteredEmployers.map((employer) => ({
         ...employer,
-        user: {
-          ...employer.user,
-          city: employer.user.city, // Map city to city for consistency
-        },
         subscriptionDetails: {
           hasActiveSubscription: employer.subscriptions.length > 0,
           currentPlan: employer.subscriptions[0]?.plan || null,
@@ -1997,8 +1998,8 @@ class BranchAdminController {
       const branchAdmin = await req.prisma.branchAdmin.findUnique({
         where: { userId: req.user.id },
         include: {
-          assignedCity: true
-        }
+          assignedCity: true,
+        },
       });
 
       if (!branchAdmin) {
@@ -2021,8 +2022,8 @@ class BranchAdminController {
               profileImage: true,
               createdAt: true,
               city: {
-                select: { name: true, state: true }
-              }
+                select: { name: true, state: true },
+              },
             },
           },
           allocations: {
@@ -2033,21 +2034,19 @@ class BranchAdminController {
                   employer: {
                     include: {
                       user: {
-                        select: { name: true }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
+                        select: { name: true },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       });
 
       if (!candidate) {
-        return res
-          .status(404)
-          .json({ error: "Candidate not found" });
+        return res.status(404).json({ error: "Candidate not found" });
       }
 
       res.json(candidate);
@@ -2216,15 +2215,38 @@ class BranchAdminController {
     try {
       const { adId } = req.params;
 
-      const updatedAd = await req.prisma.ad.update({
+      const ad = await req.prisma.ad.findUnique({
         where: { id: adId },
-        data: { status: "APPROVED" },
       });
 
-      res.json({ message: "Ad approved successfully", ad: updatedAd });
+      if (!ad) {
+        return res.status(404).json(createErrorResponse("Ad not found", 404));
+      }
+
+      if (ad.status !== "PENDING_APPROVAL") {
+        return res
+          .status(400)
+          .json(
+            createErrorResponse("Ad is not in pending approval status", 400),
+          );
+      }
+
+      const updatedAd = await req.prisma.ad.update({
+        where: { id: adId },
+        data: {
+          status: "APPROVED",
+          approvedAt: new Date(),
+          approvedBy: req.user.userId,
+        },
+        include: {
+          company: true,
+          location: true,
+        },
+      });
+
+      res.json(createResponse("Ad approved successfully", updatedAd));
     } catch (error) {
-      console.error("Error approving ad:", error);
-      res.status(500).json({ error: "Failed to approve ad" });
+      next(error);
     }
   }
 
@@ -2232,12 +2254,13 @@ class BranchAdminController {
   async rejectAd(req, res, next) {
     try {
       const { adId } = req.params;
-      const { reason } = req.body;
+      const { notes } = req.body;
 
       const updatedAd = await req.prisma.ad.update({
         where: { id: adId },
         data: {
-          status: "DRAFT",
+          status: "REJECTED",
+          rejectionReason: notes,
         },
       });
 

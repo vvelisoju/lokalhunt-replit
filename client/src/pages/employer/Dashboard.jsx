@@ -16,6 +16,7 @@ import { getAds } from "../../services/employer/ads";
 import { getMous } from "../../services/employer/mou";
 import { useRole } from "../../context/RoleContext";
 import { useAuth } from "../../context/AuthContext";
+import Loading from "../../components/ui/Loading";
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -62,7 +63,7 @@ const Dashboard = () => {
       // Load ads for stats and recent ads
       const adsResult = await getAds({ limit: 5 });
       if (adsResult.success) {
-        const ads = adsResult.data.data || [];
+        const ads = adsResult.data || [];
         setRecentAds(ads);
 
         // Calculate stats
@@ -110,16 +111,7 @@ const Dashboard = () => {
 
   // Show loading only while authenticating or loading dashboard data (with timeout protection)
   if (authLoading || (isLoading && isAuthenticated)) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
-        <div className="text-center">
-          <Loader />
-          <p className="mt-4 text-sm text-gray-600">
-            {authLoading ? "Authenticating..." : "Loading dashboard..."}
-          </p>
-        </div>
-      </div>
-    );
+    return <Loading />;
   }
 
   // If not authenticated, don't render the dashboard (EmployerRoute should handle redirect)
@@ -234,6 +226,7 @@ const Dashboard = () => {
                         candidatesCount: ad._count?.allocations || 0,
                         applicationCount: ad._count?.allocations || 0,
                         status: ad.status,
+                        rejectionReason: ad.rejectionReason || "",
                       }}
                       variant="employer"
                       applicationStatus={ad.status}

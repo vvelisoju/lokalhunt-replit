@@ -147,9 +147,7 @@ class EmployerController {
     try {
       const { contactDetails } = req.body;
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId },
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
         return res
@@ -454,19 +452,7 @@ class EmployerController {
           );
       }
 
-      // Get employer - either from user context or from employerId parameter (for Branch Admin)
-      let employer;
-      if (employerId && req.isAdminAccess) {
-        // Branch Admin creating ad for specific employer
-        employer = await req.prisma.employer.findUnique({
-          where: { id: employerId },
-        });
-      } else {
-        // Regular employer creating their own ad
-        employer = await req.prisma.employer.findUnique({
-          where: { userId: req.user.userId },
-        });
-      }
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
         return res
@@ -580,18 +566,7 @@ class EmployerController {
           );
       }
 
-      let employer;
-      if (employerId && req.isAdminAccess) {
-        // Branch Admin creating ad for specific employer
-        employer = await req.prisma.employer.findUnique({
-          where: { id: employerId },
-        });
-      } else {
-        // Regular employer creating their own ad
-        employer = await req.prisma.employer.findUnique({
-          where: { userId: req.user.userId },
-        });
-      }
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
         return res
@@ -1133,9 +1108,7 @@ class EmployerController {
     try {
       const { adId } = req.params;
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId },
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
         return res
@@ -1148,6 +1121,7 @@ class EmployerController {
         where: {
           id: adId,
           employerId: employer.id,
+          status: "DRAFT",
         },
       });
 
@@ -1181,9 +1155,7 @@ class EmployerController {
     try {
       const { adId } = req.params;
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId },
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
         return res
@@ -1196,6 +1168,7 @@ class EmployerController {
         where: {
           id: adId,
           employerId: employer.id,
+          status: "APPROVED",
         },
       });
 
@@ -1203,11 +1176,11 @@ class EmployerController {
         return res.status(404).json(createErrorResponse("Ad not found", 404));
       }
 
-      // Update ad status to ARCHIVED
+      // Update ad status to CLOSED
       const archivedAd = await req.prisma.ad.update({
         where: { id: adId },
         data: {
-          status: "ARCHIVED",
+          status: "CLOSED",
           updatedAt: new Date(),
         },
         include: {
@@ -1218,7 +1191,56 @@ class EmployerController {
 
       res
         .status(200)
-        .json(createResponse("Ad archived successfully", archivedAd));
+        .json(createResponse("Ad closed successfully", archivedAd));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Reopen ad (NEW)
+  async reopenAd(req, res, next) {
+    try {
+      const { adId } = req.params;
+
+      const employer = await this.getEmployer(req);
+
+      if (!employer) {
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
+      }
+
+      // Verify ad ownership and that it's closed
+      const adToReopen = await req.prisma.ad.findFirst({
+        where: {
+          id: adId,
+          employerId: employer.id,
+          status: "CLOSED",
+        },
+      });
+
+      if (!adToReopen) {
+        return res
+          .status(404)
+          .json(createErrorResponse("Closed ad not found", 404));
+      }
+
+      // Update ad status back to APPROVED (since it was already approved before closing)
+      const reopenedAd = await req.prisma.ad.update({
+        where: { id: adId },
+        data: {
+          status: "APPROVED",
+          updatedAt: new Date(),
+        },
+        include: {
+          company: true,
+          location: true,
+        },
+      });
+
+      res
+        .status(200)
+        .json(createResponse("Ad reopened successfully", reopenedAd));
     } catch (error) {
       next(error);
     }
@@ -1300,9 +1322,7 @@ class EmployerController {
           );
       }
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId },
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
         return res
@@ -1379,9 +1399,7 @@ class EmployerController {
     try {
       const { candidateId } = req.params;
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId },
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
         return res
@@ -1403,22 +1421,22 @@ class EmployerController {
               profileImage: true,
               createdAt: true,
               city: {
-                select: { name: true, state: true }
-              }
+                select: { name: true, state: true },
+              },
             },
           },
           allocations: {
             where: {
               ad: {
-                employerId: employer.id
-              }
+                employerId: employer.id,
+              },
             },
             include: {
               ad: {
-                select: { id: true, title: true }
-              }
-            }
-          }
+                select: { id: true, title: true },
+              },
+            },
+          },
         },
       });
 
@@ -1432,10 +1450,17 @@ class EmployerController {
       if (candidate.allocations.length === 0) {
         return res
           .status(403)
-          .json(createErrorResponse("Access denied - candidate has not applied to your jobs", 403));
+          .json(
+            createErrorResponse(
+              "Access denied - candidate has not applied to your jobs",
+              403,
+            ),
+          );
       }
 
-      res.json(createResponse("Candidate profile retrieved successfully", candidate));
+      res.json(
+        createResponse("Candidate profile retrieved successfully", candidate),
+      );
     } catch (error) {
       next(error);
     }
@@ -1444,13 +1469,18 @@ class EmployerController {
   // Get all candidates allocated to this employer's ads or available candidates
   async getAllCandidates(req, res, next) {
     try {
-      const { page = 1, limit = 20, search, skills, minRating, cityId } = req.query;
+      const {
+        page = 1,
+        limit = 20,
+        search,
+        skills,
+        minRating,
+        cityId,
+      } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
       // Get employer to verify they exist
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId },
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
         return res
@@ -1469,8 +1499,8 @@ class EmployerController {
           some: {
             employerId: employer.id,
             ad: {
-              status: "APPROVED"
-            }
+              status: "APPROVED",
+            },
           },
         },
       };
@@ -1492,7 +1522,7 @@ class EmployerController {
 
       // Add search filter if provided
       if (search) {
-        const searchTerms = search.split(" ").filter(term => term.length > 0);
+        const searchTerms = search.split(" ").filter((term) => term.length > 0);
         where.OR = [
           {
             user: {
@@ -1545,8 +1575,8 @@ class EmployerController {
               where: {
                 employerId: employer.id,
                 ad: {
-                  status: "APPROVED"
-                }
+                  status: "APPROVED",
+                },
               },
               include: {
                 ad: {
@@ -1563,9 +1593,9 @@ class EmployerController {
                   where: {
                     employerId: employer.id,
                     ad: {
-                      status: "APPROVED"
-                    }
-                  }
+                      status: "APPROVED",
+                    },
+                  },
                 },
               },
             },
@@ -1611,9 +1641,7 @@ class EmployerController {
 
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId },
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
         return res
@@ -1711,9 +1739,7 @@ class EmployerController {
       const { candidateId } = req.params;
       const { notes } = req.body;
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId },
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
         return res
@@ -1798,9 +1824,7 @@ class EmployerController {
     try {
       const { candidateId } = req.params;
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId },
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
         return res
@@ -1833,9 +1857,7 @@ class EmployerController {
       const { page = 1, limit = 10 } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const employer = await req.prisma.employer.findUnique({
-        where: { userId: req.user.userId },
-      });
+      const employer = await this.getEmployer(req);
 
       if (!employer) {
         return res

@@ -1,75 +1,143 @@
-import api from "../api";
+import api, { makeRoleAwareRequest } from "../api";
+
+// Individual functions for named exports
+export const getAds = async (params = {}) => {
+  try {
+    const response = await makeRoleAwareRequest(api, "/employers/ads", {
+      params,
+    });
+    return { success: true, data: response.data || response };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to fetch ads",
+    };
+  }
+};
 
 export const createAd = async (adData) => {
   try {
-    const response = await api.post('/employers/ads', adData)
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest(api, "/employers/ads", {
+      method: "POST",
+      data: adData,
+    });
+    return { success: true, data: response.data || response };
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to create ad'
-    }
+      error: error.response?.data?.message || "Failed to create ad",
+    };
   }
-}
+};
+
+export const getAdById = async (adId) => {
+  try {
+    const response = await makeRoleAwareRequest(api, `/employers/ads/${adId}`);
+    return { success: true, data: response.data || response };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to fetch ad",
+    };
+  }
+};
 
 export const updateAd = async (adId, adData) => {
   try {
-    const response = await api.put(`/employers/ads/${adId}`, adData)
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest(api, `/employers/ads/${adId}`, {
+      method: "PUT",
+      data: adData,
+    });
+    return { success: true, data: response.data || response };
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to update ad'
-    }
+      error: error.response?.data?.message || "Failed to update ad",
+    };
   }
-}
+};
 
-export const getAds = async (params = {}) => {
+export const deleteAd = async (adId) => {
   try {
-    const response = await api.get('/employers/ads', {
-      params
-    })
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest(api, `/employers/ads/${adId}`, {
+      method: "DELETE",
+    });
+    return { success: true, data: response.data || response };
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to fetch ads'
-    }
+      error: error.response?.data?.message || "Failed to delete ad",
+    };
   }
-}
-
-export const getAd = async (adId) => {
-  try {
-    const response = await api.get(`/employers/ads/${adId}`)
-    return { success: true, data: response.data }
-  } catch (error) {
-    return {
-      success: false,
-      error: error.response?.data?.message || 'Failed to fetch ad'
-    }
-  }
-}
+};
 
 export const submitForApproval = async (adId) => {
   try {
-    const response = await api.patch(`/employers/ads/${adId}/submit`)
-    return { success: true, data: response.data }
+    const response = await makeRoleAwareRequest(
+      api,
+      `/employers/ads/${adId}/submit`,
+      {
+        method: "PATCH",
+      },
+    );
+    return { success: true, data: response.data || response };
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to submit ad for approval'
-    }
+      error:
+        error.response?.data?.message || "Failed to submit ad for approval",
+    };
   }
-}
+};
 
-export const archiveAd = async (adId) => {
+// Close an ad
+export const closeAd = async (adId) => {
   try {
-    const response = await api.patch(`/employers/ads/${adId}/archive`)
-    return { success: true, data: response.data }
+    const response = await api.patch(`/employers/ads/${adId}/archive`, {
+      status: "CLOSED",
+    });
+    return { success: true, data: response.data };
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to archive ad'
-    }
+      error: error.response?.data?.message || "Failed to close ad",
+    };
   }
-}
+};
+
+// Reopen a closed ad
+export const reopenAd = async (adId) => {
+  try {
+    const response = await makeRoleAwareRequest(api, `/employers/ads/${adId}/reopen`, {
+      method: "PATCH",
+    });
+    return { success: true, data: response.data || response };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to reopen ad",
+    };
+  }
+};
+
+// Archive an ad (legacy - now redirects to close)
+export const archiveAd = async (adId) => {
+  return await closeAd(adId);
+};
+
+// Add alias for backward compatibility
+export const getAd = getAdById;
+
+// Keep the object export for backward compatibility
+export const employerAdsService = {
+  getAds,
+  createAd,
+  getAdById,
+  getAd,
+  updateAd,
+  deleteAd,
+  submitForApproval,
+  archiveAd,
+  closeAd,
+  reopenAd,
+};

@@ -23,7 +23,11 @@
     "helpSupport": "Help / Support",
     "completeProfile": "Complete Your Profile",
     "percentComplete": "{{percent}}% complete",
-    "testInterface": "Test Interface"
+    "testInterface": "Test Interface",
+    "myAds": "My Ads",
+    "candidates": "Candidates",
+    "premiumCandidates": "Premium Candidates",
+    "companies": "Companies"
   },
   "stats": {
     "applications": "Applications",
