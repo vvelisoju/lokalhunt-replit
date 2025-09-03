@@ -169,23 +169,32 @@ const Profile = ({
 
     setIsSubmitting(true);
     try {
-      await onUpdatePassword(passwordData);
-      setPasswordAlert({
-        type: "success",
-        message: "Password updated successfully",
-      });
+      // Use the change password handler passed from parent or call API directly
+      if (onUpdatePassword && typeof onUpdatePassword === "function") {
+        await onUpdatePassword(passwordData);
+      } else {
+        // If no handler provided, we'll show a generic error
+        throw new Error("Password change functionality not available");
+      }
 
-      // Close modal after a short delay to show success message
-      setTimeout(() => {
-        setPasswordMode(false);
-        setPasswordData({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: "",
-        });
-        setPasswordAlert(null);
-      }, 2000);
+      // Show success toast
+      toast.success("Password updated successfully");
+
+      // Close modal immediately after success
+      setPasswordMode(false);
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setPasswordAlert(null);
     } catch (error) {
+      console.error("Password change error:", error);
+
+      // Show error toast
+      toast.error(error.message || "Failed to update password");
+
+      // Also set local alert for modal display
       setPasswordAlert({
         type: "error",
         message: error.message || "Failed to update password",
@@ -508,13 +517,14 @@ const Profile = ({
             </div>
 
             {/* Company Information for Employers */}
-            {/* {userType === "employer" && (
+            {userType === "employer" && (
               <div className="space-y-6">
                 <h3 className="text-sm lg:text-base font-medium text-gray-900 uppercase tracking-wider">
                   Company Information
                 </h3>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Company Name */}
                   <div className="space-y-3">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -543,6 +553,7 @@ const Profile = ({
                     </div>
                   </div>
 
+                  {/* Industry */}
                   <div className="space-y-3">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -573,7 +584,7 @@ const Profile = ({
                 </div>
               </div>
             )}
- */}
+
             {/* Branch Admin Information */}
             {userType === "branchAdmin" && (
               <div className="space-y-6">
@@ -637,7 +648,7 @@ const Profile = ({
       >
         <div className="space-y-6 p-1 sm:p-0">
           {/* Password Alert Message */}
-          {/* {passwordAlert && (
+          {passwordAlert && (
             <div
               className={`p-4 rounded-lg flex items-center ${
                 passwordAlert.type === "success"
@@ -653,7 +664,7 @@ const Profile = ({
               )}
               <span>{passwordAlert.message}</span>
             </div>
-          )} */}
+          )}
 
           {/* Password Requirements Info */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
@@ -817,7 +828,6 @@ const Profile = ({
             >
               {isSubmitting ? (
                 <div className="flex items-center justify-center">
-                  {/* <Loader /> */}
                   <span className="ml-2">Updating...</span>
                 </div>
               ) : (

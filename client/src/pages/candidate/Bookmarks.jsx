@@ -199,15 +199,12 @@ const Bookmarks = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Page Header */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="p-2">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Saved Jobs</h1>
-            <p className="mt-1 text-gray-600">
-              Keep track of jobs you're interested in
-            </p>
+            <h1 className="text-xl font-bold text-gray-900">Saved Jobs</h1>
           </div>
           <div className="text-sm text-gray-500">
             {filteredBookmarks.length} of {bookmarks?.length || 0} saved jobs
@@ -236,8 +233,8 @@ const Bookmarks = () => {
                 : "No saved jobs match your current filters. Try adjusting your search criteria."}
             </p>
             {bookmarks?.length === 0 && (
-              <Link to="/jobs" className="mt-4 inline-block">
-                <Button>Browse Jobs</Button>
+              <Link to="/candidate/jobs" className="mt-4 inline-block">
+                <Button>Find Jobs</Button>
               </Link>
             )}
           </div>
@@ -273,9 +270,20 @@ const Bookmarks = () => {
               skills: bookmark.ad?.categorySpecificFields?.requiredSkills || [],
               postedAt: bookmark.ad?.createdAt,
               createdAt: bookmark.ad?.createdAt,
-              candidatesCount: bookmark.ad?.candidatesCount || bookmark.ad?.applicationCount || bookmark.ad?._count?.allocations || 0,
-              applicationCount: bookmark.ad?.candidatesCount || bookmark.ad?.applicationCount || bookmark.ad?._count?.allocations || 0,
-              bookmarkedCount: bookmark.ad?.bookmarkedCount || bookmark.ad?._count?.bookmarks || 0,
+              candidatesCount:
+                bookmark.ad?.candidatesCount ||
+                bookmark.ad?.applicationCount ||
+                bookmark.ad?._count?.allocations ||
+                0,
+              applicationCount:
+                bookmark.ad?.candidatesCount ||
+                bookmark.ad?.applicationCount ||
+                bookmark.ad?._count?.allocations ||
+                0,
+              bookmarkedCount:
+                bookmark.ad?.bookmarkedCount ||
+                bookmark.ad?._count?.bookmarks ||
+                0,
               isBookmarked: true, // Always true for bookmarks page
               hasApplied:
                 bookmark.hasApplied || bookmark.ad?.hasApplied || false,
@@ -295,8 +303,8 @@ const Bookmarks = () => {
                 onApply={(jobId) => handleApplyToJob(jobId)}
                 onRemoveBookmark={(jobId) => handleRemoveBookmark(jobId)}
                 onClick={() => {
-                        navigate(`/candidate/jobs/${bookmark.ad.id}?from=bookmarks`);
-                      }}
+                  navigate(`/candidate/jobs/${bookmark.ad.id}?from=bookmarks`);
+                }}
                 loading={{
                   apply: actionLoading.apply === jobData.id,
                   bookmark: actionLoading.remove === jobData.id,

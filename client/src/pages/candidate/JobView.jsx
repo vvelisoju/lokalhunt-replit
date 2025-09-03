@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { toast } from "react-hot-toast";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import Loader from "../../components/ui/Loader";
 import JobView from "../../components/ui/JobView";
 import { publicApi } from "../../services/publicApi";
 import { candidateApi } from "../../services/candidateApi";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../components/ui/Toast";
 
 const CandidateJobView = () => {
   const { t } = useTranslation();
@@ -15,6 +15,7 @@ const CandidateJobView = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated } = useAuth();
+  const { success: showSuccess, error: showError } = useToast();
 
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -57,7 +58,7 @@ const CandidateJobView = () => {
       }
     } catch (error) {
       console.error("Error fetching job details:", error);
-      toast.error(error.message || "Failed to load job details");
+      showError(error.message || "Failed to load job details");
       // If fetching fails, navigate back to the jobs list
       navigate("/candidate/jobs");
     } finally {
@@ -67,7 +68,7 @@ const CandidateJobView = () => {
 
   const handleApplyToJob = async () => {
     if (!isAuthenticated || user?.role !== "CANDIDATE") {
-      toast.error("Please login as a candidate to apply");
+      showError("Please login as a candidate to apply");
       return;
     }
 
@@ -75,21 +76,21 @@ const CandidateJobView = () => {
       toast.info("You have already applied to this job");
       return;
     }
-
     try {
       setApplying(true);
       await candidateApi.applyToJob(id);
       setHasApplied(true);
-      toast.success("Application submitted successfully!");
+      showSuccess("Application submitted successfully!");
       // Optionally refresh job details to update application count if needed
-      // fetchJobDetails();
+      setJob({ ...job, hasApplied: hasApplied });
+      //fetchJobDetails();
     } catch (error) {
       console.error("Error applying to job:", error);
       if (error.response?.status === 409) {
-        toast.error("You have already applied to this job");
+        showError("You have already applied to this job");
         setHasApplied(true);
       } else {
-        toast.error(
+        showError(
           error.response?.data?.message || "Failed to submit application",
         );
       }
@@ -100,7 +101,7 @@ const CandidateJobView = () => {
 
   const handleBookmarkJob = async () => {
     if (!isAuthenticated || user?.role !== "CANDIDATE") {
-      toast.error("Please login as a candidate to bookmark jobs");
+      showError("Please login as a candidate to bookmark jobs");
       return;
     }
 
@@ -108,19 +109,21 @@ const CandidateJobView = () => {
       setBookmarking(true);
       const response = await candidateApi.toggleBookmark(id);
 
-      if (response.success) {
+      if (response.success || response.status == "success") {
         const newBookmarkStatus = response.data?.bookmarked ?? !isBookmarked;
         setIsBookmarked(newBookmarkStatus);
-        toast.success(
+        showSuccess(
           newBookmarkStatus ? "Job bookmarked!" : "Bookmark removed!",
         );
+        setJob({ ...job, isBookmarked: newBookmarkStatus });
+        //fetchJobDetails();
       } else {
         // Handle error if toggleBookmark doesn't return success but doesn't throw
-        toast.error(response.message || "Failed to update bookmark");
+        showError(response.message || "Failed to update bookmark");
       }
     } catch (error) {
       console.error("Error bookmarking job:", error);
-      toast.error("Failed to update bookmark");
+      showError("Failed to update bookmark");
     } finally {
       setBookmarking(false);
     }

@@ -65,12 +65,22 @@ const optionalAuth = (req, res, next) => {
   }
 
   jwt.verify(token, process.env.JWT_SECRET || 'lokalhunt-secret', (err, decoded) => {
-    if (!err) {
+    if (!err && decoded) {
       // Ensure consistent user ID structure
       req.user = {
         ...decoded,
-        id: decoded.id || decoded.userId || decoded.sub
+        id: decoded.id || decoded.userId || decoded.sub,
+        userId: decoded.userId || decoded.id || decoded.sub
       };
+      
+      console.log('Optional auth middleware: Setting req.user:', {
+        id: req.user.id,
+        userId: req.user.userId,
+        role: req.user.role,
+        tokenStructure: Object.keys(decoded)
+      });
+    } else if (err) {
+      console.log('Optional auth middleware: Token verification failed:', err.message);
     }
     next();
   });

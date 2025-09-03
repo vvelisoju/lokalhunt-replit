@@ -262,17 +262,12 @@ const Applications = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Page Header */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="p-2">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              My Applications
-            </h1>
-            <p className="mt-1 text-gray-600">
-              Track and manage your job applications
-            </p>
+            <h1 className="text-xl font-bold text-gray-900">My Applications</h1>
           </div>
           <div className="text-sm text-gray-500">
             {filteredApplications.length} of {applications?.length || 0}{" "}
@@ -286,21 +281,37 @@ const Applications = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Search */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Search
+            </label>
             <div className="relative">
               <input
                 type="text"
                 placeholder="Search jobs..."
                 value={filters.search}
-                onChange={(e) => handleFiltersChange({ ...filters, search: e.target.value })}
+                onChange={(e) =>
+                  handleFiltersChange({ ...filters, search: e.target.value })
+                }
                 className="w-full py-2 px-3 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
               <button
-                onClick={() => {/* Search handled by onChange */}}
+                onClick={() => {
+                  /* Search handled by onChange */
+                }}
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-500"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
               </button>
             </div>
@@ -308,13 +319,17 @@ const Applications = () => {
 
           {/* Status */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Status
+            </label>
             <select
-              value={filters.status || ''}
-              onChange={(e) => handleFiltersChange({ ...filters, status: e.target.value })}
+              value={filters.status || ""}
+              onChange={(e) =>
+                handleFiltersChange({ ...filters, status: e.target.value })
+              }
               className="w-full py-2 px-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             >
-              {statusOptions.map(option => (
+              {statusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -324,13 +339,17 @@ const Applications = () => {
 
           {/* Date Range */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Date Range
+            </label>
             <select
-              value={filters.dateRange || ''}
-              onChange={(e) => handleFiltersChange({ ...filters, dateRange: e.target.value })}
+              value={filters.dateRange || ""}
+              onChange={(e) =>
+                handleFiltersChange({ ...filters, dateRange: e.target.value })
+              }
               className="w-full py-2 px-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             >
-              {dateRangeOptions.map(option => (
+              {dateRangeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -406,8 +425,8 @@ const Applications = () => {
                 : "No applications match your current filters. Try adjusting your search criteria."}
             </p>
             {applications.length === 0 && (
-              <Link to="/jobs" className="mt-4 inline-block">
-                <Button>Browse Jobs</Button>
+              <Link to="/candidate/jobs" className="mt-4 inline-block">
+                <Button>Find Jobs</Button>
               </Link>
             )}
           </div>
@@ -443,7 +462,9 @@ const Applications = () => {
                 variant="application"
                 applicationStatus={application.status}
                 applicationDate={application.createdAt}
-                onWithdraw={(appId) => handleWithdrawApplication(application.id)}
+                onWithdraw={(appId) =>
+                  handleWithdrawApplication(application.id)
+                }
                 onClick={() => handleJobCardClick(jobData.id)}
                 loading={{
                   apply: false,

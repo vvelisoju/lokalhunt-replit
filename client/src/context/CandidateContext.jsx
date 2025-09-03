@@ -127,6 +127,16 @@ export const CandidateProvider = ({ children }) => {
             profile[field] = String(profile[field])
           }
         })
+
+        // Sync localStorage with database onboarding state if available
+        if (typeof profile.onboardingCompleted === 'boolean') {
+          if (profile.onboardingCompleted) {
+            localStorage.setItem('onboardingCompleted', 'true');
+            localStorage.removeItem('showOnboarding');
+          } else {
+            localStorage.removeItem('onboardingCompleted');
+          }
+        }
       }
       
       console.log('Extracted and sanitized profile data:', profile)

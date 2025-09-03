@@ -264,18 +264,10 @@ router.get("/job-roles", async (req, res, next) => {
         description: true,
         sortOrder: true,
       },
-      orderBy: [
-        { category: "asc" },
-        { sortOrder: "asc" },
-      ],
+      orderBy: [{ category: "asc" }, { sortOrder: "asc" }],
     });
 
-    res.json(
-      createResponse(
-        "Job roles retrieved successfully",
-        jobRoles,
-      ),
-    );
+    res.json(createResponse("Job roles retrieved successfully", jobRoles));
   } catch (error) {
     console.error("Error fetching job roles:", error);
     next(error);
@@ -317,7 +309,9 @@ router.get("/cities", async (req, res, next) => {
       jobCount: city._count.ads,
     }));
 
-    res.json(createResponse("Cities retrieved successfully", transformedCities));
+    res.json(
+      createResponse("Cities retrieved successfully", transformedCities),
+    );
   } catch (error) {
     next(error);
   }
@@ -473,79 +467,95 @@ router.get("/jobs/search", optionalAuth, async (req, res, next) => {
       prisma.ad.count({ where }),
     ]);
 
-    // Transform jobs for frontend with status checking if authenticated
-    let transformedJobs = jobs.map((job) => {
-      const salaryMin = job.salaryMin ? Number(job.salaryMin) : null;
-      const salaryMax = job.salaryMax ? Number(job.salaryMax) : null;
+    // Get candidate info for status checking if authenticated
+    let candidate = null;
+    let bookmarkedJobIdsSet = new Set();
+    let appliedJobIdsSet = new Set();
 
-      return {
-        id: job.id,
-        title: job.title,
-        company: {
-          name: job.company.name,
-          logo: job.company.logo,
-        },
-        location: job.location
-          ? `${job.location.name}, ${job.location.state}`
-          : "Remote",
-        salary:
-          salaryMin && salaryMax
-            ? `₹${salaryMin} - ₹${salaryMax}`
-            : salaryMin
-              ? `₹${salaryMin}+`
-              : "Negotiable",
-        vacancies: job.numberOfPositions || 1,
-        postedAt: job.createdAt,
-        jobType:
-          job.employmentType?.toLowerCase()?.replace("_", "-") || "full-time",
-        featured: false, // Public search doesn't show featured status
-        experienceLevel: job.experienceLevel || "Not specified",
-        description: job.description?.substring(0, 150) + "..." || "",
-        skills: job.skills
-          ? job.skills.split(",").map((skill) => skill.trim())
-          : [],
-        applicationCount: job._count?.allocations || 0,
-        isBookmarked: false,
-        hasApplied: false,
-      };
-    });
+    console.log(req.user);
 
-    // Add status information for authenticated candidates
     if (req.user && req.user.role === "CANDIDATE") {
-      const candidate = await prisma.candidate.findUnique({
+      console.log(
+        "Authenticated candidate, checking bookmarks and applications",
+      );
+      candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
       });
 
       if (candidate) {
-        // Get all bookmarks and applications for this candidate
+        // Get all bookmarks and applications for this candidate (no filtering by job IDs to get all)
         const [bookmarks, applications] = await Promise.all([
           prisma.bookmark.findMany({
             where: {
               candidateId: candidate.id,
-              adId: { in: jobs.map((job) => job.id) },
             },
             select: { adId: true },
           }),
           prisma.allocation.findMany({
             where: {
               candidateId: candidate.id,
-              adId: { in: jobs.map((job) => job.id) },
             },
             select: { adId: true },
           }),
         ]);
 
-        const bookmarkedJobIds = new Set(bookmarks.map((b) => b.adId));
-        const appliedJobIds = new Set(applications.map((a) => a.adId));
-
-        // Update job status
-        transformedJobs = transformedJobs.map((job) => ({
-          ...job,
-          isBookmarked: bookmarkedJobIds.has(job.id),
-          hasApplied: appliedJobIds.has(job.id),
-        }));
+        bookmarkedJobIdsSet = new Set(bookmarks.map((b) => b.adId));
+        appliedJobIdsSet = new Set(applications.map((a) => a.adId));
       }
     }
+    console.log("bookmarkedJobIdsSet", bookmarkedJobIdsSet, appliedJobIdsSet);
+
+    // Transform jobs to consistent format matching candidate controller
+    const transformedJobs = jobs.map((job) => {
+      const salaryMin = job.salaryMin ? Number(job.salaryMin) : null;
+      const salaryMax = job.salaryMax ? Number(job.salaryMax) : null;
+      const hasApplied = appliedJobIdsSet.has(job.id);
+      const isBookmarked = bookmarkedJobIdsSet.has(job.id);
+
+      return {
+        id: job.id,
+        title: job.title,
+        company: {
+          id: job.company?.id,
+          name: job.company?.name,
+          logo: job.company?.logo,
+          industry: job.company?.industry,
+        },
+        location: job.location
+          ? `${job.location.name}, ${job.location.state}`
+          : "Remote",
+        locationName: job.location?.name,
+        locationState: job.location?.state,
+        jobType: job.employmentType || "Full Time",
+        employmentType: job.employmentType || "Full Time",
+        salary:
+          salaryMin && salaryMax
+            ? `₹${salaryMin} - ₹${salaryMax}`
+            : salaryMin
+              ? `₹${salaryMin}+`
+              : "Negotiable",
+        salaryRange:
+          salaryMin && salaryMax
+            ? `₹${salaryMin} - ₹${salaryMax}`
+            : salaryMin
+              ? `₹${salaryMin}+`
+              : "Negotiable",
+        salaryMin: salaryMin,
+        salaryMax: salaryMax,
+        skills: job.skills
+          ? job.skills.split(",").map((skill) => skill.trim())
+          : [],
+        experienceLevel: job.experienceLevel || "Not specified",
+        postedAt: job.createdAt,
+        createdAt: job.createdAt,
+        candidatesCount: job._count?.allocations || 0,
+        applicationCount: job._count?.allocations || 0,
+        hasApplied,
+        isBookmarked,
+        description: job.description,
+        status: "APPROVED",
+      };
+    });
 
     const response = {
       jobs: transformedJobs,
@@ -617,7 +627,9 @@ router.get("/candidates/jobs/:id", optionalAuth, async (req, res, next) => {
     });
 
     if (!candidate) {
-      return res.status(404).json(createErrorResponse("Candidate profile not found", 404));
+      return res
+        .status(404)
+        .json(createErrorResponse("Candidate profile not found", 404));
     }
 
     // Transform job for frontend with proper type conversion
@@ -1337,18 +1349,10 @@ router.get("/skills", async (req, res, next) => {
         category: true,
         description: true,
       },
-      orderBy: [
-        { category: "asc" },
-        { name: "asc" },
-      ],
+      orderBy: [{ category: "asc" }, { name: "asc" }],
     });
 
-    res.json(
-      createResponse(
-        "Skills retrieved successfully",
-        skills,
-      ),
-    );
+    res.json(createResponse("Skills retrieved successfully", skills));
   } catch (error) {
     console.error("Error fetching skills:", error);
     next(error);
@@ -1356,12 +1360,11 @@ router.get("/skills", async (req, res, next) => {
 });
 
 // Get skills
-  getSkills: async (category = null) => {
-    const url = category
-      ? `${API_BASE_URL}/public/skills?category=${encodeURIComponent(category)}`
-      : `${API_BASE_URL}/public/skills`;
-    const response = await fetch(url);
-    return handleResponse(response);
-  },
-
-module.exports = router;
+getSkills: async (category = null) => {
+  const url = category
+    ? `${API_BASE_URL}/public/skills?category=${encodeURIComponent(category)}`
+    : `${API_BASE_URL}/public/skills`;
+  const response = await fetch(url);
+  return handleResponse(response);
+},
+  (module.exports = router);

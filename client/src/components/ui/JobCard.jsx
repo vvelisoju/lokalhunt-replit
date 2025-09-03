@@ -41,7 +41,6 @@ const JobCard = ({
   onApprove, // Optional external approve handler
   onReject, // Optional external reject handler
   onViewCandidates, // Added prop to handle viewing candidates
-  onClick, // Added onClick prop
   className = "",
   showApplicationDate = false,
   showBookmarkDate = false,
@@ -298,8 +297,13 @@ const JobCard = ({
         // Bookmarks page actions
         actions.push(
           <Button
+            key="view-job"
             variant="outline"
             size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/candidate/jobs/${job.id}?from=bookmarks`);
+            }}
             className="flex items-center touch-manipulation"
           >
             <EyeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
@@ -777,8 +781,7 @@ const JobCard = ({
       </Modal>
 
       <div
-        className={`bg-white border-0 rounded-2xl shadow-sm hover:shadow-lg active:shadow-md transition-all duration-200 ${onClick ? "cursor-pointer active:scale-[0.98]" : ""} ${className}`}
-        onClick={onClick}
+        className={`bg-white border-0 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-200 ${className}`}
         style={{
           boxShadow:
             "0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.08)",

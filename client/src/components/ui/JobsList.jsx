@@ -1,23 +1,24 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { toast } from "react-hot-toast";
 import { BriefcaseIcon } from "@heroicons/react/24/outline";
 import SharedJobCard from "./JobCard";
 import JobFilters from "./JobFilters";
 import { candidateApi } from "../../services/candidateApi";
 import { publicApi } from "../../services/publicApi";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "./Toast";
 import Loader from "./Loader";
 
 const JobsList = ({
   showFilters = true,
   title = "Jobs",
   subtitle = "",
-  apiEndpoint = "public",
+  apiEndpoint = "candidate",
 }) => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, isAuthenticated } = useAuth();
+  const { success: showSuccess, error: showError } = useToast();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(null);
@@ -29,20 +30,26 @@ const JobsList = ({
   // Initialize filters state from URL parameters
   const initializeFiltersFromURL = useCallback(() => {
     const urlFilters = {
-      search: searchParams.get('search') || '',
-      location: searchParams.get('location') || '',
-      category: searchParams.get('category') || '',
-      jobType: searchParams.get('jobType') ? searchParams.get('jobType').split(',') : [],
-      experience: searchParams.get('experience') ? searchParams.get('experience').split(',') : [],
-      gender: searchParams.get('gender') || '',
-      education: searchParams.get('education') ? searchParams.get('education').split(',') : [],
-      salaryRange: searchParams.get('salaryRange') || '',
-      sortBy: searchParams.get('sortBy') || 'newest'
-    }
-    return urlFilters
-  }, [searchParams])
+      search: searchParams.get("search") || "",
+      location: searchParams.get("location") || "",
+      category: searchParams.get("category") || "",
+      jobType: searchParams.get("jobType")
+        ? searchParams.get("jobType").split(",")
+        : [],
+      experience: searchParams.get("experience")
+        ? searchParams.get("experience").split(",")
+        : [],
+      gender: searchParams.get("gender") || "",
+      education: searchParams.get("education")
+        ? searchParams.get("education").split(",")
+        : [],
+      salaryRange: searchParams.get("salaryRange") || "",
+      sortBy: searchParams.get("sortBy") || "newest",
+    };
+    return urlFilters;
+  }, [searchParams]);
 
-  const [filters, setFilters] = useState(initializeFiltersFromURL)
+  const [filters, setFilters] = useState(initializeFiltersFromURL);
 
   const sortOptions = [
     { value: "newest", label: "Newest First" },
@@ -104,50 +111,62 @@ const JobsList = ({
     }
   }, [apiEndpoint, apiParams]);
 
-
   // Load jobs when component mounts or filters change
   useEffect(() => {
     searchJobs();
   }, [searchJobs]);
 
   // Update URL when filters change
-  const updateURL = useCallback((newFilters) => {
-    const params = new URLSearchParams()
+  const updateURL = useCallback(
+    (newFilters) => {
+      const params = new URLSearchParams();
 
-    Object.entries(newFilters).forEach(([key, value]) => {
-      if (value && value !== '' && (!Array.isArray(value) || value.length > 0)) {
-        if (Array.isArray(value)) {
-          params.set(key, value.join(','))
-        } else {
-          params.set(key, value)
+      Object.entries(newFilters).forEach(([key, value]) => {
+        if (
+          value &&
+          value !== "" &&
+          (!Array.isArray(value) || value.length > 0)
+        ) {
+          if (Array.isArray(value)) {
+            params.set(key, value.join(","));
+          } else {
+            params.set(key, value);
+          }
         }
+      });
+
+      // Add pagination
+      if (currentPage > 1) {
+        params.set("page", currentPage.toString());
       }
-    })
 
-    // Add pagination
-    if (currentPage > 1) {
-      params.set('page', currentPage.toString())
-    }
-
-    setSearchParams(params, { replace: true })
-  }, [currentPage, setSearchParams])
+      setSearchParams(params, { replace: true });
+    },
+    [currentPage, setSearchParams],
+  );
 
   // Update filters when URL parameters change (for back/forward navigation or direct links)
   useEffect(() => {
-    const urlFilters = initializeFiltersFromURL()
-    setFilters(urlFilters)
-  }, [initializeFiltersFromURL])
+    const urlFilters = initializeFiltersFromURL();
+    setFilters(urlFilters);
+  }, [initializeFiltersFromURL]);
 
   // Initial search when component mounts with URL filters
   useEffect(() => {
-    if (filters.search || filters.location || filters.category || filters.jobType.length > 0 ||
-        filters.experience.length > 0 || filters.gender || filters.education.length > 0 ||
-        filters.salaryRange) {
+    if (
+      filters.search ||
+      filters.location ||
+      filters.category ||
+      filters.jobType.length > 0 ||
+      filters.experience.length > 0 ||
+      filters.gender ||
+      filters.education.length > 0 ||
+      filters.salaryRange
+    ) {
       // If we have filters from URL, trigger search immediately
       searchJobs();
     }
   }, []); // Only run once on mount
-
 
   const handleFiltersChange = (newFilters) => {
     setFilters(newFilters);
@@ -157,15 +176,15 @@ const JobsList = ({
 
   const handleClearFilters = () => {
     const clearedFilters = {
-      search: '',
-      location: '',
-      category: '',
+      search: "",
+      location: "",
+      category: "",
       jobType: [],
       experience: [],
-      gender: '',
+      gender: "",
       education: [],
-      salaryRange: '',
-      sortBy: 'newest'
+      salaryRange: "",
+      sortBy: "newest",
     };
     setFilters(clearedFilters);
     setCurrentPage(1);
@@ -191,7 +210,7 @@ const JobsList = ({
     }
 
     if (user?.role !== "CANDIDATE") {
-      toast.error("Only candidates can apply to jobs");
+      showError("Only candidates can apply to jobs");
       return;
     }
 
@@ -200,7 +219,7 @@ const JobsList = ({
       const response = await candidateApi.applyToJob(jobId);
 
       if (response.status === 201 || response.data?.status === "success") {
-        toast.success("Application submitted successfully!");
+        showSuccess("Applied successfully");
         // Update the job in the list to show applied status
         setJobs((prev) =>
           prev.map((job) =>
@@ -208,19 +227,19 @@ const JobsList = ({
           ),
         );
       } else {
-        toast.error(response.data?.message || "Failed to submit application");
+        showError(response.data?.message || "Failed to submit application");
       }
     } catch (error) {
       console.error("Error applying to job:", error);
       if (error.response?.status === 409) {
-        toast.error("You have already applied to this job");
+        showError("You have already applied to this job");
         setJobs((prev) =>
           prev.map((job) =>
             job.id === jobId ? { ...job, hasApplied: true } : job,
           ),
         );
       } else {
-        toast.error(
+        showError(
           error.response?.data?.message || "Failed to submit application",
         );
       }
@@ -236,7 +255,7 @@ const JobsList = ({
     }
 
     if (user?.role !== "CANDIDATE") {
-      toast.error("Only candidates can bookmark jobs");
+      showError("Only candidates can bookmark jobs");
       return;
     }
 
@@ -244,10 +263,10 @@ const JobsList = ({
       const job = jobs.find((j) => j.id === jobId);
       if (job?.isBookmarked) {
         await candidateApi.removeBookmark(jobId);
-        toast.success("Job removed from bookmarks");
+        showSuccess("Job removed from bookmarks");
       } else {
         await candidateApi.addBookmark(jobId);
-        toast.success("Job bookmarked successfully");
+        showSuccess("Job bookmarked successfully");
       }
 
       // Update the job in the list instantly
@@ -258,7 +277,7 @@ const JobsList = ({
       );
     } catch (error) {
       console.error("Error bookmarking job:", error);
-      toast.error("Failed to bookmark job");
+      showError("Failed to bookmark job");
     }
   };
 
@@ -288,15 +307,13 @@ const JobsList = ({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Header */}
       {title && (
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="p-2">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-              {subtitle && <p className="mt-1 text-gray-600">{subtitle}</p>}
-            </div>
+            <h1 className="text-xl font-bold text-gray-900">{title}</h1>
+
             <div className="text-sm text-gray-500">{totalJobs} jobs found</div>
           </div>
         </div>
@@ -415,7 +432,7 @@ const JobsList = ({
             // Determine the variant based on user role for the SharedJobCard
             const variant =
               user?.role === "CANDIDATE" ? "candidate" : "default";
-
+            console.log("Role:::::::::::::", variant, job);
             return (
               <SharedJobCard
                 key={job.id}

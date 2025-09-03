@@ -7,6 +7,22 @@ export const authService = {
     try {
       const response = await api.post('/auth/login', credentials)
       console.log('AuthService: Login response:', response.data)
+      
+      // If login successful and we have user data, try to send device token
+      if (response.data && (response.data.success || response.data.data)) {
+        const responseData = response.data.data || response.data;
+        
+        if (responseData.token && responseData.user) {
+          // Store token and user data
+          localStorage.setItem('token', responseData.token);
+          localStorage.setItem('user', JSON.stringify(responseData.user));
+          api.defaults.headers.common['Authorization'] = `Bearer ${responseData.token}`;
+          
+          // Try to send device token if available
+          this.sendStoredDeviceToken();
+        }
+      }
+      
       return response.data
     } catch (error) {
       console.error('AuthService: Login request failed:', error)
@@ -56,6 +72,9 @@ export const authService = {
           // Set auth header for subsequent requests
           api.defaults.headers.common['Authorization'] = `Bearer ${responseData.token}`;
           console.log('AuthService: Token and user data stored successfully');
+          
+          // Try to send device token if available
+          this.sendStoredDeviceToken();
         }
         
         return response.data;
@@ -236,6 +255,74 @@ export const authService = {
         success: false,
         error: error.response?.data?.message || 'Password reset failed'
       }
+    }
+  },
+
+  // Change password for authenticated users
+  async changePassword(passwordData) {
+    try {
+      console.log('AuthService: Making change password request to /auth/change-password');
+      const response = await api.put('/auth/change-password', passwordData);
+      console.log('AuthService: Change password response:', response.data);
+      
+      // Handle different response formats
+      if (response.data) {
+        return {
+          success: true,
+          status: 'success',
+          data: response.data.data || response.data,
+          message: response.data.message || 'Password changed successfully'
+        };
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('AuthService: Change password request failed:', error);
+      
+      // Return a consistent error format
+      throw new Error(error.response?.data?.message || error.message || 'Failed to change password');
+    }
+  },
+
+  // Send stored device token to backend (for mobile apps)
+  async sendStoredDeviceToken() {
+    try {
+      // Check if we're in a mobile environment and have a stored token
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const storedToken = localStorage.getItem('push_device_token');
+        if (storedToken) {
+          console.log('📱 Sending stored device token to backend after login');
+          
+          let platform = 'web';
+          if (window.Capacitor) {
+            try {
+              const { Capacitor } = await import('@capacitor/core');
+              if (Capacitor.isNativePlatform()) {
+                platform = Capacitor.getPlatform();
+              }
+            } catch (e) {
+              console.log('Capacitor not available, using web platform');
+            }
+          }
+
+          const response = await api.post('/auth/device-token', {
+            deviceToken: storedToken,
+            platform
+          });
+
+          if (response.data) {
+            console.log('✅ Device token sent successfully after login:', response.data.message);
+            return true;
+          }
+        } else {
+          console.log('📱 No stored device token found');
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('❌ Error sending stored device token:', error);
+      // Don't throw error as this is not critical for login flow
+      return false;
     }
   }
 }

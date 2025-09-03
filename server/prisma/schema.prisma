@@ -94,27 +94,31 @@ enum Language {
 
 // Core User Model
 model User {
-  id           String   @id @default(uuid())
-  name         String
-  firstName    String?  @map("first_name")
-  lastName     String?  @map("last_name")
-  email        String?
-  phone        String   @unique
-  passwordHash String   @map("password_hash")
-  role         UserRole
-  cityId       String?  @map("city_id")
-  isActive     Boolean  @default(true) @map("is_active")
-  isVerified   Boolean  @default(false) @map("is_verified")
-  otp          String?
-  otpExpiresAt DateTime? @map("otp_expires_at")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid())
+  name           String
+  firstName      String?  @map("first_name")
+  lastName       String?  @map("last_name")
+  email          String?
+  phone          String   @unique
+  passwordHash   String   @map("password_hash")
+  role           UserRole
+  cityId         String?  @map("city_id")
+  isActive       Boolean  @default(true) @map("is_active")
+  isVerified     Boolean  @default(false) @map("is_verified")
+  otp            String?
+  otpExpiresAt   DateTime? @map("otp_expires_at")
+  deviceToken    String?  @map("device_token") // For push notifications
+  devicePlatform String?  @map("device_platform") // ios, android, web
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   // Relations
   city      City?        @relation("CityToUser", fields: [cityId], references: [id])
   candidate Candidate?
   employer  Employer?
   branchAdmin BranchAdmin?
+  notifications Notification[]
+  notificationPreferences UserNotificationPreference?
 
   @@map("users")
 }
@@ -155,17 +159,17 @@ model Candidate {
   profilePhoto   String?  @map("profile_photo")
   coverPhoto     String?  @map("cover_photo")
   dateOfBirth    DateTime? @map("date_of_birth")
-  
+
   // Onboarding specific fields
   onboardingCompleted Boolean @default(false) @map("onboarding_completed")
   onboardingStep     Int?    @default(0) @map("onboarding_step") // Current step in onboarding
-  
+
   // Basic Info fields
   bio                String? // Professional summary/bio
   linkedinUrl        String? @map("linkedin_url")
   githubUrl          String? @map("github_url")
   websiteUrl         String? @map("website_url")
-  
+
   // Job Preferences
   preferredJobTitles  String[] @map("preferred_job_titles") // Array of preferred job titles
   preferredIndustries String[] @map("preferred_industries") // Array of preferred industries
@@ -174,25 +178,25 @@ model Candidate {
   preferredSalaryMax  Decimal? @map("preferred_salary_max") @db.Decimal(10, 2)
   preferredJobTypes   String[] @map("preferred_job_types") // FULL_TIME, PART_TIME, etc.
   remoteWorkPreference String? @map("remote_work_preference") // REMOTE, HYBRID, ONSITE, FLEXIBLE
-  
+
   // Skills and Experience
   skillsWithExperience Json?  @map("skills_with_experience") // {skillId: experienceLevel}
   currentEmploymentStatus String? @map("current_employment_status") // From enum
   availabilityDate       DateTime? @map("availability_date")
   noticePeriod          String? @map("notice_period") // 0 days, 15 days, 1 month, etc.
   currentSalary         Decimal? @map("current_salary") @db.Decimal(10, 2)
-  
+
   // Language Preferences
   preferredLanguages    String[] @map("preferred_languages") // From Language enum
-  
+
   // Work Preferences
   shiftPreference       String? @map("shift_preference") // From ShiftPreference enum
   travelWillingness     Boolean? @map("travel_willingness")
-  
+
   // Experience and Availability
   experienceLevel       String? @map("experience_level") // From ExperienceLevel enum
   availabilityStatus    String? @map("availability_status") // From Availability enum
-  
+
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -547,4 +551,60 @@ model SmsTemplate {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("sms_templates")
+}
+
+// Notification Types Enum
+enum NotificationType {
+  GENERAL
+  WELCOME
+  JOB_ALERT
+  APPLICATION_UPDATE
+  INTERVIEW_SCHEDULED
+  JOB_APPROVED
+  JOB_REJECTED
+  PROFILE_UPDATE
+  SYSTEM
+  PROMOTIONAL
+  TEST
+}
+
+// Notifications Model
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  title     String
+  message   String           @db.Text
+  type      NotificationType @default(GENERAL)
+  data      Json?            // Additional data payload
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+
+// User Notification Preferences Model
+model UserNotificationPreference {
+  id                   String   @id @default(uuid())
+  userId               String   @unique @map("user_id")
+  emailNotifications   Boolean  @default(true) @map("email_notifications")
+  smsNotifications     Boolean  @default(false) @map("sms_notifications")
+  pushNotifications    Boolean  @default(true) @map("push_notifications")
+  jobAlerts            Boolean  @default(true) @map("job_alerts")
+  applicationUpdates   Boolean  @default(true) @map("application_updates")
+  interviewReminders   Boolean  @default(true) @map("interview_reminders")
+  profileUpdates       Boolean  @default(false) @map("profile_updates")
+  systemNotifications  Boolean  @default(true) @map("system_notifications")
+  promotionalOffers    Boolean  @default(false) @map("promotional_offers")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_notification_preferences")
 }

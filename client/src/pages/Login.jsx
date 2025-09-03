@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-
+import { useCandidateAuth } from "../hooks/useCandidateAuth";
+import FormInput from "../components/ui/FormInput";
+import Button from "../components/ui/Button";
 import {
   EyeIcon,
   EyeSlashIcon,
@@ -13,12 +15,21 @@ import { toast } from "react-hot-toast";
 
 const Login = () => {
   const { t } = useTranslation();
-  const { login, user, isAuthenticated } = useAuth();
+  const { login, user, isAuthenticated, loading } = useAuth();
+  const candidateAuth = useCandidateAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || "/";
 
-  // Redirect authenticated users appropriately - only when on login page
+  // State declarations moved to the top to comply with Rules of Hooks
+  const [formData, setFormData] = useState({
+    phone: "", // Changed from email to phone
+    password: "",
+  });
+  const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   useEffect(() => {
     // Add extra checks to prevent infinite loops during logout
     const hasValidToken =
@@ -96,13 +107,7 @@ const Login = () => {
     }
   }, [location.state, navigate, location.pathname]);
 
-  const [formData, setFormData] = useState({
-    phone: "", // Changed from email to phone
-    password: "",
-  });
-  const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  // Redirect authenticated users appropriately - only when on login page
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -312,6 +317,23 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+
+  // Show loading screen while authentication is being checked
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="flex items-center justify-center mb-6">
+            <img src="/images/logo.png" alt="LokalHunt Logo" className="h-14" />
+          </div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-sm text-gray-600">
+            Checking authentication...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 flex flex-col lg:flex-row">

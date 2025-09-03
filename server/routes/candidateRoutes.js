@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const candidateController = require('../controllers/candidateController');
+const notificationController = require('../controllers/notificationController');
 
 // Configure multer for file uploads
 const upload = multer({
@@ -170,20 +171,23 @@ router.get('/ratings/:skill/history', candidateController.getSkillRatingHistory)
 // =======================
 
 // Get notifications
-router.get('/notifications', candidateController.getNotifications);
+router.get('/notifications', notificationController.getNotifications);
 
 // Mark notification as read
-router.patch('/notifications/:notificationId/read', candidateController.markNotificationAsRead);
+router.patch('/notifications/:notificationId/read', notificationController.markNotificationAsRead);
 
 // Mark all notifications as read
-router.patch('/notifications/read-all', candidateController.markAllNotificationsAsRead);
+router.patch('/notifications/read-all', notificationController.markAllNotificationsAsRead);
 
 // Delete notification
-router.delete('/notifications/:notificationId', candidateController.deleteNotification);
+router.delete('/notifications/:notificationId', notificationController.deleteNotification);
 
 // Notification preferences
-router.get('/notifications/preferences', candidateController.getNotificationPreferences);
-router.put('/notifications/preferences', candidateController.updateNotificationPreferences);
+router.get('/notifications/preferences', notificationController.getNotificationPreferences);
+router.put('/notifications/preferences', notificationController.updateNotificationPreferences);
+
+// Test push notification
+router.post('/notifications/test-push', notificationController.testPushNotification);
 
 // =======================
 // ACCOUNT & SETTINGS

@@ -10,6 +10,7 @@ const aiRoutes = require("./aiRoutes");
 const profileRoutes = require("./profileRoutes");
 const emailRoutes = require("./emailRoutes");
 const subscriptionRoutes = require("./subscriptionRoutes");
+const notificationRoutes = require('./notificationRoutes');
 const { createResponse } = require("../utils/response");
 
 const router = express.Router();
@@ -57,5 +58,7 @@ router.use("/shared", sharedRoutes);
 router.use("/ai", aiRoutes);
 router.use("/email", emailRoutes);
 router.use("/subscriptions", subscriptionRoutes);
+router.use('/api/notifications', notificationRoutes);
+
 
 module.exports = router;

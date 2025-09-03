@@ -16,7 +16,6 @@ import { getAds } from "../../services/employer/ads";
 import { getMous } from "../../services/employer/mou";
 import { useRole } from "../../context/RoleContext";
 import { useAuth } from "../../context/AuthContext";
-import Loading from "../../components/ui/Loading";
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -111,7 +110,16 @@ const Dashboard = () => {
 
   // Show loading only while authenticating or loading dashboard data (with timeout protection)
   if (authLoading || (isLoading && isAuthenticated)) {
-    return <Loading />;
+    return (
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+        <div className="text-center">
+          <Loader />
+          <p className="mt-4 text-sm text-gray-600">
+            {authLoading ? "Authenticating..." : "Loading dashboard..."}
+          </p>
+        </div>
+      </div>
+    );
   }
 
   // If not authenticated, don't render the dashboard (EmployerRoute should handle redirect)

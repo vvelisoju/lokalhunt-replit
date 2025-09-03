@@ -23,6 +23,7 @@ import CandidateBookmarks from "./pages/candidate/Bookmarks";
 import CandidateResume from "./pages/candidate/Resume";
 import CandidateLinkedInProfile from "./pages/candidate/LinkedInProfile";
 import CandidateAccountSettings from "./pages/candidate/AccountSettings";
+import TestInterface from "./pages/candidate/TestInterface";
 // Import CandidateJobs component
 import CandidateJobs from "./pages/candidate/Jobs";
 // Import CandidateJobView component
@@ -88,6 +89,7 @@ import RefundPolicy from "./pages/RefundPolicy";
 function App() {
   const [pushToken, setPushToken] = useState(null);
   const [isNativePlatform, setIsNativePlatform] = useState(false);
+  const [platformDetected, setPlatformDetected] = useState(false);
 
   // Initialize push notifications on component mount
   useEffect(() => {
@@ -117,6 +119,8 @@ function App() {
     } catch (error) {
       console.log("Capacitor not available - running in web mode");
       setIsNativePlatform(false);
+    } finally {
+      setPlatformDetected(true);
     }
   };
 
@@ -150,9 +154,15 @@ function App() {
   // Add push notification listeners
   const addPushListeners = (PushNotifications) => {
     // Called when the app receives the registration token
-    PushNotifications.addListener("registration", (token) => {
+    PushNotifications.addListener("registration", async (token) => {
       console.log("Push registration success, token: " + token.value);
       setPushToken(token.value);
+      
+      // Store token locally for later use
+      localStorage.setItem('push_device_token', token.value);
+      
+      // Token will be sent to backend by authService after login
+      await sendTokenToBackend(token.value);
     });
 
     // Called when there's an error during registration
@@ -181,6 +191,14 @@ function App() {
         // Handle navigation or actions based on notification data
       },
     );
+  };
+
+  // Send device token to backend (only stores locally for later use)
+  const sendTokenToBackend = async (deviceToken) => {
+    console.log('📱 Device token received, storing locally for login:', {
+      token: `${deviceToken.slice(0, 20)}...`
+    });
+    // Token will be sent to backend by authService after login
   };
 
   // Manual registration trigger
@@ -223,7 +241,17 @@ function App() {
             <Route
               path="/"
               element={
-                isNativePlatform ? (
+                !platformDetected ? (
+                  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50">
+                    <div className="text-center">
+                      <div className="flex items-center justify-center mb-6">
+                        <img src="/images/logo.png" alt="LokalHunt Logo" className="h-14" />
+                      </div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                      <p className="mt-4 text-sm text-gray-600">Loading...</p>
+                    </div>
+                  </div>
+                ) : isNativePlatform ? (
                   <Navigate to="/login" replace />
                 ) : (
                   <Landing />

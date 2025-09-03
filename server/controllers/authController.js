@@ -175,13 +175,13 @@ class AuthController {
         cityId, // Direct city ID from frontend
       } = req.body;
 
-      console.log("OTP Verification Request:", {
-        phone,
-        email,
-        isForgotPassword,
+      console.log("OTP Verification Request:", { 
+        phone, 
+        email, 
+        isForgotPassword, 
         hasRegistrationData: !!registrationData,
         companyName,
-        cityId,
+        cityId
       });
 
       // Determine identifier type and value
@@ -415,11 +415,8 @@ class AuthController {
 
             // Create default company for employer
             if (finalCompanyData.companyName && finalCompanyData.cityId) {
-              console.log(
-                "Creating default company with data:",
-                finalCompanyData,
-              );
-
+              console.log("Creating default company with data:", finalCompanyData);
+              
               const defaultCompany = await transactionPrisma.company.create({
                 data: {
                   employerId: employer.id,
@@ -432,12 +429,7 @@ class AuthController {
 
               console.log("Created default company:", defaultCompany);
             } else {
-              console.log(
-                "No company data available - company name:",
-                finalCompanyData.companyName,
-                "cityId:",
-                finalCompanyData.cityId,
-              );
+              console.log("No company data available - company name:", finalCompanyData.companyName, "cityId:", finalCompanyData.cityId);
             }
 
             // Assign basic subscription
@@ -489,9 +481,7 @@ class AuthController {
       // Clean up temporary storage
       if (userData.role === "EMPLOYER") {
         // This would be handled by frontend, but we can log it
-        console.log(
-          "Registration completed - temporary company data should be cleared from frontend",
-        );
+        console.log("Registration completed - temporary company data should be cleared from frontend");
       }
 
       // Determine response message and status
@@ -1196,207 +1186,77 @@ class AuthController {
     }
   }
 
-  // Update user profile
-  async updateProfile(req, res, next) {
+  // Store device token for push notifications
+  async storeDeviceToken(req, res, next) {
     try {
-      console.log("req.user", req.user);
-      // Extract userId from different possible JWT payload structures
-      const userId = req.user.id || req.user.userId || req.user.sub;
-      const role = req.user.role;
-      const updates = req.body;
+      const userId = req.user.userId;
+      const { deviceToken, platform } = req.body;
 
-      if (!userId) {
-        console.error("No userId found in JWT token:", req.user);
-        return res.status(401).json({
-          status: "error",
-          message: "Invalid authentication token - user ID not found",
-        });
-      }
-
-      console.log("Auth profile update request:", { userId, role, updates });
-
-      // Build update data, handling only valid User model fields
-      const updateData = {};
-
-      if (updates.firstName !== undefined)
-        updateData.firstName = updates.firstName;
-      if (updates.lastName !== undefined)
-        updateData.lastName = updates.lastName;
-      if (updates.email !== undefined) updateData.email = updates.email;
-
-      // Handle city relationship update
-      if (updates.city !== undefined && updates.city) {
-        updateData.cityId = updates.city;
-      }
-
-      // Update name if firstName or lastName changed
-      if (updates.firstName !== undefined || updates.lastName !== undefined) {
-        const currentUser = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { firstName: true, lastName: true },
-        });
-
-        if (!currentUser) {
-          return res.status(404).json({
-            status: "error",
-            message: "User not found",
-          });
-        }
-
-        const newFirstName =
-          updates.firstName !== undefined
-            ? updates.firstName
-            : currentUser.firstName;
-        const newLastName =
-          updates.lastName !== undefined
-            ? updates.lastName
-            : currentUser.lastName;
-
-        updateData.name =
-          `${newFirstName || ""} ${newLastName || ""}`.trim() ||
-          newFirstName ||
-          newLastName;
-      }
-
-      // Validate required fields
-      if (updateData.firstName && !updateData.firstName.trim()) {
+      if (!deviceToken) {
         return res.status(400).json({
-          status: "error",
-          message: "First name cannot be empty",
+          success: false,
+          message: "Device token is required"
         });
       }
 
-      if (updateData.lastName && !updateData.lastName.trim()) {
-        return res.status(400).json({
-          status: "error",
-          message: "Last name cannot be empty",
-        });
-      }
-
-      // Email is optional, but if provided, validate format
-      if (
-        updateData.email &&
-        updateData.email.trim() &&
-        !/\S+@\S+\.\S+/.test(updateData.email)
-      ) {
-        return res.status(400).json({
-          status: "error",
-          message: "Invalid email format",
-        });
-      }
-
-      const updatedUser = await prisma.user.update({
-        where: { id: userId },
-        data: updateData,
-        select: {
-          id: true,
-          email: true,
-          phone: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-          cityId: true,
-          city: {
-            select: {
-              id: true,
-              name: true,
-              state: true,
-            },
-          },
-        },
+      console.log(`📱 Storing device token for user ${userId}:`, {
+        token: `${deviceToken.slice(0, 20)}...`,
+        platform: platform || 'unknown'
       });
 
-      console.log("Profile updated successfully:", updatedUser);
-
-      res.json({
-        status: "success",
-        message: "Profile updated successfully",
-        data: updatedUser,
-      });
-    } catch (error) {
-      console.error("Profile update error:", error);
-      res.status(500).json({
-        status: "error",
-        message: error.message || "Failed to update profile",
-      });
-    }
-  }
-
-  // Change password for authenticated users
-  async changePassword(req, res, next) {
-    try {
-      const userId = req.user.id || req.user.userId || req.user.sub;
-      const { currentPassword, newPassword } = req.body;
-
-      if (!userId) {
-        return res.status(401).json({
-          status: "error",
-          message: "Invalid authentication token - user ID not found",
-        });
-      }
-
-      // Validation
-      if (!currentPassword || !newPassword) {
-        return res.status(400).json({
-          status: "error",
-          message: "Current password and new password are required",
-        });
-      }
-
-      if (newPassword.length < 6) {
-        return res.status(400).json({
-          status: "error",
-          message: "New password must be at least 6 characters long",
-        });
-      }
-
-      // Get current user
+      // Get user info for welcome notification
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { id: true, passwordHash: true },
+        select: {
+          id: true,
+          name: true,
+          firstName: true,
+          deviceToken: true
+        }
       });
 
       if (!user) {
         return res.status(404).json({
-          status: "error",
-          message: "User not found",
+          success: false,
+          message: "User not found"
         });
       }
 
-      // Verify current password
-      const isValidPassword = await bcrypt.compare(
-        currentPassword,
-        user.passwordHash,
-      );
-      if (!isValidPassword) {
-        return res.status(400).json({
-          status: "error",
-          message: "Current password is incorrect",
-        });
-      }
-
-      // Hash new password
-      const newPasswordHash = await bcrypt.hash(newPassword, 12);
-
-      // Update password
+      // Update user with device token
       await prisma.user.update({
         where: { id: userId },
-        data: { passwordHash: newPasswordHash },
+        data: {
+          deviceToken: deviceToken,
+          devicePlatform: platform || 'unknown'
+        }
       });
 
+      // Send welcome notification if this is a new token
+      if (user.deviceToken !== deviceToken) {
+        try {
+          const notificationController = require('./notificationController');
+          await notificationController.sendWelcomeNotification(
+            userId,
+            deviceToken,
+            user.firstName || user.name
+          );
+        } catch (notificationError) {
+          console.error('❌ Failed to send welcome notification:', notificationError);
+          // Don't fail the token storage if notification fails
+        }
+      }
+
       res.json({
-        status: "success",
-        message: "Password updated successfully",
+        success: true,
+        message: "Device token stored successfully",
+        data: {
+          message: "Push notifications are now enabled",
+          tokenStored: true
+        }
       });
     } catch (error) {
-      console.error("Change password error:", error);
-      res.status(500).json({
-        status: "error",
-        message: error.message || "Failed to change password",
-      });
+      console.error("Device token storage error:", error);
+      next(error);
     }
   }
 }

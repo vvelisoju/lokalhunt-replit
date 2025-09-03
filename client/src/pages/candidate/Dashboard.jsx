@@ -20,10 +20,19 @@ import { useCandidateAuth } from "../../hooks/useCandidateAuth";
 import { candidateApi } from "../../services/candidateApi";
 
 const Dashboard = () => {
-  const { user } = useCandidateAuth();
-  const { applications, fetchApplications, loading } = useCandidate();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const {
+    profile,
+    fetchProfile,
+    applications,
+    fetchApplications,
+    bookmarks,
+    fetchBookmarks,
+    loading
+  } = useCandidate();
+  const { user } = useCandidateAuth();
+
   const [stats, setStats] = useState({
     totalApplications: 0,
     pendingApplications: 0,
@@ -36,115 +45,118 @@ const Dashboard = () => {
   });
   const [dataLoaded, setDataLoaded] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingCheckComplete, setOnboardingCheckComplete] = useState(false);
 
-  // Check if onboarding should be shown
-  useEffect(() => {
-    // Only check for onboarding after user is loaded
+  // Fetch dashboard stats and applications
+  const fetchDashboardData = async () => {
     if (!user) return;
-
-    const onboardingCompleted =
-      localStorage.getItem("onboardingCompleted") === "true";
-
-    // If onboarding has not been completed and the user is newly registered, show the wizard.
-    // A simple check for 'onboardingStep' or 'showOnboarding' flag can indicate if it's the first time.
-    // If onboardingCompleted is true, we ensure it's not shown again.
-    if (!onboardingCompleted) {
-      const onboardingStep = localStorage.getItem("onboardingStep");
-      // If onboardingStep is null or '1', it implies a new user or an incomplete session.
-      // We also check if the user object has been fully populated to avoid race conditions.
-      if (user && (onboardingStep === null || onboardingStep === "1")) {
-        console.log(
-          "Setting showOnboarding to true for new or returning user with incomplete onboarding",
-        );
-        setShowOnboarding(true);
-        // Set a flag to indicate onboarding is in progress or should be shown
-        localStorage.setItem("showOnboarding", "true");
+    console.log("Fetching dashboard data...");
+    try {
+      // Fetch applications if fetchApplications is available
+      if (fetchApplications && typeof fetchApplications === "function") {
+        await fetchApplications();
       }
-    }
-  }, [user]); // Depend on user to ensure auth is complete
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadDashboardData = async () => {
-      // Only load if user exists and data hasn't been loaded yet
-      if (!user || dataLoaded) return;
-
+      // Fetch dashboard stats
       try {
-        // Fetch applications if fetchApplications is available
-        if (fetchApplications && typeof fetchApplications === "function") {
-          console.log("Fetching applications...");
-          await fetchApplications();
-          console.log(
-            "Applications fetched, current applications:",
-            applications,
-          );
+        const response = await candidateApi.getDashboardStats();
+        if (response.data) {
+          setStats(response.data);
         }
-
-        // Fetch dashboard stats
-        try {
-          const response = await candidateApi.getDashboardStats();
-          if (response.data && isMounted) {
-            setStats(response.data);
-          }
-        } catch (statsError) {
-          console.warn("Failed to load dashboard stats:", statsError);
-          // Continue with default stats
-        }
-
-        if (isMounted) {
-          setDataLoaded(true);
-        }
-      } catch (error) {
-        console.error("Error loading dashboard data:", error);
-        if (isMounted) {
-          setDataLoaded(true); // Set loaded even on error to prevent retries
-        }
+      } catch (statsError) {
+        console.warn("Failed to load dashboard stats:", statsError);
       }
-    };
-
-    loadDashboardData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user, dataLoaded]); // Include dataLoaded to prevent re-runs
-
-  const handleOnboardingComplete = () => {
-    console.log("Onboarding completed");
-    setShowOnboarding(false);
-    localStorage.removeItem("showOnboarding");
-    localStorage.removeItem("onboardingStep");
-    localStorage.removeItem("onboardingProgress");
-    localStorage.setItem("onboardingCompleted", "true");
+      setDataLoaded(true);
+    } catch (error) {
+      console.error("Error loading dashboard data:", error);
+      setDataLoaded(true); // Set loaded even on error to prevent retries
+    }
   };
 
-  // Calculate actual application count from both sources
-  const actualApplicationCount = Math.max(
-    applications?.length || 0,
-    stats.totalApplications || 0,
-  );
+  // Check if user needs onboarding - prioritize database state over localStorage
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      try {
+        // First check if we already have profile data with onboarding status
+        if (profile) {
+          const shouldShowOnboarding = !profile.onboardingCompleted;
+          setShowOnboarding(shouldShowOnboarding);
+          setOnboardingCheckComplete(true);
+          return;
+        }
 
-  // Show onboarding wizard if needed
+        // If no profile data yet, fetch onboarding data from API
+        // Assumes candidateApi.getOnboardingData() returns an object with onboardingProgress
+        // which has an isCompleted boolean. Adjust according to your actual API response.
+        const response = await candidateApi.getOnboardingData();
+        if (response?.data?.data?.onboardingProgress) {
+          const isCompleted = response.data.data.onboardingProgress.isCompleted;
+          setShowOnboarding(!isCompleted);
+        } else {
+          // Fallback to localStorage check only if API fails or response is unexpected
+          const onboardingCompleted = localStorage.getItem('onboardingCompleted');
+          const hideOnboarding = localStorage.getItem('showOnboarding') === 'false';
+          setShowOnboarding(!onboardingCompleted && !hideOnboarding);
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+        // Fallback to localStorage check if API fails
+        const onboardingCompleted = localStorage.getItem('onboardingCompleted');
+        const hideOnboarding = localStorage.getItem('showOnboarding') === 'false';
+        setShowOnboarding(!onboardingCompleted && !hideOnboarding);
+      } finally {
+        setOnboardingCheckComplete(true);
+      }
+    };
+
+    checkOnboarding();
+  }, [profile, user]); // Depend on profile and user
+
+  // Fetch initial data if user exists and data not loaded
+  useEffect(() => {
+    if (user && !dataLoaded) {
+      fetchDashboardData();
+      // Fetch profile data to use in onboarding check
+      if (fetchProfile && typeof fetchProfile === "function") {
+        fetchProfile();
+      }
+    }
+  }, [user, dataLoaded]);
+
+  const handleOnboardingComplete = (data) => {
+    console.log('Onboarding completed:', data);
+    setShowOnboarding(false);
+    // Clear localStorage flags since onboarding is now completed in database
+    localStorage.removeItem('onboardingProgress');
+    localStorage.removeItem('showOnboarding');
+    localStorage.setItem('onboardingCompleted', 'true'); // Set this flag for consistency if needed, but the primary check is DB
+    // Refresh dashboard data after onboarding
+    fetchDashboardData();
+    fetchProfile(); // Also refetch profile to get updated onboarding status
+  };
+
+  // Show loading until onboarding check is complete and data is loaded
+  if (loading || !dataLoaded || !onboardingCheckComplete) {
+    return <Loader.Page />;
+  }
+
   if (showOnboarding) {
-    return (
-      <OnboardingWizard onComplete={handleOnboardingComplete} user={user} />
-    );
+    return <OnboardingWizard onComplete={handleOnboardingComplete} user={user} />;
   }
 
   const quickStats = [
     {
       name: t("stats.applications", "Applications"),
-      value: actualApplicationCount,
+      value: applications?.length || 0, // Use applications length directly
       icon: BriefcaseIcon,
       color: "blue",
       href: "/candidate/applications",
     },
     {
       name: t("stats.appliedJobs", "Applied Jobs"),
-      value: actualApplicationCount,
+      value: applications?.length || 0, // Use applications length directly
       icon: BriefcaseIcon,
-      color: actualApplicationCount > 0 ? "green" : "gray",
+      color: applications?.length > 0 ? "green" : "gray",
       href: "/candidate/applications",
     },
     {
@@ -163,10 +175,11 @@ const Dashboard = () => {
     },
   ];
 
-  // Show loading until data is loaded and not in loading state
-  if (!dataLoaded || loading) {
-    return <Loader.Page />;
-  }
+  // Calculate actual application count from both sources (redundant if applications are fetched correctly)
+  const actualApplicationCount = Math.max(
+    applications?.length || 0,
+    stats.totalApplications || 0,
+  );
 
   return (
     <div className="space-y-4 sm:space-y-6  sm:p-0">
@@ -187,20 +200,6 @@ const Dashboard = () => {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
-            {/* Temporary test button for onboarding */}
-            {/* <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                localStorage.setItem("showOnboarding", "true");
-                localStorage.setItem("onboardingStep", "1");
-                localStorage.removeItem("onboardingCompleted");
-                setShowOnboarding(true);
-              }}
-              className="w-full sm:w-auto"
-            >
-              🚀 Test Onboarding
-            </Button> */}
             <Link to="/candidate/jobs">
               <Button variant="primary" size="sm" className="w-full sm:w-auto">
                 <BriefcaseIcon className="h-4 w-4 mr-2" />

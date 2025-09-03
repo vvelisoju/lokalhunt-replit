@@ -241,7 +241,7 @@ const OnboardingWizard = ({ onComplete, user }) => {
       // Clear localStorage backup since data is now in database
       localStorage.removeItem('onboardingProgress');
       
-      // Mark onboarding as completed to prevent showing it again
+      // Sync localStorage with database state - mark as completed
       localStorage.setItem('onboardingCompleted', 'true');
       localStorage.removeItem('showOnboarding');
 

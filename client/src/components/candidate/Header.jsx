@@ -1,19 +1,14 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import {
-  Bars3Icon,
-  BellIcon,
-  GlobeAltIcon,
-  BriefcaseIcon,
-} from "@heroicons/react/24/outline";
-import { useAuth } from "../../context/AuthContext";
-
+import { Bars3Icon, BellIcon, GlobeAltIcon, BriefcaseIcon } from "@heroicons/react/24/outline";
+import { useCandidateAuth } from "../../hooks/useCandidateAuth";
 import { useTranslation } from "react-i18next";
 import ProfileDropdown from "../ui/ProfileDropdown";
 
 const Header = ({ onMenuClick }) => {
-  const { user, logout } = useAuth();
+  const { user, logout } = useCandidateAuth();
   const { t, i18n } = useTranslation();
+
   const changeLanguage = (lng) => {
     i18n.changeLanguage(lng);
   };
@@ -79,7 +74,28 @@ const Header = ({ onMenuClick }) => {
 
           {/* User dropdown */}
           <ProfileDropdown
-            user={{ ...user, role: "CANDIDATE" }}
+            user={{
+              ...user,
+              role: "CANDIDATE",
+              // Ensure name fields are properly mapped - check multiple nested levels
+              firstName:
+                user?.firstName ||
+                user?.user?.firstName ||
+                user?.data?.firstName,
+              lastName:
+                user?.lastName || user?.user?.lastName || user?.data?.lastName,
+              name:
+                user?.name ||
+                user?.fullName ||
+                user?.user?.name ||
+                user?.data?.name,
+              email: user?.email || user?.user?.email || user?.data?.email,
+              profileImage:
+                user?.profileImage ||
+                user?.profilePhoto ||
+                user?.user?.profileImage ||
+                user?.data?.profileImage,
+            }}
             logout={logout}
             onLanguageChange={changeLanguage}
           />

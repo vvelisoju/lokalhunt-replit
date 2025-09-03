@@ -42,8 +42,9 @@ const Resume = () => {
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [user]);
 
   const allowedFileTypes = [".pdf", ".doc", ".docx"];
@@ -148,30 +149,35 @@ const Resume = () => {
 
   const fetchResumeData = async () => {
     try {
-      console.log('🔍 Fetching resume data...');
+      console.log("🔍 Fetching resume data...");
       const response = await candidateApi.getResume();
-      console.log('📄 Resume API response:', response.data);
+      console.log("📄 Resume API response:", response.data);
 
       const resumeData = response.data?.data || response.data;
-      console.log('📋 Processed resume data:', resumeData);
+      console.log("📋 Processed resume data:", resumeData);
 
       // Check if we have valid resume data with a proper URL
-      if (resumeData && resumeData.url && resumeData.url !== null && resumeData.url !== 'null') {
+      if (
+        resumeData &&
+        resumeData.url &&
+        resumeData.url !== null &&
+        resumeData.url !== "null"
+      ) {
         // Verify the URL is not empty or just whitespace
         const cleanUrl = resumeData.url.trim();
         if (cleanUrl && cleanUrl.length > 0) {
           setResume(resumeData);
-          console.log('✅ Resume data set successfully');
+          console.log("✅ Resume data set successfully");
         } else {
-          console.log('⚠️ Resume URL is empty or invalid');
+          console.log("⚠️ Resume URL is empty or invalid");
           setResume(null);
         }
       } else {
-        console.log('⚠️ No valid resume data found');
+        console.log("⚠️ No valid resume data found");
         setResume(null);
       }
     } catch (error) {
-      console.error('❌ Error fetching resume:', error);
+      console.error("❌ Error fetching resume:", error);
       setResume(null);
     }
   };
@@ -372,15 +378,10 @@ const Resume = () => {
 
   return (
     <div>
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="space-y-2">
         {/* Page Header */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-            Manage Resume
-          </h1>
-          <p className="mt-1 text-sm sm:text-base text-gray-600">
-            Upload and manage your resume to enhance your job applications
-          </p>
+        <div className="p-2">
+          <h1 className="text-xl font-bold text-gray-900">Manage Resume</h1>
         </div>
 
         {/* Resume Status Alert */}

@@ -27,7 +27,6 @@ import {
 import { getAds } from "../../services/employer/ads";
 import { useRole } from "../../context/RoleContext";
 import { toast } from "react-hot-toast";
-import Loading from "../../components/ui/Loading";
 
 const Candidates = () => {
   const [searchParams] = useSearchParams();
@@ -48,7 +47,7 @@ const Candidates = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [showCandidateModal, setShowCandidateModal] = useState(false);
-
+  
   const [viewMode, setViewMode] = useState("ALL"); // "ALL" or "PREMIUM"
 
   // Get ad filter from URL params
@@ -133,18 +132,15 @@ const Candidates = () => {
 
         // Separate premium candidates if employer has HR-Assist plan
         if (employerPlan === "HR_ASSIST") {
-          const premium = filteredCandidates.filter(
-            (candidate) => candidate.isPremium,
-          );
-          const regular = filteredCandidates.filter(
-            (candidate) => !candidate.isPremium,
-          );
+          const premium = filteredCandidates.filter(candidate => candidate.isPremium);
+          const regular = filteredCandidates.filter(candidate => !candidate.isPremium);
           setCandidates(regular);
           setPremiumCandidates(premium);
         } else {
           setCandidates(filteredCandidates);
           setPremiumCandidates([]); // Clear premium candidates if not HR-Assist
         }
+
       } else {
         toast.error(result.error || "Failed to load candidates");
         setCandidates([]);
@@ -367,10 +363,9 @@ const Candidates = () => {
     });
   };
 
-  const displayedCandidates =
-    viewMode === "PREMIUM"
-      ? applyFilters(premiumCandidates)
-      : applyFilters(candidates);
+  const displayedCandidates = viewMode === "PREMIUM" ?
+    applyFilters(premiumCandidates) :
+    applyFilters(candidates);
 
   // Update candidates when ad filter changes
   useEffect(() => {
@@ -394,8 +389,14 @@ const Candidates = () => {
     setShowCandidateModal(true);
   };
 
+  
+
   if (isLoading) {
-    return <Loading />;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader />
+      </div>
+    );
   }
 
   return (
@@ -494,50 +495,18 @@ const Candidates = () => {
                     showMoreFilters ? "rotate-180" : ""
                   }`}
                 />
-                {(genderFilter ||
-                  educationFilter ||
-                  skillFilter ||
-                  experienceFilter ||
-                  appliedOnlyFilter) && (
+                {(genderFilter || educationFilter || skillFilter || experienceFilter || appliedOnlyFilter) && (
                   <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                    {
-                      [
-                        genderFilter,
-                        educationFilter,
-                        skillFilter,
-                        experienceFilter,
-                        appliedOnlyFilter,
-                      ].filter(Boolean).length
-                    }{" "}
-                    active
+                    {[genderFilter, educationFilter, skillFilter, experienceFilter, appliedOnlyFilter].filter(Boolean).length} active
                   </span>
                 )}
               </button>
 
               <div className="flex items-center space-x-3">
                 {/* Active Filters Count */}
-                {(searchTerm ||
-                  selectedAd ||
-                  statusFilter ||
-                  genderFilter ||
-                  educationFilter ||
-                  skillFilter ||
-                  experienceFilter ||
-                  appliedOnlyFilter) && (
+                {(searchTerm || selectedAd || statusFilter || genderFilter || educationFilter || skillFilter || experienceFilter || appliedOnlyFilter) && (
                   <span className="text-sm text-gray-500">
-                    {
-                      [
-                        searchTerm,
-                        selectedAd,
-                        statusFilter,
-                        genderFilter,
-                        educationFilter,
-                        skillFilter,
-                        experienceFilter,
-                        appliedOnlyFilter,
-                      ].filter(Boolean).length
-                    }{" "}
-                    filters active
+                    {[searchTerm, selectedAd, statusFilter, genderFilter, educationFilter, skillFilter, experienceFilter, appliedOnlyFilter].filter(Boolean).length} filters active
                   </span>
                 )}
 
@@ -655,8 +624,7 @@ const Candidates = () => {
                 {/* Advanced Filter Actions */}
                 <div className="flex justify-between items-center pt-3 border-t border-gray-200">
                   <span className="text-xs text-gray-500">
-                    Use these filters to narrow down candidates based on
-                    specific criteria
+                    Use these filters to narrow down candidates based on specific criteria
                   </span>
                   <Button
                     variant="secondary"
@@ -831,6 +799,8 @@ const Candidates = () => {
             </div>
           </Modal>
         )}
+
+        
       </div>
     </div>
   );

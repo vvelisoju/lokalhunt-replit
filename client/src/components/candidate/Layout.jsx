@@ -1,10 +1,10 @@
-import React, { useState } from 'react'
-import { Outlet } from 'react-router-dom'
-import Sidebar from './Sidebar'
-import Header from './Header'
+import React, { useState } from "react";
+import { Outlet } from "react-router-dom";
+import Sidebar from "./Sidebar";
+import Header from "./Header";
 
 const CandidateLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -19,7 +19,7 @@ const CandidateLayout = () => {
           <Header onMenuClick={() => setSidebarOpen(true)} />
 
           {/* Page Content */}
-          <main className="flex-1 overflow-y-auto bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
+          <main className="flex-1 overflow-y-auto bg-gray-50 px-4 py-4 sm:px-4 lg:px-8">
             <div className="max-w-7xl mx-auto">
               <Outlet />
             </div>
@@ -27,7 +27,7 @@ const CandidateLayout = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default CandidateLayout
+export default CandidateLayout;
