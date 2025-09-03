@@ -24,6 +24,10 @@ jspm_packages/
 .env.test.local
 .env.production.local
 
+# Firebase service account (should use environment variables instead)
+firebase-service-account.json
+**/firebase-service-account.json
+
 # Prisma
 .prisma/
 *.db

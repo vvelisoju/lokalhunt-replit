@@ -15,23 +15,37 @@ const initializeFirebase = () => {
   }
 
   try {
-    // Path to service account key file
-    const serviceAccountPath = path.join(__dirname, 'firebase-service-account.json')
+    // Get Firebase credentials from environment variables
+    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
     
-    // Initialize Firebase Admin SDK with service account
-    const serviceAccount = require(serviceAccountPath)
+    if (!serviceAccountKey) {
+      throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is required')
+    }
+
+    // Parse the service account JSON from environment variable
+    let serviceAccount
+    try {
+      serviceAccount = JSON.parse(serviceAccountKey)
+    } catch (parseError) {
+      throw new Error('Invalid FIREBASE_SERVICE_ACCOUNT_KEY JSON format: ' + parseError.message)
+    }
+    
+    // Validate required fields
+    if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
+      throw new Error('Invalid service account: missing required fields (project_id, private_key, client_email)')
+    }
     
     firebaseApp = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      // You can add other Firebase project configs here if needed
+      projectId: serviceAccount.project_id
     }, 'lokalhunt-push')
 
-    console.log('✅ Firebase Admin SDK initialized successfully')
+    console.log('✅ Firebase Admin SDK initialized successfully for project:', serviceAccount.project_id)
     return firebaseApp
     
   } catch (error) {
     console.error('❌ Error initializing Firebase Admin SDK:', error.message)
-    console.error('Make sure firebase-service-account.json exists in /server directory')
+    console.error('Make sure FIREBASE_SERVICE_ACCOUNT_KEY environment variable contains valid Firebase service account JSON')
     throw error
   }
 }
