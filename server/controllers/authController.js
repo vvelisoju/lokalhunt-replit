@@ -188,9 +188,7 @@ class AuthController {
       const identifier = phone || email;
 
       if (!identifier || !otp) {
-        return res
-          .status(400)
-          .json(createErrorResponse("Phone/Email and OTP are required", 400));
+        return res.status(400).json(createErrorResponse("Phone/Email and OTP are required", 400));
       }
 
       // Find user by phone or email
@@ -416,7 +414,7 @@ class AuthController {
             // Create default company for employer
             if (finalCompanyData.companyName && finalCompanyData.cityId) {
               console.log("Creating default company with data:", finalCompanyData);
-              
+
               const defaultCompany = await transactionPrisma.company.create({
                 data: {
                   employerId: employer.id,
@@ -1121,6 +1119,22 @@ class AuthController {
         { expiresIn: "7d" },
       );
 
+      // If user already has a device token, send welcome notification
+        if (user.deviceToken) {
+          try {
+            const notificationController = require('./notificationController');
+            await notificationController.sendWelcomeNotification(
+              user.id,
+              user.deviceToken,
+              user.firstName || user.name
+            );
+            console.log(`✅ Welcome notification sent on login to: ${user.firstName || user.name}`);
+          } catch (welcomeError) {
+            console.error("❌ Failed to send welcome notification on login:", welcomeError);
+            // Don't fail login if welcome notification fails
+          }
+        }
+
       // Remove password from response
       const { passwordHash, otp, otpExpiresAt, ...userWithoutSensitiveData } =
         user;
@@ -1201,7 +1215,8 @@ class AuthController {
 
       console.log(`📱 Storing device token for user ${userId}:`, {
         token: `${deviceToken.slice(0, 20)}...`,
-        platform: platform || 'unknown'
+        platform: platform || 'unknown',
+        userId: userId
       });
 
       // Get user info for welcome notification
@@ -1232,18 +1247,25 @@ class AuthController {
       });
 
       // Send welcome notification if this is a new token
-      if (user.deviceToken !== deviceToken) {
+      const isNewToken = user.deviceToken !== deviceToken;
+      console.log(`📱 Token comparison - Old: ${user.deviceToken ? `${user.deviceToken.slice(0, 20)}...` : 'null'}, New: ${deviceToken.slice(0, 20)}..., Is new: ${isNewToken}`);
+      
+      if (isNewToken) {
         try {
+          console.log(`📱 Sending welcome notification to ${user.firstName || user.name} with token: ${deviceToken.slice(0, 20)}...`);
           const notificationController = require('./notificationController');
           await notificationController.sendWelcomeNotification(
             userId,
             deviceToken,
             user.firstName || user.name
           );
+          console.log(`✅ Welcome notification sent successfully to ${user.firstName || user.name}`);
         } catch (notificationError) {
           console.error('❌ Failed to send welcome notification:', notificationError);
           // Don't fail the token storage if notification fails
         }
+      } else {
+        console.log(`📱 Device token unchanged, skipping welcome notification for ${user.firstName || user.name}`);
       }
 
       res.json({

@@ -18,6 +18,7 @@ import OnboardingWizard from "../../components/candidate/OnboardingWizard";
 import { useCandidate } from "../../context/CandidateContext";
 import { useCandidateAuth } from "../../hooks/useCandidateAuth";
 import { candidateApi } from "../../services/candidateApi";
+import api from "../../services/api";
 
 const Dashboard = () => {
   const { t } = useTranslation();
@@ -46,6 +47,7 @@ const Dashboard = () => {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingCheckComplete, setOnboardingCheckComplete] = useState(false);
+  const [testNotificationLoading, setTestNotificationLoading] = useState(false);
 
   // Fetch dashboard stats and applications
   const fetchDashboardData = async () => {
@@ -135,6 +137,28 @@ const Dashboard = () => {
     fetchProfile(); // Also refetch profile to get updated onboarding status
   };
 
+  // Test notification handler
+  const handleTestNotification = async () => {
+    try {
+      setTestNotificationLoading(true);
+      const response = await api.post('/api/notifications/push/test', {
+        title: "🎉 Test Notification - LokalHunt",
+        body: `Hi ${user?.firstName || 'there'}! Your push notifications are working perfectly. You'll receive job alerts and updates right here!`
+      });
+      
+      console.log('Test notification sent:', response.data);
+      
+      // Show success message (you could add a toast notification here)
+      alert('Test notification sent successfully! Check your device.');
+      
+    } catch (error) {
+      console.error('Test notification failed:', error);
+      alert(`Test notification failed: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setTestNotificationLoading(false);
+    }
+  };
+
   // Show loading until onboarding check is complete and data is loaded
   if (loading || !dataLoaded || !onboardingCheckComplete) {
     return <Loader.Page />;
@@ -206,6 +230,24 @@ const Dashboard = () => {
                 {t("dashboard.browseJobs", "Find Jobs")}
               </Button>
             </Link>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full sm:w-auto"
+              onClick={handleTestNotification}
+              disabled={testNotificationLoading}
+            >
+              {testNotificationLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600 mr-2"></div>
+                  Sending...
+                </>
+              ) : (
+                <>
+                  🔔 Test Notification
+                </>
+              )}
+            </Button>
           </div>
         </div>
       </div>

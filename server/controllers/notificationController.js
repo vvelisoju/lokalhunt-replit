@@ -355,10 +355,29 @@ class NotificationController {
   // Send welcome notification (internal method)
   async sendWelcomeNotification(userId, deviceToken, userName) {
     try {
+      console.log(`🔔 Starting welcome notification process for ${userName}`, {
+        userId: userId,
+        deviceToken: deviceToken ? `${deviceToken.slice(0, 20)}...` : 'null',
+        userName: userName
+      });
+
+      if (!deviceToken) {
+        console.error('❌ No device token provided for welcome notification');
+        throw new Error('Device token is required for welcome notification');
+      }
+
+      if (!userId) {
+        console.error('❌ No user ID provided for welcome notification');
+        throw new Error('User ID is required for welcome notification');
+      }
+
       const welcomeTitle = "Welcome to LokalHunt! 🎉";
       const welcomeBody = `Hi ${userName || 'there'}! Your push notifications are now active. We'll keep you updated on new job opportunities!`;
 
-      console.log(`🔔 Sending welcome notification to ${userName}`);
+      console.log(`🔔 Sending welcome notification to ${userName}`, {
+        title: welcomeTitle,
+        body: welcomeBody
+      });
 
       const result = await sendPushNotification(
         deviceToken,
@@ -370,6 +389,8 @@ class NotificationController {
           action: 'open_app'
         }
       );
+
+      console.log(`🔔 Push notification sent, storing in database...`);
 
       // Store welcome notification in database
       await prisma.notification.create({
@@ -387,10 +408,18 @@ class NotificationController {
         }
       });
 
-      console.log(`✅ Welcome notification sent successfully to ${userName}`);
+      console.log(`✅ Welcome notification sent successfully to ${userName}`, {
+        messageId: result.messageId,
+        timestamp: result.timestamp
+      });
       return result;
     } catch (error) {
-      console.error('❌ Failed to send welcome notification:', error);
+      console.error('❌ Failed to send welcome notification:', {
+        error: error.message,
+        userId: userId,
+        userName: userName,
+        deviceToken: deviceToken ? `${deviceToken.slice(0, 20)}...` : 'null'
+      });
       throw error;
     }
   }
