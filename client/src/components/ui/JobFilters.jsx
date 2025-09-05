@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from "react";
 import {
   MagnifyingGlassIcon,
   MapPinIcon,
   ChevronDownIcon,
-  AdjustmentsHorizontalIcon
-} from '@heroicons/react/24/outline'
-import Button from './Button'
-import Modal from './Modal'
-import { publicApi } from '../../services/publicApi'
-import CategorySearchSelect from './CategorySearchSelect'
-import CityDropdown from './CityDropdown'
+  AdjustmentsHorizontalIcon,
+} from "@heroicons/react/24/outline";
+import Button from "./Button";
+import Modal from "./Modal";
+import { publicApi } from "../../services/publicApi";
+import CategorySearchSelect from "./CategorySearchSelect";
+import CityDropdown from "./CityDropdown";
 
 const JobFilters = ({
   filters,
@@ -19,185 +19,186 @@ const JobFilters = ({
   showApplicationFilters = false,
   statusOptions = [],
   dateRangeOptions = [],
-  className = '',
-  compact = false
+  className = "",
+  compact = false,
 }) => {
-  const [showMobileFilters, setShowMobileFilters] = useState(false)
-  const [categories, setCategories] = useState([])
-  const [locations, setLocations] = useState([])
-  const [educationQualifications, setEducationQualifications] = useState([])
-  const searchTimeoutRef = useRef(null)
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [educationQualifications, setEducationQualifications] = useState([]);
+  const searchTimeoutRef = useRef(null);
 
   // Advanced filter options
   const jobTypes = [
-    { id: 'REMOTE', label: 'Remote', value: 'REMOTE' },
-    { id: 'FREELANCE', label: 'Freelance', value: 'FREELANCE' },
-    { id: 'CONTRACT', label: 'Contract Base', value: 'CONTRACT' },
-    { id: 'PART_TIME', label: 'Part Time', value: 'PART_TIME' },
-    { id: 'FULL_TIME', label: 'Full Time', value: 'FULL_TIME' },
-    { id: 'INTERNSHIP', label: 'Internship', value: 'INTERNSHIP' }
-  ]
+    { id: "REMOTE", label: "Remote", value: "REMOTE" },
+    { id: "FREELANCE", label: "Freelance", value: "FREELANCE" },
+    { id: "CONTRACT", label: "Contract Base", value: "CONTRACT" },
+    { id: "PART_TIME", label: "Part Time", value: "PART_TIME" },
+    { id: "FULL_TIME", label: "Full Time", value: "FULL_TIME" },
+    { id: "INTERNSHIP", label: "Internship", value: "INTERNSHIP" },
+  ];
 
   const experienceLevels = [
-    { id: 'ENTRY', label: 'Entry Level (0-2 years)', value: 'ENTRY' },
-    { id: 'MID', label: 'Mid Level (2-5 years)', value: 'MID' },
-    { id: 'SENIOR', label: 'Senior Level (5+ years)', value: 'SENIOR' },
-    { id: 'EXECUTIVE', label: 'Executive Level', value: 'EXECUTIVE' }
-  ]
+    { id: "ENTRY", label: "Entry Level (0-2 years)", value: "ENTRY" },
+    { id: "MID", label: "Mid Level (2-5 years)", value: "MID" },
+    { id: "SENIOR", label: "Senior Level (5+ years)", value: "SENIOR" },
+    { id: "EXECUTIVE", label: "Executive Level", value: "EXECUTIVE" },
+  ];
 
   const salaryRanges = [
-    { id: '0-25000', label: '₹0 - ₹25,000', value: '0-25000' },
-    { id: '25000-50000', label: '₹25,000 - ₹50,000', value: '25000-50000' },
-    { id: '50000-100000', label: '₹50,000 - ₹1,00,000', value: '50000-100000' },
-    { id: '100000+', label: '₹1,00,000+', value: '100000+' }
-  ]
+    { id: "0-25000", label: "₹0 - ₹25,000", value: "0-25000" },
+    { id: "25000-50000", label: "₹25,000 - ₹50,000", value: "25000-50000" },
+    { id: "50000-100000", label: "₹50,000 - ₹1,00,000", value: "50000-100000" },
+    { id: "100000+", label: "₹1,00,000+", value: "100000+" },
+  ];
 
   // Load filter data on mount
   useEffect(() => {
-    loadFilterData()
-  }, [])
+    loadFilterData();
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current)
+        clearTimeout(searchTimeoutRef.current);
       }
-    }
-  }, [])
+    };
+  }, []);
 
   const loadFilterData = async () => {
     try {
       const [categoriesRes, citiesRes, educationRes] = await Promise.all([
         publicApi.getCategories().catch(() => ({ data: [] })),
         publicApi.getCities().catch(() => ({ data: [] })),
-        publicApi.getEducationQualifications().catch(() => ({ data: [] }))
-      ])
+        publicApi.getEducationQualifications().catch(() => ({ data: [] })),
+      ]);
 
-      setCategories(categoriesRes.data || [])
-      setLocations(citiesRes.data || [])
-      setEducationQualifications(educationRes.data || [])
+      setCategories(categoriesRes.data || []);
+      setLocations(citiesRes.data || []);
+      setEducationQualifications(educationRes.data || []);
     } catch (error) {
-      console.error('Error loading filter data:', error)
+      console.error("Error loading filter data:", error);
     }
-  }
+  };
 
   const updateFilters = (newFilters) => {
-    const updatedFilters = { ...filters, ...newFilters }
-    onFiltersChange(updatedFilters)
-  }
+    const updatedFilters = { ...filters, ...newFilters };
+    onFiltersChange(updatedFilters);
+  };
 
   // Update internal state when filters prop changes (for URL navigation)
   useEffect(() => {
     // This ensures the component updates when filters are changed externally (like from URL)
     // We don't need to do anything here as the parent manages the filters state
-  }, [filters])
+  }, [filters]);
 
   const handleSearchChange = (value) => {
     // Clear existing timeout
     if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
+      clearTimeout(searchTimeoutRef.current);
     }
 
     // Update the search value immediately in the UI
-    updateFilters({ search: value })
+    updateFilters({ search: value });
 
     // Set a new timeout for the actual search
     searchTimeoutRef.current = setTimeout(() => {
       // The search will trigger automatically through the parent's effect
-    }, 400) // 400ms debounce
-  }
+    }, 400); // 400ms debounce
+  };
 
-  const handleLocationChange = (location) => {
-    updateFilters({ location })
-  }
+  const handleLocationChange = (cityId) => {
+    // Find the city name from the cityId for backward compatibility
+    const selectedCity = locations.find((city) => city.id === cityId);
+    const locationName = selectedCity ? selectedCity.name : "";
+    updateFilters({ location: locationName });
+  };
 
   const handleCategoryChange = (category) => {
-    updateFilters({ category })
-  }
+    updateFilters({ category });
+  };
 
   const handleArrayFilterChange = (filterKey, value) => {
-    const currentArray = filters[filterKey] || []
+    const currentArray = filters[filterKey] || [];
     const newArray = currentArray.includes(value)
-      ? currentArray.filter(item => item !== value)
-      : [...currentArray, value]
-    updateFilters({ [filterKey]: newArray })
-  }
+      ? currentArray.filter((item) => item !== value)
+      : [...currentArray, value];
+    updateFilters({ [filterKey]: newArray });
+  };
 
   const clearFilters = () => {
     const clearedFilters = {
-      search: '',
-      location: '',
-      category: '',
-      company: '',
+      search: "",
+      location: "",
+      category: "",
+      company: "",
       jobType: [],
       experience: [],
-      gender: '',
+      gender: "",
       education: [],
-      salaryRange: '',
-      sortBy: 'newest',
-      experienceLevel: '',
-      employmentType: '',
-      minSalary: '',
-      maxSalary: ''
-    }
-    onFiltersChange(clearedFilters)
-  }
+      salaryRange: "",
+      sortBy: "newest",
+      experienceLevel: "",
+      employmentType: "",
+      minSalary: "",
+      maxSalary: "",
+    };
+    onFiltersChange(clearedFilters);
+  };
 
   const getActiveFiltersCount = () => {
-    let count = 0
-    if (filters.search) count++
-    if (filters.location) count++
-    if (filters.category) count++
-    if (filters.company) count++
-    if (filters.jobType?.length > 0) count++
-    if (filters.experience?.length > 0) count++
-    if (filters.gender) count++
-    if (filters.education?.length > 0) count++
-    if (filters.salaryRange) count++
-    if (filters.experienceLevel) count++
-    if (filters.employmentType) count++
-    if (filters.minSalary) count++
-    if (filters.maxSalary) count++
-    return count
-  }
+    let count = 0;
+    if (filters.search) count++;
+    if (filters.location) count++;
+    if (filters.category) count++;
+    if (filters.company) count++;
+    if (filters.jobType?.length > 0) count++;
+    if (filters.experience?.length > 0) count++;
+    if (filters.gender) count++;
+    if (filters.education?.length > 0) count++;
+    if (filters.salaryRange) count++;
+    if (filters.experienceLevel) count++;
+    if (filters.employmentType) count++;
+    if (filters.minSalary) count++;
+    if (filters.maxSalary) count++;
+    return count;
+  };
 
-  const activeFiltersCount = getActiveFiltersCount()
+  const activeFiltersCount = getActiveFiltersCount();
 
   // Function to handle the "Apply Filters" button click in the modal
   const applyMobileFilters = () => {
-    setShowMobileFilters(false)
+    setShowMobileFilters(false);
     // The actual filtering is handled by the onFiltersChange, so no further action needed here
-  }
+  };
 
   // Function to handle the "Clear Filters" button click in the modal
   const clearMobileFilters = () => {
-    clearFilters()
-    setShowMobileFilters(false)
-  }
+    clearFilters();
+    setShowMobileFilters(false);
+  };
 
   return (
     <div className={className}>
       {/* Main Search Bar */}
-      <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${compact ? 'p-3' : 'p-4'} mb-6`}>
+      <div
+        className={`bg-white rounded-lg shadow-sm border border-gray-200 ${compact ? "p-3" : "p-4"} mb-6`}
+      >
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Location Filter */}
           <div className="flex-1">
             <div className="relative">
-              <MapPinIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-              <select
-                value={filters.location}
-                onChange={(e) => handleLocationChange(e.target.value)}
-                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white text-gray-700"
-              >
-                <option value="">All Locations</option>
-                {locations.map(location => (
-                  <option key={location.id} value={location.name}>
-                    {location.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDownIcon className="h-5 w-5 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+              <CityDropdown
+                value={
+                  locations.find((city) => city.name === filters.location)
+                    ?.id || ""
+                }
+                onChange={handleLocationChange}
+                placeholder="All Locations"
+                hideLabel={true}
+                variant="default"
+              />
             </div>
           </div>
 
@@ -210,7 +211,7 @@ const JobFilters = ({
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white text-gray-700"
               >
                 <option value="">All Categories</option>
-                {categories.map(category => (
+                {categories.map((category) => (
                   <option key={category.id} value={category.name}>
                     {category.name}
                   </option>
@@ -239,9 +240,9 @@ const JobFilters = ({
             type="button"
             className="lg:px-8 whitespace-nowrap bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600"
             onClick={(e) => {
-              e.preventDefault()
+              e.preventDefault();
               if (onSearch) {
-                onSearch(filters)
+                onSearch(filters);
               }
             }}
           >
@@ -295,10 +296,14 @@ const JobFilters = ({
                     <input
                       type="checkbox"
                       checked={filters.jobType?.includes(type.value) || false}
-                      onChange={() => handleArrayFilterChange('jobType', type.value)}
+                      onChange={() =>
+                        handleArrayFilterChange("jobType", type.value)
+                      }
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="ml-2 text-sm text-gray-700">{type.label}</span>
+                    <span className="ml-2 text-sm text-gray-700">
+                      {type.label}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -312,11 +317,17 @@ const JobFilters = ({
                   <label key={level.id} className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={filters.experience?.includes(level.value) || false}
-                      onChange={() => handleArrayFilterChange('experience', level.value)}
+                      checked={
+                        filters.experience?.includes(level.value) || false
+                      }
+                      onChange={() =>
+                        handleArrayFilterChange("experience", level.value)
+                      }
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="ml-2 text-sm text-gray-700">{level.label}</span>
+                    <span className="ml-2 text-sm text-gray-700">
+                      {level.label}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -326,7 +337,7 @@ const JobFilters = ({
             <div>
               <h4 className="font-medium text-gray-900 mb-3">Gender</h4>
               <div className="space-y-2">
-                {['Male', 'Female', 'Both'].map((gender) => (
+                {["Male", "Female", "Both"].map((gender) => (
                   <label key={gender} className="flex items-center">
                     <input
                       type="radio"
@@ -344,7 +355,9 @@ const JobFilters = ({
 
             {/* Education Filter */}
             <div>
-              <h4 className="font-medium text-gray-900 mb-3">Minimum Education</h4>
+              <h4 className="font-medium text-gray-900 mb-3">
+                Minimum Education
+              </h4>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {educationQualifications
                   .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -353,10 +366,14 @@ const JobFilters = ({
                       <input
                         type="checkbox"
                         checked={filters.education?.includes(edu.name) || false}
-                        onChange={() => handleArrayFilterChange('education', edu.name)}
+                        onChange={() =>
+                          handleArrayFilterChange("education", edu.name)
+                        }
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
-                      <span className="ml-2 text-sm text-gray-700">{edu.name}</span>
+                      <span className="ml-2 text-sm text-gray-700">
+                        {edu.name}
+                      </span>
                     </label>
                   ))}
               </div>
@@ -373,10 +390,14 @@ const JobFilters = ({
                       name="salaryRange"
                       value={range.value}
                       checked={filters.salaryRange === range.value}
-                      onChange={() => updateFilters({ salaryRange: range.value })}
+                      onChange={() =>
+                        updateFilters({ salaryRange: range.value })
+                      }
                       className="border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="ml-2 text-sm text-gray-700">{range.label}</span>
+                    <span className="ml-2 text-sm text-gray-700">
+                      {range.label}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -391,10 +412,7 @@ const JobFilters = ({
               >
                 Clear All
               </Button>
-              <Button
-                onClick={applyMobileFilters}
-                className="flex-1"
-              >
+              <Button onClick={applyMobileFilters} className="flex-1">
                 Apply Filters
               </Button>
             </div>
@@ -407,13 +425,17 @@ const JobFilters = ({
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
               <select
-                value={filters.status || ''}
-                onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
+                value={filters.status || ""}
+                onChange={(e) =>
+                  onFiltersChange({ ...filters, status: e.target.value })
+                }
                 className="w-full py-2 px-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
-                {statusOptions.map(option => (
+                {statusOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -421,13 +443,17 @@ const JobFilters = ({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date Range
+              </label>
               <select
-                value={filters.dateRange || ''}
-                onChange={(e) => onFiltersChange({ ...filters, dateRange: e.target.value })}
+                value={filters.dateRange || ""}
+                onChange={(e) =>
+                  onFiltersChange({ ...filters, dateRange: e.target.value })
+                }
                 className="w-full py-2 px-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
-                {dateRangeOptions.map(option => (
+                {dateRangeOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -438,7 +464,7 @@ const JobFilters = ({
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default JobFilters
+export default JobFilters;

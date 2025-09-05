@@ -170,14 +170,14 @@ class CandidateController {
         if (jobPreferences.preferredLocations !== undefined)
           updateData.preferredLocations = jobPreferences.preferredLocations;
         if (jobPreferences.remoteWork !== undefined)
-          updateData.remoteWorkPreference = jobPreferences.remoteWork;
+          updateData.remoteWorkPreference = jobPreferences.remoteWork || null;
         if (jobPreferences.workType !== undefined)
-          updateData.remoteWorkPreference = jobPreferences.workType;
+          updateData.remoteWorkPreference = jobPreferences.workType || null;
         if (jobPreferences.currentEmploymentStatus !== undefined)
           updateData.currentEmploymentStatus =
-            jobPreferences.currentEmploymentStatus;
+            jobPreferences.currentEmploymentStatus || null;
         if (jobPreferences.shiftPreference !== undefined)
-          updateData.shiftPreference = jobPreferences.shiftPreference;
+          updateData.shiftPreference = jobPreferences.shiftPreference || null;
         if (jobPreferences.travelWillingness !== undefined)
           updateData.travelWillingness = jobPreferences.travelWillingness;
         if (jobPreferences.jobTypes !== undefined)
@@ -185,21 +185,25 @@ class CandidateController {
         if (jobPreferences.languages !== undefined)
           updateData.preferredLanguages = jobPreferences.languages;
         if (jobPreferences.noticePeriod !== undefined)
-          updateData.noticePeriod = jobPreferences.noticePeriod;
+          updateData.noticePeriod = jobPreferences.noticePeriod || null;
+
+        // Handle experience level
+        if (jobPreferences.experienceLevel !== undefined) {
+          updateData.experienceLevel = jobPreferences.experienceLevel || null;
+        }
 
         // Handle salary range
         if (jobPreferences.salaryRange !== undefined) {
           if (jobPreferences.salaryRange.min !== undefined) {
-            updateData.preferredSalaryMin = jobPreferences.salaryRange.min;
+            updateData.preferredSalaryMin = jobPreferences.salaryRange.min === "" || jobPreferences.salaryRange.min === null 
+              ? null 
+              : jobPreferences.salaryRange.min;
           }
           if (jobPreferences.salaryRange.max !== undefined) {
-            updateData.preferredSalaryMax = jobPreferences.salaryRange.max;
+            updateData.preferredSalaryMax = jobPreferences.salaryRange.max === "" || jobPreferences.salaryRange.max === null 
+              ? null 
+              : jobPreferences.salaryRange.max;
           }
-        }
-
-        // Handle experience level
-        if (jobPreferences.experienceLevel !== undefined) {
-          updateData.experienceLevel = jobPreferences.experienceLevel;
         }
 
         // Handle availability - prefer availabilityStatus for enum values, availabilityDate for actual dates
@@ -227,7 +231,7 @@ class CandidateController {
               updateData.availabilityDate = parsedDate;
               updateData.availabilityStatus = null;
             } else {
-              updateData.availabilityStatus = availabilityValue;
+              updateData.availabilityStatus = availabilityValue || null;
               updateData.availabilityDate = null;
             }
           }
@@ -1231,27 +1235,29 @@ class CandidateController {
           updateData.preferredLocations = jobPreferences.preferredLocations;
         if (jobPreferences.salaryRange !== undefined) {
           if (jobPreferences.salaryRange.min !== undefined) {
-            updateData.preferredSalaryMin = jobPreferences.salaryRange.min;
+            updateData.preferredSalaryMin = jobPreferences.salaryRange.min === "" || jobPreferences.salaryRange.min === null 
+              ? null 
+              : jobPreferences.salaryRange.min;
           }
           if (jobPreferences.salaryRange.max !== undefined) {
-            updateData.preferredSalaryMax = jobPreferences.salaryRange.max;
+            updateData.preferredSalaryMax = jobPreferences.salaryRange.max === "" || jobPreferences.salaryRange.max === null 
+              ? null 
+              : jobPreferences.salaryRange.max;
           }
         }
         if (jobPreferences.jobTypes !== undefined)
           updateData.preferredJobTypes = jobPreferences.jobTypes;
         if (jobPreferences.remoteWork !== undefined)
-          updateData.remoteWorkPreference = jobPreferences.remoteWork;
+          updateData.remoteWorkPreference = jobPreferences.remoteWork || null;
         if (jobPreferences.workType !== undefined)
-          updateData.remoteWorkPreference = jobPreferences.workType;
-        if (jobPreferences.languages !== undefined)
-          updateData.preferredLanguages = jobPreferences.languages;
+          updateData.remoteWorkPreference = jobPreferences.workType || null;
         if (jobPreferences.shiftPreference !== undefined)
-          updateData.shiftPreference = jobPreferences.shiftPreference;
+          updateData.shiftPreference = jobPreferences.shiftPreference || null;
         if (jobPreferences.travelWillingness !== undefined)
           updateData.travelWillingness = jobPreferences.travelWillingness;
         if (jobPreferences.currentEmploymentStatus !== undefined)
           updateData.currentEmploymentStatus =
-            jobPreferences.currentEmploymentStatus;
+            jobPreferences.currentEmploymentStatus || null;
       }
 
       // Update candidate data from skillsExperience - map to respective columns
@@ -1269,12 +1275,12 @@ class CandidateController {
         // Map to candidate table columns
         if (skillsExperience.currentEmploymentStatus !== undefined) {
           updateData.currentEmploymentStatus =
-            skillsExperience.currentEmploymentStatus;
+            skillsExperience.currentEmploymentStatus || null;
         }
 
         // Map experience level
         if (skillsExperience.experienceLevel !== undefined) {
-          updateData.experienceLevel = skillsExperience.experienceLevel;
+          updateData.experienceLevel = skillsExperience.experienceLevel || null;
         }
 
         // Handle availability - prefer availabilityStatus for enum values, availabilityDate for actual dates
@@ -1302,13 +1308,13 @@ class CandidateController {
               updateData.availabilityDate = parsedDate;
               updateData.availabilityStatus = null;
             } else {
-              updateData.availabilityStatus = availabilityValue;
+              updateData.availabilityStatus = availabilityValue || null;
               updateData.availabilityDate = null;
             }
           }
         }
         if (skillsExperience.noticePeriod !== undefined)
-          updateData.noticePeriod = skillsExperience.noticePeriod;
+          updateData.noticePeriod = skillsExperience.noticePeriod || null;
         if (skillsExperience.currentSalary !== undefined)
           updateData.currentSalary = skillsExperience.currentSalary;
 

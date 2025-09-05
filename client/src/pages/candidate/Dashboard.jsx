@@ -30,7 +30,7 @@ const Dashboard = () => {
     fetchApplications,
     bookmarks,
     fetchBookmarks,
-    loading
+    loading,
   } = useCandidate();
   const { user } = useCandidateAuth();
 
@@ -53,57 +53,73 @@ const Dashboard = () => {
   // Optimized data fetching - fetch all required data in one go
   const fetchAllDashboardData = useCallback(async () => {
     if (!user || initialLoadComplete) return;
-    
+
     console.log("Starting dashboard data fetch...");
     setDataLoaded(false);
-    
+
     try {
       // Fetch all data concurrently to reduce loading time
-      const [profileResponse, onboardingResponse, applicationsResponse, statsResponse] = await Promise.allSettled([
-        fetchProfile && typeof fetchProfile === "function" ? fetchProfile(false) : Promise.resolve(),
+      const [
+        profileResponse,
+        onboardingResponse,
+        applicationsResponse,
+        statsResponse,
+      ] = await Promise.allSettled([
+        fetchProfile && typeof fetchProfile === "function"
+          ? fetchProfile(false)
+          : Promise.resolve(),
         candidateApi.getOnboardingData(),
-        fetchApplications && typeof fetchApplications === "function" ? fetchApplications({}, false) : Promise.resolve(),
-        candidateApi.getDashboardStats()
+        fetchApplications && typeof fetchApplications === "function"
+          ? fetchApplications({}, false)
+          : Promise.resolve(),
+        candidateApi.getDashboardStats(),
       ]);
 
       // Handle profile data
-      if (profileResponse.status === 'fulfilled') {
+      if (profileResponse.status === "fulfilled") {
         console.log("Profile data loaded");
       }
 
       // Handle onboarding data
-      if (onboardingResponse.status === 'fulfilled') {
-        const onboardingData = onboardingResponse.value?.data?.data?.onboardingProgress;
+      if (onboardingResponse.status === "fulfilled") {
+        const onboardingData =
+          onboardingResponse.value?.data?.data?.onboardingProgress;
         if (onboardingData) {
           const isCompleted = onboardingData.isCompleted;
           setShowOnboarding(!isCompleted);
-          console.log("Onboarding status:", isCompleted ? "completed" : "pending");
+          console.log(
+            "Onboarding status:",
+            isCompleted ? "completed" : "pending",
+          );
         } else {
           // Fallback to localStorage check
-          const onboardingCompleted = localStorage.getItem('onboardingCompleted');
-          const hideOnboarding = localStorage.getItem('showOnboarding') === 'false';
+          const onboardingCompleted = localStorage.getItem(
+            "onboardingCompleted",
+          );
+          const hideOnboarding =
+            localStorage.getItem("showOnboarding") === "false";
           setShowOnboarding(!onboardingCompleted && !hideOnboarding);
         }
       } else {
         console.warn("Onboarding check failed, using fallback");
-        const onboardingCompleted = localStorage.getItem('onboardingCompleted');
-        const hideOnboarding = localStorage.getItem('showOnboarding') === 'false';
+        const onboardingCompleted = localStorage.getItem("onboardingCompleted");
+        const hideOnboarding =
+          localStorage.getItem("showOnboarding") === "false";
         setShowOnboarding(!onboardingCompleted && !hideOnboarding);
       }
 
       // Handle applications data
-      if (applicationsResponse.status === 'fulfilled') {
+      if (applicationsResponse.status === "fulfilled") {
         console.log("Applications data loaded");
       }
 
       // Handle stats data
-      if (statsResponse.status === 'fulfilled' && statsResponse.value?.data) {
+      if (statsResponse.status === "fulfilled" && statsResponse.value?.data) {
         setStats(statsResponse.value.data);
         console.log("Dashboard stats loaded");
       } else {
         console.warn("Failed to load dashboard stats");
       }
-
     } catch (error) {
       console.error("Error loading dashboard data:", error);
     } finally {
@@ -121,13 +137,13 @@ const Dashboard = () => {
   }, [user, fetchAllDashboardData]);
 
   const handleOnboardingComplete = useCallback((data) => {
-    console.log('Onboarding completed:', data);
+    console.log("Onboarding completed:", data);
     setShowOnboarding(false);
     // Clear localStorage flags since onboarding is now completed in database
-    localStorage.removeItem('onboardingProgress');
-    localStorage.removeItem('showOnboarding');
-    localStorage.setItem('onboardingCompleted', 'true');
-    
+    localStorage.removeItem("onboardingProgress");
+    localStorage.removeItem("showOnboarding");
+    localStorage.setItem("onboardingCompleted", "true");
+
     // Reset initial load to trigger fresh data fetch
     setInitialLoadComplete(false);
     setDataLoaded(false);
@@ -137,19 +153,20 @@ const Dashboard = () => {
   const handleTestNotification = async () => {
     try {
       setTestNotificationLoading(true);
-      const response = await api.post('/api/notifications/push/test', {
+      const response = await api.post("/api/notifications/push/test", {
         title: "🎉 Test Notification - LokalHunt",
-        body: `Hi ${user?.firstName || 'there'}! Your push notifications are working perfectly. You'll receive job alerts and updates right here!`
+        body: `Hi ${user?.firstName || "there"}! Your push notifications are working perfectly. You'll receive job alerts and updates right here!`,
       });
-      
-      console.log('Test notification sent:', response.data);
-      
+
+      console.log("Test notification sent:", response.data);
+
       // Show success message (you could add a toast notification here)
-      alert('Test notification sent successfully! Check your device.');
-      
+      alert("Test notification sent successfully! Check your device.");
     } catch (error) {
-      console.error('Test notification failed:', error);
-      alert(`Test notification failed: ${error.response?.data?.message || error.message}`);
+      console.error("Test notification failed:", error);
+      alert(
+        `Test notification failed: ${error.response?.data?.message || error.message}`,
+      );
     } finally {
       setTestNotificationLoading(false);
     }
@@ -161,7 +178,9 @@ const Dashboard = () => {
   }
 
   if (showOnboarding) {
-    return <OnboardingWizard onComplete={handleOnboardingComplete} user={user} />;
+    return (
+      <OnboardingWizard onComplete={handleOnboardingComplete} user={user} />
+    );
   }
 
   const quickStats = [
@@ -226,7 +245,7 @@ const Dashboard = () => {
                 {t("dashboard.browseJobs", "Find Jobs")}
               </Button>
             </Link>
-            <Button 
+            {/* <Button 
               variant="outline" 
               size="sm" 
               className="w-full sm:w-auto"
@@ -243,7 +262,7 @@ const Dashboard = () => {
                   🔔 Test Notification
                 </>
               )}
-            </Button>
+            </Button> */}
           </div>
         </div>
       </div>

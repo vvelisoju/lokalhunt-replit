@@ -1203,25 +1203,25 @@ class AuthController {
       );
 
       // If user already has a device token, send welcome notification
-      if (user.deviceToken) {
-        try {
-          const notificationController = require("./notificationController");
-          await notificationController.sendWelcomeNotification(
-            user.id,
-            user.deviceToken,
-            user.firstName || user.name,
-          );
-          console.log(
-            `✅ Welcome notification sent on login to: ${user.firstName || user.name}`,
-          );
-        } catch (welcomeError) {
-          console.error(
-            "❌ Failed to send welcome notification on login:",
-            welcomeError,
-          );
-          // Don't fail login if welcome notification fails
-        }
-      }
+      // if (user.deviceToken) {
+      //   try {
+      //     const notificationController = require("./notificationController");
+      //     await notificationController.sendWelcomeNotification(
+      //       user.id,
+      //       user.deviceToken,
+      //       user.firstName || user.name,
+      //     );
+      //     console.log(
+      //       `✅ Welcome notification sent on login to: ${user.firstName || user.name}`,
+      //     );
+      //   } catch (welcomeError) {
+      //     console.error(
+      //       "❌ Failed to send welcome notification on login:",
+      //       welcomeError,
+      //     );
+      //     // Don't fail login if welcome notification fails
+      //   }
+      // }
 
       // Remove password from response
       const { passwordHash, otp, otpExpiresAt, ...userWithoutSensitiveData } =
