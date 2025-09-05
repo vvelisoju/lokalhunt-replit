@@ -1,13 +1,13 @@
 
 // Database enums mapping for frontend use
-export const UserRole = {
+const UserRole = {
   CANDIDATE: 'CANDIDATE',
   EMPLOYER: 'EMPLOYER',
   BRANCH_ADMIN: 'BRANCH_ADMIN',
   SUPER_ADMIN: 'SUPER_ADMIN'
 }
 
-export const AdStatus = {
+const AdStatus = {
   DRAFT: 'DRAFT',
   PENDING_APPROVAL: 'PENDING_APPROVAL',
   APPROVED: 'APPROVED',
@@ -15,7 +15,7 @@ export const AdStatus = {
   REJECTED: 'REJECTED'
 }
 
-export const AllocationStatus = {
+const AllocationStatus = {
   APPLIED: 'APPLIED',
   SHORTLISTED: 'SHORTLISTED',
   INTERVIEW_SCHEDULED: 'INTERVIEW_SCHEDULED',
@@ -25,12 +25,12 @@ export const AllocationStatus = {
   REJECTED: 'REJECTED'
 }
 
-export const FeeType = {
+const FeeType = {
   FIXED: 'FIXED',
   PERCENTAGE: 'PERCENTAGE'
 }
 
-export const EmploymentType = {
+const EmploymentType = {
   FULL_TIME: 'FULL_TIME',
   PART_TIME: 'PART_TIME',
   CONTRACT: 'CONTRACT',
@@ -38,35 +38,35 @@ export const EmploymentType = {
   FREELANCE: 'FREELANCE'
 }
 
-export const ExperienceLevel = {
+const ExperienceLevel = {
   ENTRY_LEVEL: 'ENTRY_LEVEL',
   MID_LEVEL: 'MID_LEVEL',
   SENIOR_LEVEL: 'SENIOR_LEVEL',
   EXECUTIVE: 'EXECUTIVE'
 }
 
-export const CurrentEmploymentStatus = {
+const CurrentEmploymentStatus = {
   LOOKING_FOR_JOB: 'LOOKING_FOR_JOB',
   OPEN_TO_OPPORTUNITIES: 'OPEN_TO_OPPORTUNITIES',
   CURRENTLY_WORKING: 'CURRENTLY_WORKING',
   STUDENT_RECENT_GRADUATE: 'STUDENT_RECENT_GRADUATE'
 }
 
-export const ShiftPreference = {
+const ShiftPreference = {
   DAY_SHIFT: 'DAY_SHIFT',
   NIGHT_SHIFT: 'NIGHT_SHIFT',
   FLEXIBLE_HOURS: 'FLEXIBLE_HOURS',
   WEEKEND_ONLY: 'WEEKEND_ONLY'
 }
 
-export const Availability = {
+const Availability = {
   IMMEDIATELY: 'IMMEDIATELY',
   WITHIN_1_WEEK: 'WITHIN_1_WEEK',
   WITHIN_1_MONTH: 'WITHIN_1_MONTH',
   AFTER_2_MONTHS: 'AFTER_2_MONTHS'
 }
 
-export const Language = {
+const Language = {
   ENGLISH: 'ENGLISH',
   HINDI: 'HINDI',
   TELUGU: 'TELUGU',
@@ -81,7 +81,7 @@ export const Language = {
   ODIA: 'ODIA'
 }
 
-export const SubscriptionStatus = {
+const SubscriptionStatus = {
   ACTIVE: 'ACTIVE',
   EXPIRED: 'EXPIRED',
   CANCELLED: 'CANCELLED',
@@ -89,7 +89,7 @@ export const SubscriptionStatus = {
   PENDING_APPROVAL: 'PENDING_APPROVAL'
 }
 
-export const EmailTemplateType = {
+const EmailTemplateType = {
   OTP_VERIFICATION: 'OTP_VERIFICATION',
   JOB_APPLIED: 'JOB_APPLIED',
   SHORTLISTED: 'SHORTLISTED',
@@ -106,14 +106,14 @@ export const EmailTemplateType = {
 }
 
 // Human-readable labels for enums
-export const ExperienceLevelLabels = {
+const ExperienceLevelLabels = {
   [ExperienceLevel.ENTRY_LEVEL]: 'Entry Level (0-2 years)',
   [ExperienceLevel.MID_LEVEL]: 'Mid Level (3-5 years)',
   [ExperienceLevel.SENIOR_LEVEL]: 'Senior Level (6-10 years)',
   [ExperienceLevel.EXECUTIVE]: 'Executive (10+ years)'
 }
 
-export const EmploymentTypeLabels = {
+const EmploymentTypeLabels = {
   [EmploymentType.FULL_TIME]: 'Full Time',
   [EmploymentType.PART_TIME]: 'Part Time',
   [EmploymentType.CONTRACT]: 'Contract',
@@ -121,21 +121,21 @@ export const EmploymentTypeLabels = {
   [EmploymentType.FREELANCE]: 'Freelance'
 }
 
-export const ShiftPreferenceLabels = {
+const ShiftPreferenceLabels = {
   [ShiftPreference.DAY_SHIFT]: 'Day Shift',
   [ShiftPreference.NIGHT_SHIFT]: 'Night Shift',
   [ShiftPreference.FLEXIBLE_HOURS]: 'Flexible Hours',
   [ShiftPreference.WEEKEND_ONLY]: 'Weekend Only'
 }
 
-export const AvailabilityLabels = {
+const AvailabilityLabels = {
   [Availability.IMMEDIATELY]: 'Immediately',
   [Availability.WITHIN_1_WEEK]: 'Within 1 Week',
   [Availability.WITHIN_1_MONTH]: 'Within 1 Month',
   [Availability.AFTER_2_MONTHS]: 'After 2 Months'
 }
 
-export const LanguageLabels = {
+const LanguageLabels = {
   [Language.ENGLISH]: 'English',
   [Language.HINDI]: 'Hindi',
   [Language.TELUGU]: 'Telugu',
@@ -150,7 +150,7 @@ export const LanguageLabels = {
   [Language.ODIA]: 'Odia'
 }
 
-export const AllocationStatusLabels = {
+const AllocationStatusLabels = {
   [AllocationStatus.APPLIED]: 'Applied',
   [AllocationStatus.SHORTLISTED]: 'Shortlisted',
   [AllocationStatus.INTERVIEW_SCHEDULED]: 'Interview Scheduled',
@@ -160,7 +160,7 @@ export const AllocationStatusLabels = {
   [AllocationStatus.REJECTED]: 'Rejected'
 }
 
-export const CurrentEmploymentStatusLabels = {
+const CurrentEmploymentStatusLabels = {
   [CurrentEmploymentStatus.LOOKING_FOR_JOB]: 'Looking for Job',
   [CurrentEmploymentStatus.OPEN_TO_OPPORTUNITIES]: 'Open to Opportunities',
   [CurrentEmploymentStatus.CURRENTLY_WORKING]: 'Currently Working',
@@ -168,37 +168,64 @@ export const CurrentEmploymentStatusLabels = {
 }
 
 // Helper functions
-export const getExperienceLevelOptions = () => {
+const getExperienceLevelOptions = () => {
   return Object.values(ExperienceLevel).map(value => ({
     value,
     label: ExperienceLevelLabels[value]
   }))
 }
 
-export const getEmploymentTypeOptions = () => {
+const getEmploymentTypeOptions = () => {
   return Object.values(EmploymentType).map(value => ({
     value,
     label: EmploymentTypeLabels[value]
   }))
 }
 
-export const getShiftPreferenceOptions = () => {
+const getShiftPreferenceOptions = () => {
   return Object.values(ShiftPreference).map(value => ({
     value,
     label: ShiftPreferenceLabels[value]
   }))
 }
 
-export const getAvailabilityOptions = () => {
+const getAvailabilityOptions = () => {
   return Object.values(Availability).map(value => ({
     value,
     label: AvailabilityLabels[value]
   }))
 }
 
-export const getLanguageOptions = () => {
+const getLanguageOptions = () => {
   return Object.values(Language).map(value => ({
     value,
     label: LanguageLabels[value]
   }))
+}
+
+module.exports = {
+  UserRole,
+  AdStatus,
+  AllocationStatus,
+  FeeType,
+  EmploymentType,
+  ExperienceLevel,
+  CurrentEmploymentStatus,
+  ShiftPreference,
+  Availability,
+  Language,
+  SubscriptionStatus,
+  EmailTemplateType,
+  ExperienceLevelLabels,
+  EmploymentTypeLabels,
+  ShiftPreferenceLabels,
+  AvailabilityLabels,
+  LanguageLabels,
+  AllocationStatusLabels,
+  CurrentEmploymentStatusLabels,
+  getExperienceLevelOptions,
+  getEmploymentTypeOptions,
+  getShiftPreferenceOptions,
+  getAvailabilityOptions,
+  getLanguageOptions
 }
