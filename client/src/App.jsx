@@ -85,6 +85,7 @@ import ContactUs from "./pages/ContactUs";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import RefundPolicy from "./pages/RefundPolicy";
+import DeleteAccount from './pages/DeleteAccount';
 
 function App() {
   const [pushToken, setPushToken] = useState(null);
@@ -159,10 +160,10 @@ function App() {
     PushNotifications.addListener("registration", async (token) => {
       console.log("Push registration success, token: " + token.value);
       setPushToken(token.value);
-      
+
       // Store token locally for later use
       localStorage.setItem('push_device_token', token.value);
-      
+
       // Token will be sent to backend by authService after login
       await sendTokenToBackend(token.value);
     });
@@ -274,6 +275,7 @@ function App() {
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
+            <Route path="/delete-account" element={<DeleteAccount />} />
 
             {/* Dashboard redirect for logged in users */}
             <Route

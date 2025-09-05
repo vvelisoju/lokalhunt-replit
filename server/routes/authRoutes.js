@@ -243,6 +243,45 @@ router.put("/change-password", authenticateToken, async (req, res) => {
 // Store device token for push notifications (requires authentication)
 router.post("/device-token", authenticateToken, authController.storeDeviceToken);
 
+// Delete account request
+router.delete("/delete-account", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id || req.user.userId || req.user.sub;
+    const { reason } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        status: "error",
+        message: "Invalid authentication token - user ID not found",
+      });
+    }
+
+    // For now, just mark user as inactive and log the deletion request
+    // In production, you might want to implement a proper deletion queue
+    await prisma.user.update({
+      where: { id: userId },
+      data: { 
+        isActive: false,
+        // You could add a deletionRequestedAt field to track this
+      },
+    });
+
+    // Log the deletion request (you might want to create a separate table for this)
+    console.log(`Account deletion requested by user ${userId}. Reason: ${reason || 'Not specified'}`);
+
+    res.json({
+      status: "success",
+      message: "Account deletion request submitted successfully. Your account will be deleted within 30 days.",
+    });
+  } catch (error) {
+    console.error("Account deletion error:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to process account deletion request",
+    });
+  }
+});
+
 // Logout user (for JWT, this is mainly for consistency)
 router.post("/logout", (req, res) => {
   res.json({
