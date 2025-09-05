@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
@@ -23,17 +23,17 @@ const CandidateJobView = () => {
   const [bookmarking, setBookmarking] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
+  const fetchingRef = useRef(false);
 
   // Get the 'from' parameter to determine where to navigate back
   const searchParams = new URLSearchParams(location.search);
   const fromPage = searchParams.get("from") || "jobs";
 
-  useEffect(() => {
-    fetchJobDetails();
-  }, [id]);
-
-  const fetchJobDetails = async () => {
+  const fetchJobDetails = useCallback(async () => {
+    if (fetchingRef.current) return;
+    
     try {
+      fetchingRef.current = true;
       setLoading(true);
       // Use public API to get job details as it's confirmed to be working
       const jobResponse = await publicApi.getJobById(id);
@@ -63,8 +63,15 @@ const CandidateJobView = () => {
       navigate("/candidate/jobs");
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchJobDetails();
+  }, [fetchJobDetails]);
+
+  
 
   const handleApplyToJob = async () => {
     if (!isAuthenticated || user?.role !== "CANDIDATE") {

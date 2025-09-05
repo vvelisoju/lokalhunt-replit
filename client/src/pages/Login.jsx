@@ -21,6 +21,16 @@ const Login = () => {
   const location = useLocation();
   const from = location.state?.from?.pathname || "/";
 
+  // Check if user came from register/forgot-password/logout
+  const navigationSource = location.state?.from?.pathname || location.state?.source;
+  const isFromAuthPages = navigationSource === '/register' || 
+                         navigationSource === '/forgot-password' ||
+                         location.state?.source === 'logout' ||
+                         location.state?.fromLogout;
+  
+  // Don't show loading for users coming from auth pages
+  const shouldShowLoading = loading && !isFromAuthPages;
+
   // State declarations moved to the top to comply with Rules of Hooks
   const [formData, setFormData] = useState({
     phone: "", // Changed from email to phone
@@ -36,11 +46,13 @@ const Login = () => {
       localStorage.getItem("token") || localStorage.getItem("candidateToken");
 
     // Only redirect if user is authenticated AND has valid token AND currently on the login page
+    // Also ensure loading is false to prevent redirect during loading state
     if (
       isAuthenticated &&
       user?.role &&
       hasValidToken &&
-      location.pathname === "/login"
+      location.pathname === "/login" &&
+      !loading
     ) {
       console.log(
         "User already authenticated on login page, checking redirect:",
@@ -50,7 +62,7 @@ const Login = () => {
       // Add a small delay to prevent rapid redirects during logout
       const timeoutId = setTimeout(() => {
         // Double-check authentication state again after delay
-        if (isAuthenticated && user?.role) {
+        if (isAuthenticated && user?.role && !loading) {
           // Check if they came from a protected route
           const returnUrl = location.state?.from?.pathname;
 
@@ -85,7 +97,14 @@ const Login = () => {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [isAuthenticated, user, navigate, location.state, location.pathname]);
+  }, [
+    isAuthenticated,
+    user,
+    navigate,
+    location.state,
+    location.pathname,
+    loading,
+  ]);
 
   // Show success message from password reset
   useEffect(() => {
@@ -168,7 +187,7 @@ const Login = () => {
 
         toast.success("Login successful! Redirecting...");
 
-        // Check if user came from a protected route and redirect appropriately
+        // IMMEDIATE navigation without delay to prevent flickering
         const returnUrl = location.state?.from?.pathname;
         console.log(
           "Login successful, return URL:",
@@ -204,38 +223,46 @@ const Login = () => {
       // Handle login failure with clearer messages
       let errorMessage = "Invalid mobile number or password. Please try again.";
 
-      if (result.error) {
-        if (
-          result.error.toLowerCase().includes("verify") ||
-          result.error.toLowerCase().includes("verification")
-        ) {
-          errorMessage =
-            "Please verify your account before logging in. Check your SMS for verification code.";
-        } else if (
-          result.error.toLowerCase().includes("invalid") ||
-          result.error.toLowerCase().includes("incorrect")
-        ) {
-          errorMessage = "Wrong password. Try again or login with OTP.";
-        } else if (
-          result.error.toLowerCase().includes("not found") ||
-          result.error.toLowerCase().includes("exist")
-        ) {
-          errorMessage = "Mobile number not found. Please register.";
-        } else if (
-          result.error.toLowerCase().includes("blocked") ||
-          result.error.toLowerCase().includes("suspended")
-        ) {
-          errorMessage =
-            "Your account has been suspended. Please contact support.";
-        } else {
-          errorMessage = result.error;
-        }
+      if (result.error && result.error.includes("Invalid")) {
+        errorMessage = result.error;
+      } else if (result.error && result.error.includes("deactivated")) {
+        errorMessage =
+          "Your account has been deactivated. Please contact support.";
+      } else if (
+        result.error &&
+        (result.error.toLowerCase().includes("verify") ||
+          result.error.toLowerCase().includes("verification"))
+      ) {
+        errorMessage =
+          "Please verify your account before logging in. Check your SMS for verification code.";
+      } else if (
+        result.error &&
+        (result.error.toLowerCase().includes("not found") ||
+          result.error.toLowerCase().includes("exist"))
+      ) {
+        errorMessage = "Mobile number not found. Please register.";
+      } else if (
+        result.error &&
+        (result.error.toLowerCase().includes("blocked") ||
+          result.error.toLowerCase().includes("suspended"))
+      ) {
+        errorMessage =
+          "Your account has been suspended. Please contact support.";
+      } else if (result.error) {
+        errorMessage = result.error;
       }
 
-      console.error("Login failed:", errorMessage);
-
-      // Always show error toast for failed login
-      toast.error(errorMessage);
+      toast.error(errorMessage, {
+        duration: 4000,
+        style: {
+          background: "#ef4444",
+          color: "#ffffff",
+          fontWeight: "600",
+          padding: "16px",
+          borderRadius: "12px",
+          maxWidth: "500px",
+        },
+      });
 
       // Also set form errors for visual feedback
       setErrors({
@@ -248,7 +275,6 @@ const Login = () => {
       setFormData((prev) => ({ ...prev, password: "" }));
     } catch (error) {
       console.error("Login error:", error);
-
       let errorMessage =
         "Unable to connect to server. Please check your connection and try again.";
 
@@ -301,8 +327,17 @@ const Login = () => {
         errorMessage = `Login failed: ${error.message}`;
       }
 
-      // Always show error toast for exceptions
-      toast.error(errorMessage);
+      toast.error(errorMessage, {
+        duration: 4000,
+        style: {
+          background: "#ef4444",
+          color: "#ffffff",
+          fontWeight: "600",
+          padding: "16px",
+          borderRadius: "12px",
+          maxWidth: "500px",
+        },
+      });
 
       // Also set form errors for visual feedback
       setErrors({
@@ -319,7 +354,27 @@ const Login = () => {
   };
 
   // Show loading screen while authentication is being checked
-  if (loading) {
+  // But add a shorter timeout for better UX when navigating from other pages
+  const [showLoadingTimeout, setShowLoadingTimeout] = useState(false);
+
+  useEffect(() => {
+    if (shouldShowLoading) {
+      const timeout = setTimeout(() => {
+        console.log("Login: Loading timeout reached, proceeding to login form");
+        setShowLoadingTimeout(true);
+      }, 800); // Reduced to 0.8 seconds for better UX
+
+      return () => clearTimeout(timeout);
+    } else {
+      // Reset timeout state when loading is false
+      setShowLoadingTimeout(false);
+    }
+  }, [shouldShowLoading]);
+
+  // Only show loading screen for a brief moment during initial auth check
+  // Skip loading for users coming from auth pages or logout
+  // Also skip if user is already authenticated to prevent flickering
+  if (shouldShowLoading && !showLoadingTimeout && !isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 flex items-center justify-center">
         <div className="text-center">
@@ -328,7 +383,9 @@ const Login = () => {
           </div>
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
           <p className="mt-4 text-sm text-gray-600">
-            Checking authentication...
+            {location.state?.source === 'logout' || location.state?.fromLogout 
+              ? "Logging out..." 
+              : "Checking authentication..."}
           </p>
         </div>
       </div>
@@ -370,7 +427,7 @@ const Login = () => {
       <div className="flex-1 flex items-center justify-center p-4 min-h-screen">
         <div className="w-full max-w-md mx-auto">
           {/* Mobile Header with Logo */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-4">
             <div className="flex items-center justify-center mb-6">
               <img
                 src="/images/logo.png"
@@ -379,14 +436,14 @@ const Login = () => {
               />
             </div>
 
-            <div className="space-y-3 mb-6">
+            <div className="space-y-2 mb-4">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                 Welcome! Find Jobs Near You
               </h2>
               <div className="space-y-2">
-                <p className="text-gray-600 text-sm sm:text-base">
+                {/* <p className="text-gray-600 text-sm sm:text-base">
                   💼 Get jobs near your home
-                </p>
+                </p> */}
                 <p className="text-gray-600 text-sm sm:text-base">
                   🤝 Connect directly with employers in your city
                 </p>
@@ -531,23 +588,6 @@ const Login = () => {
               </button>
             </form>
 
-            {/* Trust Signals and Assurance */}
-            <div className="mt-6 space-y-3">
-              <div className="text-center">
-                <p className="text-blue-600 font-medium text-sm">
-                  💼 No fees, direct jobs from local employers
-                </p>
-              </div>
-              <div className="space-y-2 text-center">
-                <p className="text-gray-500 text-xs">
-                  🔒 Your details are safe and private
-                </p>
-                <p className="text-gray-500 text-xs">
-                  ✉️ Only employers can contact you
-                </p>
-              </div>
-            </div>
-
             {/* Register Link */}
             <div className="mt-8 text-center">
               <p className="text-gray-600 text-sm">
@@ -559,6 +599,23 @@ const Login = () => {
                   Register free
                 </Link>
               </p>
+            </div>
+
+            {/* Trust Signals and Assurance */}
+            <div className="mt-6 space-y-3">
+              <div className="text-center">
+                <p className="text-blue-600 font-medium text-sm">
+                  💼 No fees, direct jobs from local employers
+                </p>
+              </div>
+              <div className="space-y-2 text-center">
+                <p className="text-gray-500 text-xs">
+                  🔒 Your details are safe and private
+                </p>
+                {/* <p className="text-gray-500 text-xs">
+                  ✉️ Only employers can contact you
+                </p> */}
+              </div>
             </div>
           </div>
         </div>

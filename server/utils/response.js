@@ -20,6 +20,16 @@ const createResponse = (message, data = null, meta = null) => {
     response.meta = meta;
   }
 
+  // Log response creation for notifications
+  if (message.includes('Notifications retrieved')) {
+    console.log('🔔 createResponse for notifications:', {
+      status: response.status,
+      message: response.message,
+      dataKeys: data ? Object.keys(data) : 'null',
+      notificationsCount: data?.notifications?.length
+    });
+  }
+
   return response;
 };
 

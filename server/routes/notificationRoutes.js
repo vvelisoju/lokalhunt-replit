@@ -31,10 +31,10 @@ router.post('/push/test-detailed', authenticateToken, async (req, res, next) => 
   try {
     console.log('🔍 Starting detailed push notification test...');
     console.log('User ID:', req.user.userId);
-    
+
     const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
-    
+
     // Get user with device token
     const user = await prisma.user.findUnique({
       where: { id: req.user.userId },
@@ -183,5 +183,9 @@ router.delete('/:notificationId', notificationController.deleteNotification);
 // Notification preferences
 router.get('/preferences', notificationController.getNotificationPreferences);
 router.put('/preferences', notificationController.updateNotificationPreferences);
+
+// Template management routes
+router.get('/templates', authenticateToken, notificationController.getNotificationTemplates);
+router.put('/templates/:templateId', authenticateToken, notificationController.updateNotificationTemplate);
 
 module.exports = router;

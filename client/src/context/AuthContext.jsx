@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }) => {
           throw new Error("Invalid profile response");
         }
       } else {
-        // No token found
+        // No token found - set states immediately
         console.log("AuthContext: No token found");
         setUser(null);
         setIsAuthenticated(false);
@@ -56,17 +56,19 @@ export const AuthProvider = ({ children }) => {
       // Clear all auth data on failure
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      localStorage.removeItem("candidateToken");
       delete api.defaults.headers.common["Authorization"];
       setUser(null);
       setIsAuthenticated(false);
     } finally {
+      // Set loading to false immediately to prevent delays
+      console.log("AuthContext: Setting loading to false after auth check");
       setLoading(false);
     }
   };
 
   const login = async (credentials) => {
     try {
-      setLoading(true);
       console.log(
         "AuthContext: Attempting login with credentials for:",
         credentials.phone || credentials.email,
@@ -90,23 +92,26 @@ export const AuthProvider = ({ children }) => {
           localStorage.setItem("user", JSON.stringify(user));
           // Set auth header for subsequent requests
           api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+          
+          // CRITICAL: Set authentication state immediately
           setUser(user);
           setIsAuthenticated(true);
-          setLoading(false); // Ensure loading is cleared on successful login
+          // Set loading to false immediately to allow instant navigation
+          setLoading(false);
+          
           console.log("AuthContext: Login successful, user set:", user);
+          
           return { success: true, user };
         } else {
           console.error("AuthContext: Missing token or user data:", {
             token: !!token,
             user: !!user,
           });
-          setLoading(false); // Clear loading on error
           return { success: false, error: "Invalid response from server" };
         }
       }
 
       console.log("AuthContext: Login failed - invalid response structure");
-      setLoading(false); // Clear loading on failed response
       return {
         success: false,
         error: response.error || response.message || "Login failed",
@@ -144,8 +149,6 @@ export const AuthProvider = ({ children }) => {
       }
 
       return { success: false, error: errorMessage };
-    } finally {
-      setLoading(false); // Always clear loading state
     }
   };
 
@@ -272,44 +275,65 @@ export const AuthProvider = ({ children }) => {
   const logout = async (navigate = null) => {
     try {
       console.log("AuthContext: Starting logout process");
+      
+      // CRITICAL: Set loading to false IMMEDIATELY to prevent infinite loading
+      setLoading(false);
 
       // Try to call logout endpoint, but don't fail if it doesn't exist
-      await authService.logout();
+      try {
+        await authService.logout();
+      } catch (error) {
+        // Ignore API errors during logout - still proceed with client-side cleanup
+        console.log("Logout API call failed, proceeding with client-side cleanup");
+      }
+
+      // Import and use common logout function
+      const { clearAllAuthData } = await import("../utils/authUtils");
+
+      // CRITICAL: Clear candidate context FIRST before clearing auth data
+      if (window.candidateContext?.clearData) {
+        console.log("AuthContext: Clearing candidate context data");
+        window.candidateContext.clearData();
+      }
+
+      // Clear all storage to prevent loops
+      console.log("AuthContext: Clearing all auth data from storage");
+      clearAllAuthData();
+
+      // THEN reset local auth state - CRITICAL: Ensure all states are reset
+      console.log("AuthContext: Resetting auth state");
+      setUser(null);
+      setIsAuthenticated(false);
+      // Loading is already set to false above
+
+      console.log("AuthContext: Logout complete, navigating to login");
+
+      // Navigate immediately without delay and indicate logout source
+      if (navigate && typeof navigate === "function") {
+        navigate("/login", { 
+          replace: true, 
+          state: { source: 'logout', fromLogout: true } 
+        });
+      } else {
+        window.location.href = "/login";
+      }
+      
     } catch (error) {
-      // Ignore API errors during logout - still proceed with client-side cleanup
-      console.log(
-        "Logout API call failed, proceeding with client-side cleanup",
-      );
-    }
-
-    // Import and use common logout function
-    const { clearAllAuthData } = await import("../utils/authUtils");
-
-    // CRITICAL: Clear candidate context FIRST before clearing auth data
-    if (window.candidateContext?.clearData) {
-      console.log("AuthContext: Clearing candidate context data");
-      window.candidateContext.clearData();
-    }
-
-    // Clear all storage to prevent loops
-    console.log("AuthContext: Clearing all auth data from storage");
-    clearAllAuthData();
-
-    // THEN reset local auth state
-    console.log("AuthContext: Resetting auth state");
-    setUser(null);
-    setIsAuthenticated(false);
-
-    // Small delay to ensure state is updated before navigation
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    console.log("AuthContext: Logout complete, navigating to login");
-
-    // Finally navigate
-    if (navigate && typeof navigate === "function") {
-      navigate("/login", { replace: true });
-    } else {
-      window.location.href = "/login";
+      console.error("AuthContext: Logout error:", error);
+      
+      // Even on error, ensure loading is false and redirect
+      setLoading(false);
+      setUser(null);
+      setIsAuthenticated(false);
+      
+      if (navigate && typeof navigate === "function") {
+        navigate("/login", { 
+          replace: true, 
+          state: { source: 'logout', fromLogout: true } 
+        });
+      } else {
+        window.location.href = "/login";
+      }
     }
   };
 
@@ -406,6 +430,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Method to clear loading state after successful navigation
+  const clearLoadingAfterNavigation = () => {
+    setLoading(false);
+  };
+
   const value = {
     user,
     isAuthenticated,
@@ -420,7 +449,8 @@ export const AuthProvider = ({ children }) => {
     hasRole,
     canAccessEmployerFeatures,
     refreshUser,
-    fetchUserProfile, // Ensure fetchUserProfile is exposed if needed by other parts of the app
+    fetchUserProfile,
+    clearLoadingAfterNavigation,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

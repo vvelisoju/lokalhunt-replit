@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   BriefcaseIcon,
@@ -48,94 +48,90 @@ const Dashboard = () => {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingCheckComplete, setOnboardingCheckComplete] = useState(false);
   const [testNotificationLoading, setTestNotificationLoading] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
-  // Fetch dashboard stats and applications
-  const fetchDashboardData = async () => {
-    if (!user) return;
-    console.log("Fetching dashboard data...");
+  // Optimized data fetching - fetch all required data in one go
+  const fetchAllDashboardData = useCallback(async () => {
+    if (!user || initialLoadComplete) return;
+    
+    console.log("Starting dashboard data fetch...");
+    setDataLoaded(false);
+    
     try {
-      // Fetch applications if fetchApplications is available
-      if (fetchApplications && typeof fetchApplications === "function") {
-        await fetchApplications();
+      // Fetch all data concurrently to reduce loading time
+      const [profileResponse, onboardingResponse, applicationsResponse, statsResponse] = await Promise.allSettled([
+        fetchProfile && typeof fetchProfile === "function" ? fetchProfile(false) : Promise.resolve(),
+        candidateApi.getOnboardingData(),
+        fetchApplications && typeof fetchApplications === "function" ? fetchApplications({}, false) : Promise.resolve(),
+        candidateApi.getDashboardStats()
+      ]);
+
+      // Handle profile data
+      if (profileResponse.status === 'fulfilled') {
+        console.log("Profile data loaded");
       }
 
-      // Fetch dashboard stats
-      try {
-        const response = await candidateApi.getDashboardStats();
-        if (response.data) {
-          setStats(response.data);
-        }
-      } catch (statsError) {
-        console.warn("Failed to load dashboard stats:", statsError);
-      }
-      setDataLoaded(true);
-    } catch (error) {
-      console.error("Error loading dashboard data:", error);
-      setDataLoaded(true); // Set loaded even on error to prevent retries
-    }
-  };
-
-  // Check if user needs onboarding - prioritize database state over localStorage
-  useEffect(() => {
-    const checkOnboarding = async () => {
-      try {
-        // First check if we already have profile data with onboarding status
-        if (profile) {
-          const shouldShowOnboarding = !profile.onboardingCompleted;
-          setShowOnboarding(shouldShowOnboarding);
-          setOnboardingCheckComplete(true);
-          return;
-        }
-
-        // If no profile data yet, fetch onboarding data from API
-        // Assumes candidateApi.getOnboardingData() returns an object with onboardingProgress
-        // which has an isCompleted boolean. Adjust according to your actual API response.
-        const response = await candidateApi.getOnboardingData();
-        if (response?.data?.data?.onboardingProgress) {
-          const isCompleted = response.data.data.onboardingProgress.isCompleted;
+      // Handle onboarding data
+      if (onboardingResponse.status === 'fulfilled') {
+        const onboardingData = onboardingResponse.value?.data?.data?.onboardingProgress;
+        if (onboardingData) {
+          const isCompleted = onboardingData.isCompleted;
           setShowOnboarding(!isCompleted);
+          console.log("Onboarding status:", isCompleted ? "completed" : "pending");
         } else {
-          // Fallback to localStorage check only if API fails or response is unexpected
+          // Fallback to localStorage check
           const onboardingCompleted = localStorage.getItem('onboardingCompleted');
           const hideOnboarding = localStorage.getItem('showOnboarding') === 'false';
           setShowOnboarding(!onboardingCompleted && !hideOnboarding);
         }
-      } catch (error) {
-        console.error('Error checking onboarding status:', error);
-        // Fallback to localStorage check if API fails
+      } else {
+        console.warn("Onboarding check failed, using fallback");
         const onboardingCompleted = localStorage.getItem('onboardingCompleted');
         const hideOnboarding = localStorage.getItem('showOnboarding') === 'false';
         setShowOnboarding(!onboardingCompleted && !hideOnboarding);
-      } finally {
-        setOnboardingCheckComplete(true);
       }
-    };
 
-    checkOnboarding();
-  }, [profile, user]); // Depend on profile and user
-
-  // Fetch initial data if user exists and data not loaded
-  useEffect(() => {
-    if (user && !dataLoaded) {
-      fetchDashboardData();
-      // Fetch profile data to use in onboarding check
-      if (fetchProfile && typeof fetchProfile === "function") {
-        fetchProfile();
+      // Handle applications data
+      if (applicationsResponse.status === 'fulfilled') {
+        console.log("Applications data loaded");
       }
+
+      // Handle stats data
+      if (statsResponse.status === 'fulfilled' && statsResponse.value?.data) {
+        setStats(statsResponse.value.data);
+        console.log("Dashboard stats loaded");
+      } else {
+        console.warn("Failed to load dashboard stats");
+      }
+
+    } catch (error) {
+      console.error("Error loading dashboard data:", error);
+    } finally {
+      setDataLoaded(true);
+      setOnboardingCheckComplete(true);
+      setInitialLoadComplete(true);
     }
-  }, [user, dataLoaded]);
+  }, [user, initialLoadComplete]);
 
-  const handleOnboardingComplete = (data) => {
+  // Single effect to handle all initial data loading
+  useEffect(() => {
+    if (user && !initialLoadComplete) {
+      fetchAllDashboardData();
+    }
+  }, [user, fetchAllDashboardData]);
+
+  const handleOnboardingComplete = useCallback((data) => {
     console.log('Onboarding completed:', data);
     setShowOnboarding(false);
     // Clear localStorage flags since onboarding is now completed in database
     localStorage.removeItem('onboardingProgress');
     localStorage.removeItem('showOnboarding');
-    localStorage.setItem('onboardingCompleted', 'true'); // Set this flag for consistency if needed, but the primary check is DB
-    // Refresh dashboard data after onboarding
-    fetchDashboardData();
-    fetchProfile(); // Also refetch profile to get updated onboarding status
-  };
+    localStorage.setItem('onboardingCompleted', 'true');
+    
+    // Reset initial load to trigger fresh data fetch
+    setInitialLoadComplete(false);
+    setDataLoaded(false);
+  }, []);
 
   // Test notification handler
   const handleTestNotification = async () => {

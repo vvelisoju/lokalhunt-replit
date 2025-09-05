@@ -1,4 +1,4 @@
-const { createResponse, createErrorResponse } = require('../utils/response');
+const { createResponse, createErrorResponse } = require("../utils/response");
 
 // Initialize Prisma client globally
 const { PrismaClient } = require("@prisma/client");
@@ -12,40 +12,40 @@ class AdController {
         page = 1,
         limit = 10,
         cityId,
-        categoryName = 'Jobs',
+        categoryName = "Jobs",
         search,
         skills,
         experienceLevel,
         employmentType,
         salaryMin,
-        salaryMax
+        salaryMax,
       } = req.query;
 
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
       let where = {
-        status: 'APPROVED',
+        status: "APPROVED",
         isActive: true,
         categoryName,
-        ...(cityId && { locationId: cityId })
+        ...(cityId && { locationId: cityId }),
       };
 
       // Add search functionality
       if (search) {
         where.OR = [
-          { title: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-          { company: { name: { contains: search, mode: 'insensitive' } } }
+          { title: { contains: search, mode: "insensitive" } },
+          { description: { contains: search, mode: "insensitive" } },
+          { company: { name: { contains: search, mode: "insensitive" } } },
         ];
       }
 
       // Category-specific filters for Jobs
-      if (categoryName === 'Jobs') {
+      if (categoryName === "Jobs") {
         if (skills) {
-          const skillsArray = skills.split(',').map(s => s.trim());
+          const skillsArray = skills.split(",").map((s) => s.trim());
           where.skills = {
-            contains: skillsArray.join(' '),
-            mode: 'insensitive'
+            contains: skillsArray.join(" "),
+            mode: "insensitive",
           };
         }
 
@@ -79,51 +79,51 @@ class AdController {
                 name: true,
                 logo: true,
                 industry: true,
-                size: true
-              }
+                size: true,
+              },
             },
             location: {
               select: {
                 id: true,
                 name: true,
-                state: true
-              }
+                state: true,
+              },
             },
             employer: {
               select: {
-                isVerified: true
-              }
+                isVerified: true,
+              },
             },
             _count: {
               select: {
-                allocations: true
-              }
-            }
+                allocations: true,
+              },
+            },
           },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: "desc" },
         }),
-        prisma.ad.count({ where })
+        prisma.ad.count({ where }),
       ]);
 
       // Add bookmark status if user is authenticated
       let adsWithBookmarks = ads;
-      if (req.user && req.user.role === 'CANDIDATE') {
+      if (req.user && req.user.role === "CANDIDATE") {
         const candidate = await prisma.candidate.findUnique({
-          where: { userId: req.user.userId }
+          where: { userId: req.user.userId },
         });
 
         if (candidate) {
           const bookmarks = await prisma.bookmark.findMany({
             where: {
               candidateId: candidate.id,
-              adId: { in: ads.map(ad => ad.id) }
-            }
+              adId: { in: ads.map((ad) => ad.id) },
+            },
           });
 
-          const bookmarkedAdIds = new Set(bookmarks.map(b => b.adId));
-          adsWithBookmarks = ads.map(ad => ({
+          const bookmarkedAdIds = new Set(bookmarks.map((b) => b.adId));
+          adsWithBookmarks = ads.map((ad) => ({
             ...ad,
-            isBookmarked: bookmarkedAdIds.has(ad.id)
+            isBookmarked: bookmarkedAdIds.has(ad.id),
           }));
         }
       }
@@ -134,10 +134,16 @@ class AdController {
         total,
         pages: Math.ceil(total / parseInt(limit)),
         hasNext: skip + parseInt(limit) < total,
-        hasPrev: parseInt(page) > 1
+        hasPrev: parseInt(page) > 1,
       };
 
-      res.json(createResponse('Ads retrieved successfully', adsWithBookmarks, pagination));
+      res.json(
+        createResponse(
+          "Ads retrieved successfully",
+          adsWithBookmarks,
+          pagination,
+        ),
+      );
     } catch (error) {
       next(error);
     }
@@ -151,8 +157,8 @@ class AdController {
       const ad = await prisma.ad.findFirst({
         where: {
           id: adId,
-          status: 'APPROVED',
-          isActive: true
+          status: "APPROVED",
+          isActive: true,
         },
         include: {
           company: {
@@ -163,46 +169,47 @@ class AdController {
               logo: true,
               website: true,
               industry: true,
-              size: true
-            }
+              size: true,
+            },
           },
           location: {
             select: {
               id: true,
               name: true,
               state: true,
-              country: true
-            }
+              country: true,
+            },
           },
           employer: {
             select: {
+              id: true,
               isVerified: true,
               user: {
                 select: {
-                  name: true
-                }
-              }
-            }
+                  name: true,
+                },
+              },
+            },
           },
           _count: {
             select: {
-              allocations: true
-            }
-          }
-        }
+              allocations: true,
+            },
+          },
+        },
       });
 
       if (!ad) {
-        return res.status(404).json(
-          createErrorResponse('Job posting not found', 404)
-        );
+        return res
+          .status(404)
+          .json(createErrorResponse("Job posting not found", 404));
       }
 
       // Add bookmark status and application status if user is authenticated
       let adWithUserStatus = ad;
-      if (req.user && req.user.role === 'CANDIDATE') {
+      if (req.user && req.user.role === "CANDIDATE") {
         const candidate = await prisma.candidate.findUnique({
-          where: { userId: req.user.userId }
+          where: { userId: req.user.userId },
         });
 
         if (candidate) {
@@ -211,28 +218,28 @@ class AdController {
               where: {
                 candidateId_adId: {
                   candidateId: candidate.id,
-                  adId: adId
-                }
-              }
+                  adId: adId,
+                },
+              },
             }),
             prisma.allocation.findFirst({
               where: {
                 candidateId: candidate.id,
-                adId: adId
-              }
-            })
+                adId: adId,
+              },
+            }),
           ]);
 
           adWithUserStatus = {
             ...ad,
             isBookmarked: !!bookmark,
             applicationStatus: application?.status || null,
-            hasApplied: !!application
+            hasApplied: !!application,
           };
         }
       }
 
-      res.json(createResponse('Ad retrieved successfully', adWithUserStatus));
+      res.json(createResponse("Ad retrieved successfully", adWithUserStatus));
     } catch (error) {
       next(error);
     }
@@ -244,32 +251,32 @@ class AdController {
       // For now, return static categories. In future, make this dynamic
       const categories = [
         {
-          id: 'jobs',
-          name: 'Jobs',
-          description: 'Find your dream job in your city',
-          isActive: true
+          id: "jobs",
+          name: "Jobs",
+          description: "Find your dream job in your city",
+          isActive: true,
         },
         {
-          id: 'deals',
-          name: 'Local Deals',
-          description: 'Exclusive deals from local businesses',
-          isActive: false // Coming soon
+          id: "deals",
+          name: "Local Deals",
+          description: "Exclusive deals from local businesses",
+          isActive: false, // Coming soon
         },
         {
-          id: 'events',
-          name: 'Events',
-          description: 'Local events and meetups',
-          isActive: false // Coming soon
+          id: "events",
+          name: "Events",
+          description: "Local events and meetups",
+          isActive: false, // Coming soon
         },
         {
-          id: 'classifieds',
-          name: 'Classifieds',
-          description: 'Buy, sell, and trade locally',
-          isActive: false // Coming soon
-        }
+          id: "classifieds",
+          name: "Classifieds",
+          description: "Buy, sell, and trade locally",
+          isActive: false, // Coming soon
+        },
       ];
 
-      res.json(createResponse('Categories retrieved successfully', categories));
+      res.json(createResponse("Categories retrieved successfully", categories));
     } catch (error) {
       next(error);
     }
@@ -283,27 +290,27 @@ class AdController {
           isActive: true,
           ads: {
             some: {
-              status: 'APPROVED',
-              isActive: true
-            }
-          }
+              status: "APPROVED",
+              isActive: true,
+            },
+          },
         },
         include: {
           _count: {
             select: {
               ads: {
                 where: {
-                  status: 'APPROVED',
-                  isActive: true
-                }
-              }
-            }
-          }
+                  status: "APPROVED",
+                  isActive: true,
+                },
+              },
+            },
+          },
         },
-        orderBy: { name: 'asc' }
+        orderBy: { name: "asc" },
       });
 
-      res.json(createResponse('Cities retrieved successfully', cities));
+      res.json(createResponse("Cities retrieved successfully", cities));
     } catch (error) {
       next(error);
     }
@@ -312,72 +319,77 @@ class AdController {
   // Search suggestions
   async getSearchSuggestions(req, res, next) {
     try {
-      const { query, type = 'all', cityId } = req.query;
+      const { query, type = "all", cityId } = req.query;
 
       if (!query || query.length < 2) {
-        return res.json(createResponse('Search suggestions', []));
+        return res.json(createResponse("Search suggestions", []));
       }
 
       const suggestions = [];
 
       // Job titles and company names
-      if (type === 'all' || type === 'jobs') {
+      if (type === "all" || type === "jobs") {
         const [jobTitles, companies] = await Promise.all([
           prisma.ad.findMany({
             where: {
-              status: 'APPROVED',
+              status: "APPROVED",
               isActive: true,
-              categoryName: 'Jobs',
-              title: { contains: query, mode: 'insensitive' },
-              ...(cityId && { locationId: cityId })
+              categoryName: "Jobs",
+              title: { contains: query, mode: "insensitive" },
+              ...(cityId && { locationId: cityId }),
             },
             select: { title: true },
-            distinct: ['title'],
-            take: 5
+            distinct: ["title"],
+            take: 5,
           }),
           prisma.company.findMany({
             where: {
-              name: { contains: query, mode: 'insensitive' },
-              isActive: true
+              name: { contains: query, mode: "insensitive" },
+              isActive: true,
             },
             select: { name: true },
-            distinct: ['name'],
-            take: 5
-          })
+            distinct: ["name"],
+            take: 5,
+          }),
         ]);
 
         suggestions.push(
-          ...jobTitles.map(job => ({
-            type: 'job_title',
-            value: job.title
+          ...jobTitles.map((job) => ({
+            type: "job_title",
+            value: job.title,
           })),
-          ...companies.map(company => ({
-            type: 'company',
-            value: company.name
-          }))
+          ...companies.map((company) => ({
+            type: "company",
+            value: company.name,
+          })),
         );
       }
 
       // Skills (from master data)
-      if (type === 'all' || type === 'skills') {
+      if (type === "all" || type === "skills") {
         const skills = await prisma.skill.findMany({
           where: {
-            name: { contains: query, mode: 'insensitive' },
-            isActive: true
+            name: { contains: query, mode: "insensitive" },
+            isActive: true,
           },
           select: { name: true },
-          take: 5
+          take: 5,
         });
 
         suggestions.push(
-          ...skills.map(skill => ({
-            type: 'skill',
-            value: skill.name
-          }))
+          ...skills.map((skill) => ({
+            type: "skill",
+            value: skill.name,
+          })),
         );
       }
 
-      res.json(createResponse('Search suggestions retrieved', suggestions.slice(0, 10)));
+      res.json(
+        createResponse(
+          "Search suggestions retrieved",
+          suggestions.slice(0, 10),
+        ),
+      );
     } catch (error) {
       next(error);
     }
@@ -396,24 +408,22 @@ class AdController {
           locationId: true,
           skills: true,
           experienceLevel: true,
-          employmentType: true
-        }
+          employmentType: true,
+        },
       });
 
       if (!originalAd) {
-        return res.status(404).json(
-          createErrorResponse('Ad not found', 404)
-        );
+        return res.status(404).json(createErrorResponse("Ad not found", 404));
       }
 
       // Find similar ads based on category, location, and category-specific fields
       const similarAds = await prisma.ad.findMany({
         where: {
           id: { not: adId },
-          status: 'APPROVED',
+          status: "APPROVED",
           isActive: true,
           categoryName: originalAd.categoryName,
-          locationId: originalAd.locationId
+          locationId: originalAd.locationId,
         },
         include: {
           company: {
@@ -421,22 +431,24 @@ class AdController {
               id: true,
               name: true,
               logo: true,
-              industry: true
-            }
+              industry: true,
+            },
           },
           location: {
             select: {
               id: true,
               name: true,
-              state: true
-            }
-          }
+              state: true,
+            },
+          },
         },
         take: parseInt(limit),
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: "desc" },
       });
 
-      res.json(createResponse('Similar ads retrieved successfully', similarAds));
+      res.json(
+        createResponse("Similar ads retrieved successfully", similarAds),
+      );
     } catch (error) {
       next(error);
     }

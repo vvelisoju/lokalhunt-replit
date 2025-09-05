@@ -13,7 +13,7 @@ const ForgotPassword = () => {
   const [phone, setPhone] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState("phone"); // 'phone' or 'otp'
-  
+
 
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
@@ -66,7 +66,7 @@ const ForgotPassword = () => {
     }
   };
 
-  
+
 
   const handleBackToPhone = () => {
     setCurrentStep("phone");
@@ -141,6 +141,7 @@ const ForgotPassword = () => {
             <div className="mb-6">
               <Link
                 to="/login"
+                state={{ source: 'forgot-password' }}
                 className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
               >
                 <ArrowLeftIcon className="w-4 h-4 mr-2" />
@@ -214,6 +215,7 @@ const ForgotPassword = () => {
                 Remember your password?{" "}
                 <Link
                   to="/login"
+                  state={{ source: 'forgot-password' }}
                   className="font-semibold text-blue-600 hover:text-blue-500 transition-colors"
                 >
                   Sign In

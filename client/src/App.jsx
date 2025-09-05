@@ -142,7 +142,9 @@ function App() {
       }
 
       // Register for push notifications
-      await PushNotifications.register();
+      await PushNotifications.register({
+        showWhenInForeground: false
+      });
 
       // Add listeners
       addPushListeners(PushNotifications);
@@ -220,8 +222,8 @@ function App() {
     <ToastProvider>
       <CandidateProvider>
         <div className="min-h-screen flex flex-col">
-          {/* Push notification registration button - only show on native platforms */}
-          {isNativePlatform && (
+          {/* Push notification registration button - hidden to prevent UI overlap */}
+          {false && isNativePlatform && (
             <div className="fixed top-4 right-4 z-50">
               <button
                 onClick={handleRegisterForPush}

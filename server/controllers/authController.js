@@ -10,6 +10,7 @@ const {
 } = require("../utils/otpUtils");
 const { sendEmail } = require("./emailController");
 const { sendOTPSMS } = require("../utils/smsUtils");
+const notificationController = require("./notificationController");
 
 const prisma = new PrismaClient();
 
@@ -175,20 +176,22 @@ class AuthController {
         cityId, // Direct city ID from frontend
       } = req.body;
 
-      console.log("OTP Verification Request:", { 
-        phone, 
-        email, 
-        isForgotPassword, 
+      console.log("OTP Verification Request:", {
+        phone,
+        email,
+        isForgotPassword,
         hasRegistrationData: !!registrationData,
         companyName,
-        cityId
+        cityId,
       });
 
       // Determine identifier type and value
       const identifier = phone || email;
 
       if (!identifier || !otp) {
-        return res.status(400).json(createErrorResponse("Phone/Email and OTP are required", 400));
+        return res
+          .status(400)
+          .json(createErrorResponse("Phone/Email and OTP are required", 400));
       }
 
       // Find user by phone or email
@@ -413,7 +416,10 @@ class AuthController {
 
             // Create default company for employer
             if (finalCompanyData.companyName && finalCompanyData.cityId) {
-              console.log("Creating default company with data:", finalCompanyData);
+              console.log(
+                "Creating default company with data:",
+                finalCompanyData,
+              );
 
               const defaultCompany = await transactionPrisma.company.create({
                 data: {
@@ -427,7 +433,12 @@ class AuthController {
 
               console.log("Created default company:", defaultCompany);
             } else {
-              console.log("No company data available - company name:", finalCompanyData.companyName, "cityId:", finalCompanyData.cityId);
+              console.log(
+                "No company data available - company name:",
+                finalCompanyData.companyName,
+                "cityId:",
+                finalCompanyData.cityId,
+              );
             }
 
             // Assign basic subscription
@@ -461,6 +472,59 @@ class AuthController {
         return { user: updatedUser, profileData };
       });
 
+      // Send notifications to branch admins for new registrations
+      if (!userData.isVerified) {
+        try {
+          if (userData.role === "EMPLOYER") {
+            // Find branch admin for the employer's city
+            const branchAdmins = await prisma.branchAdmin.findMany({
+              // where: { assignedCityId: result.user.cityId },
+              include: { user: true },
+            });
+
+            if (branchAdmins) {
+              for (const branchAdmin of branchAdmins) {
+                await notificationController.sendNotificationWithStorage(
+                  branchAdmin.userId,
+                  "NEW_EMPLOYER_REGISTERED",
+                  {
+                    employerName: result.user.name,
+                    employerEmail: result.user.email || "N/A",
+                    companyName:
+                      finalCompanyData.companyName || "Not specified",
+                  },
+                );
+              }
+            }
+          } else if (userData.role === "CANDIDATE") {
+            // Find branch admin for the candidate's city
+            const branchAdmins = await prisma.branchAdmin.findMany({
+              // where: { assignedCityId: result.user.cityId },
+              include: { user: true },
+            });
+
+            if (branchAdmins) {
+              for (const branchAdmin of branchAdmins) {
+                await notificationController.sendNotificationWithStorage(
+                  branchAdmin.userId,
+                  "NEW_CANDIDATE_REGISTERED",
+                  {
+                    candidateName: result.user.name,
+                    candidateEmail: result.user.email || "N/A",
+                  },
+                );
+              }
+            }
+          }
+        } catch (notificationError) {
+          console.error(
+            "Failed to send branch admin registration notification:",
+            notificationError,
+          );
+          // Don't fail registration if notification fails
+        }
+      }
+
       // Generate JWT token for successful registration
       let token = null;
       if (!userData.isVerified) {
@@ -474,12 +538,31 @@ class AuthController {
           process.env.JWT_SECRET,
           { expiresIn: "30d" },
         );
+
+        // Send welcome notification for candidates
+        if (userData.role === "CANDIDATE" && result.user.deviceToken) {
+          try {
+            await notificationController.sendWelcomeNotification(
+              result.user.id,
+              result.user.deviceToken,
+              result.user.firstName || result.user.name || "there",
+            );
+          } catch (notificationError) {
+            console.error(
+              "Failed to send welcome notification:",
+              notificationError,
+            );
+            // Don't fail registration if notification fails
+          }
+        }
       }
 
       // Clean up temporary storage
       if (userData.role === "EMPLOYER") {
         // This would be handled by frontend, but we can log it
-        console.log("Registration completed - temporary company data should be cleared from frontend");
+        console.log(
+          "Registration completed - temporary company data should be cleared from frontend",
+        );
       }
 
       // Determine response message and status
@@ -1120,20 +1203,25 @@ class AuthController {
       );
 
       // If user already has a device token, send welcome notification
-        if (user.deviceToken) {
-          try {
-            const notificationController = require('./notificationController');
-            await notificationController.sendWelcomeNotification(
-              user.id,
-              user.deviceToken,
-              user.firstName || user.name
-            );
-            console.log(`✅ Welcome notification sent on login to: ${user.firstName || user.name}`);
-          } catch (welcomeError) {
-            console.error("❌ Failed to send welcome notification on login:", welcomeError);
-            // Don't fail login if welcome notification fails
-          }
+      if (user.deviceToken) {
+        try {
+          const notificationController = require("./notificationController");
+          await notificationController.sendWelcomeNotification(
+            user.id,
+            user.deviceToken,
+            user.firstName || user.name,
+          );
+          console.log(
+            `✅ Welcome notification sent on login to: ${user.firstName || user.name}`,
+          );
+        } catch (welcomeError) {
+          console.error(
+            "❌ Failed to send welcome notification on login:",
+            welcomeError,
+          );
+          // Don't fail login if welcome notification fails
         }
+      }
 
       // Remove password from response
       const { passwordHash, otp, otpExpiresAt, ...userWithoutSensitiveData } =
@@ -1194,6 +1282,26 @@ class AuthController {
         return res.status(404).json(createErrorResponse("User not found", 404));
       }
 
+      // Trigger notification for profile view
+      if (user.deviceToken) {
+        try {
+          await notificationController.sendProfileViewNotification(
+            user.id,
+            user.deviceToken,
+            user.firstName || user.name,
+          );
+          console.log(
+            `✅ Profile view notification sent to ${user.firstName || user.name}`,
+          );
+        } catch (notificationError) {
+          console.error(
+            "❌ Failed to send profile view notification:",
+            notificationError,
+          );
+          // Don't fail profile retrieval if notification fails
+        }
+      }
+
       res.json(createResponse("Profile retrieved successfully", user));
     } catch (error) {
       next(error);
@@ -1209,14 +1317,14 @@ class AuthController {
       if (!deviceToken) {
         return res.status(400).json({
           success: false,
-          message: "Device token is required"
+          message: "Device token is required",
         });
       }
 
       console.log(`📱 Storing device token for user ${userId}:`, {
         token: `${deviceToken.slice(0, 20)}...`,
-        platform: platform || 'unknown',
-        userId: userId
+        platform: platform || "unknown",
+        userId: userId,
       });
 
       // Get user info for welcome notification
@@ -1226,14 +1334,14 @@ class AuthController {
           id: true,
           name: true,
           firstName: true,
-          deviceToken: true
-        }
+          deviceToken: true,
+        },
       });
 
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: "User not found"
+          message: "User not found",
         });
       }
 
@@ -1242,30 +1350,41 @@ class AuthController {
         where: { id: userId },
         data: {
           deviceToken: deviceToken,
-          devicePlatform: platform || 'unknown'
-        }
+          devicePlatform: platform || "unknown",
+        },
       });
 
       // Send welcome notification if this is a new token
       const isNewToken = user.deviceToken !== deviceToken;
-      console.log(`📱 Token comparison - Old: ${user.deviceToken ? `${user.deviceToken.slice(0, 20)}...` : 'null'}, New: ${deviceToken.slice(0, 20)}..., Is new: ${isNewToken}`);
-      
-      if (isNewToken) {
+      console.log(
+        `📱 Token comparison - Old: ${user.deviceToken ? `${user.deviceToken.slice(0, 20)}...` : "null"}, New: ${deviceToken.slice(0, 20)}..., Is new: ${isNewToken}`,
+      );
+
+      if (isNewToken && user.role === "CANDIDATE") {
+        // Only send welcome for new candidates
         try {
-          console.log(`📱 Sending welcome notification to ${user.firstName || user.name} with token: ${deviceToken.slice(0, 20)}...`);
-          const notificationController = require('./notificationController');
+          console.log(
+            `📱 Sending welcome notification to ${user.firstName || user.name} with token: ${deviceToken.slice(0, 20)}...`,
+          );
           await notificationController.sendWelcomeNotification(
             userId,
             deviceToken,
-            user.firstName || user.name
+            user.firstName || user.name,
           );
-          console.log(`✅ Welcome notification sent successfully to ${user.firstName || user.name}`);
+          console.log(
+            `✅ Welcome notification sent successfully to ${user.firstName || user.name}`,
+          );
         } catch (notificationError) {
-          console.error('❌ Failed to send welcome notification:', notificationError);
+          console.error(
+            "❌ Failed to send welcome notification:",
+            notificationError,
+          );
           // Don't fail the token storage if notification fails
         }
       } else {
-        console.log(`📱 Device token unchanged, skipping welcome notification for ${user.firstName || user.name}`);
+        console.log(
+          `📱 Device token unchanged or user is not a candidate, skipping welcome notification for ${user.firstName || user.name}`,
+        );
       }
 
       res.json({
@@ -1273,8 +1392,8 @@ class AuthController {
         message: "Device token stored successfully",
         data: {
           message: "Push notifications are now enabled",
-          tokenStored: true
-        }
+          tokenStored: true,
+        },
       });
     } catch (error) {
       console.error("Device token storage error:", error);

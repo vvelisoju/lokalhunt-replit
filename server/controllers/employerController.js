@@ -1,4 +1,5 @@
 const { createResponse, createErrorResponse } = require("../utils/response");
+const notificationController = require("./notificationController");
 
 class EmployerController {
   // Helper method to get employer - supports both regular access and admin view
@@ -209,6 +210,22 @@ class EmployerController {
         return res
           .status(404)
           .json(createErrorResponse("Employer profile not found", 404));
+      }
+
+      // Get employer with user data for notifications
+      const employerWithUser = await req.prisma.employer.findUnique({
+        where: { id: employer.id },
+        include: { user: true },
+      });
+
+      // If this is a new employer registration, send a notification
+      if (!employerWithUser.user.employerId) {
+        // Assuming user.employerId is null for new employers
+        await notificationController.sendEmployerRegistrationNotification(
+          employerWithUser.user.id,
+          employerWithUser.user.name,
+          employerWithUser.user.email,
+        );
       }
 
       // If city name is provided instead of cityId, find the city
@@ -460,6 +477,12 @@ class EmployerController {
           .json(createErrorResponse("Employer profile not found", 404));
       }
 
+      // Get employer with user data for notifications
+      const employerWithUser = await req.prisma.employer.findUnique({
+        where: { id: employer.id },
+        include: { user: true },
+      });
+
       // Verify company ownership
       const company = await req.prisma.company.findFirst({
         where: {
@@ -509,6 +532,17 @@ class EmployerController {
           educationQualification: true,
         },
       });
+
+      // If status is PENDING_APPROVAL, trigger notification
+      if (status === "PENDING_APPROVAL") {
+        await notificationController.sendAdApprovalNotification(
+          employerWithUser.user.id,
+          employerWithUser.user.name,
+          employerWithUser.user.email,
+          ad.id,
+          ad.title,
+        );
+      }
 
       // Return different messages based on MOU status
       if (!activeMOU) {
@@ -586,6 +620,12 @@ class EmployerController {
         return res.status(404).json(createErrorResponse("Ad not found", 404));
       }
 
+      // Get employer with user data for notifications
+      const employerWithUser = await req.prisma.employer.findUnique({
+        where: { id: employer.id },
+        include: { user: true },
+      });
+
       // Get location ID if city is provided
       let locationId = null;
       if (city) {
@@ -646,6 +686,20 @@ class EmployerController {
           educationQualification: true,
         },
       });
+
+      // If the ad status was changed to PENDING_APPROVAL, trigger notification
+      if (
+        updatedAd.status === "PENDING_APPROVAL" &&
+        existingAd.status !== "PENDING_APPROVAL"
+      ) {
+        await notificationController.sendAdApprovalNotification(
+          employerWithUser.user.id,
+          employerWithUser.user.name,
+          employerWithUser.user.email,
+          updatedAd.id,
+          updatedAd.title,
+        );
+      }
 
       res.json(createResponse("Ad updated successfully", updatedAd));
     } catch (error) {
@@ -884,6 +938,7 @@ class EmployerController {
             include: {
               user: {
                 select: {
+                  id: true,
                   name: true,
                   email: true,
                 },
@@ -931,6 +986,7 @@ class EmployerController {
             include: {
               user: {
                 select: {
+                  id: true,
                   name: true,
                   email: true,
                 },
@@ -947,6 +1003,24 @@ class EmployerController {
           },
         },
       });
+
+      // Send application status notification to candidate
+      try {
+        await notificationController.sendApplicationStatusNotification(
+          allocation.candidate.user.id,
+          employer.id,
+          allocation.adId,
+          status,
+          allocation.ad.title,
+          allocation.ad.company.name,
+        );
+      } catch (notificationError) {
+        console.error(
+          "Failed to send application status notification:",
+          notificationError,
+        );
+        // Don't fail the status update if notification fails
+      }
 
       res.json(
         createResponse(
@@ -1129,6 +1203,12 @@ class EmployerController {
         return res.status(404).json(createErrorResponse("Ad not found", 404));
       }
 
+      // Get employer with user data for notifications
+      const employerWithUser = await req.prisma.employer.findUnique({
+        where: { id: employer.id },
+        include: { user: true },
+      });
+
       // Update the ad status to PENDING_APPROVAL
       const submittedAd = await req.prisma.ad.update({
         where: { id: adId },
@@ -1141,6 +1221,15 @@ class EmployerController {
           location: true,
         },
       });
+
+      // Send notification to branch admin
+      await notificationController.sendAdApprovalNotification(
+        employerWithUser.user.id,
+        employerWithUser.user.name,
+        employerWithUser.user.email,
+        submittedAd.id,
+        submittedAd.title,
+      );
 
       res.json(
         createResponse("Ad submitted for approval successfully", submittedAd),
@@ -1188,6 +1277,23 @@ class EmployerController {
           location: true,
         },
       });
+
+      if (archivedAd.status === "CLOSED") {
+        // Send job closed notifications to applied candidates
+        try {
+          await notificationController.sendJobClosedNotifications(
+            adId,
+            archivedAd.title,
+            archivedAd.company.name,
+          );
+        } catch (notificationError) {
+          console.error(
+            "Failed to send job closed notifications:",
+            notificationError,
+          );
+          // Don't fail the deactivation process if notification fails
+        }
+      }
 
       res
         .status(200)
@@ -1241,6 +1347,111 @@ class EmployerController {
       res
         .status(200)
         .json(createResponse("Ad reopened successfully", reopenedAd));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Deactivate ad
+  async deactivateAd(req, res, next) {
+    try {
+      const { adId } = req.params;
+
+      // Find the ad and ensure it belongs to the employer
+      const ad = await req.prisma.ad.findFirst({
+        where: {
+          id: adId,
+          employerId: req.user.employerId,
+        },
+        include: {
+          company: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      });
+
+      if (!ad) {
+        return res.status(404).json(createErrorResponse("Ad not found", 404));
+      }
+
+      // Update the ad to inactive
+      const updatedAd = await req.prisma.ad.update({
+        where: { id: adId },
+        data: { isActive: false },
+      });
+
+      // Send job closed notifications to applied candidates
+      try {
+        await notificationController.sendJobClosedNotifications(
+          adId,
+          ad.title,
+          ad.company.name,
+        );
+      } catch (notificationError) {
+        console.error(
+          "Failed to send job closed notifications:",
+          notificationError,
+        );
+        // Don't fail the deactivation process if notification fails
+      }
+
+      res.json(createResponse("Ad deactivated successfully", updatedAd));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Delete ad
+  async deleteAd(req, res, next) {
+    try {
+      const { adId } = req.params;
+
+      // Find the ad and ensure it belongs to the employer
+      const ad = await req.prisma.ad.findFirst({
+        where: {
+          id: adId,
+          employerId: req.user.employerId,
+        },
+        include: {
+          company: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      });
+
+      if (!ad) {
+        return res.status(404).json(createErrorResponse("Ad not found", 404));
+      }
+
+      // Send job closed notifications to applied candidates before deletion
+      try {
+        await notificationController.sendJobClosedNotifications(
+          adId,
+          ad.title,
+          ad.company.name,
+        );
+      } catch (notificationError) {
+        console.error(
+          "Failed to send job closed notifications:",
+          notificationError,
+        );
+        // Don't fail the deletion process if notification fails
+      }
+
+      // Delete all related data first
+      await Promise.all([
+        req.prisma.allocation.deleteMany({ where: { adId } }),
+        req.prisma.bookmark.deleteMany({ where: { adId } }),
+      ]);
+
+      // Delete the ad
+      await req.prisma.ad.delete({ where: { id: adId } });
+
+      res.json(createResponse("Ad deleted successfully"));
     } catch (error) {
       next(error);
     }
@@ -1810,6 +2021,13 @@ class EmployerController {
           },
         },
       });
+
+      // Send notification for new candidate registration
+      await notificationController.sendNewCandidateNotification(
+        candidate.user.id,
+        candidate.user.name,
+        candidate.user.email,
+      );
 
       res
         .status(201)

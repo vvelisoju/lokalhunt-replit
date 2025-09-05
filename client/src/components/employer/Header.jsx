@@ -12,6 +12,7 @@ import { useRole } from '../../context/RoleContext'
 import ProfileDropdown from '../ui/ProfileDropdown'
 import Button from '../ui/Button' // Assuming Button component is imported from a local UI library
 import { UserCircleIcon } from '@heroicons/react/24/solid' // Assuming UserCircleIcon is used
+import NotificationBell from '../ui/NotificationBell'; // Import NotificationBell
 
 const Header = ({ onMenuClick }) => {
   const { user, logout } = useAuth()
@@ -103,12 +104,7 @@ const Header = ({ onMenuClick }) => {
             </Link>
 
             {/* Notifications */}
-            <button
-              type="button"
-              className="p-2 text-gray-500 hover:text-gray-600 hover:bg-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <BellIcon className="h-6 w-6" aria-hidden="true" />
-            </button>
+            <NotificationBell />
 
             {/* User profile dropdown */}
             <ProfileDropdown

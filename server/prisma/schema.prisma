@@ -119,6 +119,8 @@ model User {
   branchAdmin BranchAdmin?
   notifications Notification[]
   notificationPreferences UserNotificationPreference?
+  dailyNotificationTrackers DailyNotificationTracker[]
+  jobViews JobView[]
 
   @@map("users")
 }
@@ -205,6 +207,7 @@ model Candidate {
   allocations     Allocation[]
   bookmarks       Bookmark[]
   employerBookmarks EmployerBookmark[]
+  profileViews    ProfileView[]
 
   @@map("candidates")
 }
@@ -227,6 +230,7 @@ model Employer {
   mous          MOU[]
   bookmarks     EmployerBookmark[]
   subscriptions Subscription[]
+  profileViews  ProfileView[]
 
   @@map("employers")
 }
@@ -292,6 +296,8 @@ model Ad {
   educationQualification EducationQualification? @relation(fields: [educationQualificationId], references: [id])
   allocations          Allocation[]
   bookmarks            Bookmark[]
+  jobViews             JobView[]
+  jobViewMilestones    JobViewMilestone[]
 
   @@map("ads")
 }
@@ -563,9 +569,20 @@ enum NotificationType {
   JOB_APPROVED
   JOB_REJECTED
   PROFILE_UPDATE
+  PROFILE_VIEWED
+  JOB_BOOKMARKED
+  NEW_APPLICATION
+  JOB_VIEW_MILESTONE
+  JOB_VIEWED
+  JOB_CLOSED
   SYSTEM
   PROMOTIONAL
   TEST
+  NEW_EMPLOYER_REGISTERED
+  NEW_CANDIDATE_REGISTERED
+  NEW_AD_SUBMITTED
+  ADMIN_ALERT
+  
 }
 
 // Notifications Model
@@ -586,6 +603,83 @@ model Notification {
   @@map("notifications")
 }
 
+// Notification Templates Model
+model NotificationTemplate {
+  id          String           @id @default(uuid())
+  type        NotificationType @unique
+  title       String           // Template title with placeholders like {candidateName}
+  body        String           @db.Text // Template body with placeholders
+  variables   String[]         // Array of available variables for this template
+  isActive    Boolean          @default(true) @map("is_active")
+  description String?          // Description of when this template is used
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@map("notification_templates")
+}
+
+// Daily Notification Tracking Model
+model DailyNotificationTracker {
+  id               String           @id @default(uuid())
+  userId           String           @map("user_id")
+  notificationType NotificationType @map("notification_type")
+  date             DateTime         @db.Date // Track notifications per day
+  count            Int              @default(1)
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationType, date])
+  @@map("daily_notification_trackers")
+}
+
+// Job View Tracking Model
+model JobView {
+  id        String   @id @default(uuid())
+  adId      String   @map("ad_id")
+  userId    String?  @map("user_id") // Optional for anonymous views
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  viewedAt  DateTime @default(now()) @map("viewed_at")
+
+  // Relations
+  ad   Ad    @relation(fields: [adId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("job_views")
+}
+
+// Profile View Tracking Model
+model ProfileView {
+  id          String   @id @default(uuid())
+  candidateId String   @map("candidate_id")
+  employerId  String   @map("employer_id")
+  viewedAt    DateTime @default(now()) @map("viewed_at")
+
+  // Relations
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  employer  Employer  @relation(fields: [employerId], references: [id], onDelete: Cascade)
+
+  @@map("profile_views")
+}
+
+// Job View Milestone Tracking Model
+model JobViewMilestone {
+  id        String   @id @default(uuid())
+  adId      String   @map("ad_id")
+  milestone Int      // 10, 25, 50, 100, etc.
+  achieved  Boolean  @default(false)
+  achievedAt DateTime? @map("achieved_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  ad Ad @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  @@unique([adId, milestone])
+  @@map("job_view_milestones")
+}
 
 // User Notification Preferences Model
 model UserNotificationPreference {

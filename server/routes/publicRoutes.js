@@ -2,6 +2,8 @@ const express = require("express");
 const { createResponse, createErrorResponse } = require("../utils/response");
 const { optionalAuth } = require("../middleware/auth");
 const { PrismaClient } = require("@prisma/client");
+const notificationController = require("../controllers/notificationController");
+
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -181,36 +183,6 @@ router.get("/categories", async (req, res, next) => {
     );
   } catch (error) {
     console.error("Error fetching categories:", error);
-    next(error);
-  }
-});
-
-// Get education qualifications
-router.get("/education-qualifications", async (req, res, next) => {
-  try {
-    const qualifications = await prisma.educationQualification.findMany({
-      where: {
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        sortOrder: true,
-      },
-      orderBy: {
-        sortOrder: "asc",
-      },
-    });
-
-    res.json(
-      createResponse(
-        "Education qualifications retrieved successfully",
-        qualifications,
-      ),
-    );
-  } catch (error) {
-    console.error("Error fetching education qualifications:", error);
     next(error);
   }
 });
@@ -755,9 +727,11 @@ router.get("/jobs/:id", optionalAuth, async (req, res, next) => {
         },
         employer: {
           select: {
+            id: true,
             isVerified: true,
             user: {
               select: {
+                id: true,
                 name: true,
               },
             },
@@ -768,6 +742,80 @@ router.get("/jobs/:id", optionalAuth, async (req, res, next) => {
 
     if (!job) {
       return res.status(404).json(createErrorResponse("Job not found", 404));
+    }
+
+    // Track job view and send notifications
+    try {
+      const userId = req.user?.userId;
+      if (userId) {
+        // Create job view record in JobView table
+        await prisma.jobView.create({
+          data: {
+            adId: id,
+            userId: userId,
+            viewedAt: new Date(),
+          },
+        });
+
+        // Send notification to employer when candidate views the job
+        if (req.user.role === "CANDIDATE") {
+          const candidate = await prisma.candidate.findUnique({
+            where: { userId: userId },
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          });
+
+          if (candidate) {
+            const candidateName = candidate.user.firstName
+              ? `${candidate.user.firstName} ${candidate.user.lastName || ""}`.trim()
+              : candidate.user.name || "A candidate";
+
+            // Send job view notification to employer
+            try {
+              await notificationController.sendJobViewedNotification(
+                job.employer.user.id,
+                candidate.id,
+                job.id,
+                candidateName,
+                job.title,
+                job.company.name,
+              );
+            } catch (notificationError) {
+              console.error(
+                "Failed to send job view notification to employer:",
+                notificationError,
+              );
+              // Don't fail the request if notification fails
+            }
+          }
+        }
+
+        // Get total view count for this ad
+        const viewCount = await prisma.jobView.count({
+          where: { adId: id },
+        });
+
+        // Check for milestone notifications (10, 25, 50, 100, etc.)
+        const milestones = [10, 25, 50, 100, 250, 500, 1000];
+        if (milestones.includes(viewCount)) {
+          await notificationController.sendJobViewMilestoneNotification(
+            job.employer.user.id,
+            id,
+            job.title,
+            viewCount,
+          );
+        }
+      }
+    } catch (viewTrackingError) {
+      console.error("Failed to track job view:", viewTrackingError);
+      // Don't fail the request if view tracking fails
     }
 
     // Transform job for frontend with proper type conversion
@@ -1139,69 +1187,106 @@ router.get("/companies", async (req, res, next) => {
 // =======================
 
 // Get public candidate profile
-router.get("/candidates/:candidateId/profile", async (req, res, next) => {
-  try {
-    const { candidateId } = req.params;
+router.get(
+  "/candidates/:candidateId/profile",
+  optionalAuth,
+  async (req, res, next) => {
+    try {
+      const { candidateId } = req.params;
 
-    // Get candidate profile with user information
-    const candidate = await prisma.candidate.findUnique({
-      where: {
-        id: candidateId,
-        // Only show profiles that are marked as public (you might want to add this field)
-        // For now, we'll show all profiles - you can add privacy settings later
-      },
-      include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
-            firstName: true,
-            lastName: true,
+      // Get candidate profile with user information
+      const candidate = await prisma.candidate.findUnique({
+        where: {
+          id: candidateId,
+          // Only show profiles that are marked as public (you might want to add this field)
+          // For now, we'll show all profiles - you can add privacy settings later
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!candidate) {
-      return res
-        .status(404)
-        .json(createErrorResponse("Candidate profile not found", 404));
+      if (!candidate) {
+        return res
+          .status(404)
+          .json(createErrorResponse("Candidate profile not found", 404));
+      }
+
+      // Send profile view notification to candidate if the viewer is authenticated and is an employer
+      if (req.user && req.user.role === "EMPLOYER") {
+        // Get employer details for the notification
+        const employer = await prisma.employer.findUnique({
+          where: { userId: req.user.userId },
+          include: {
+            companies: {
+              where: { isActive: true },
+              select: {
+                name: true,
+                isDefault: true
+              }
+            }
+          }
+        });
+
+        if (employer && employer.companies && employer.companies.length > 0) {
+          // Get default company or first active company
+          const defaultCompany = employer.companies.find(c => c.isDefault) || employer.companies[0];
+
+          const notificationController = require('../controllers/notificationController');
+          await notificationController.sendProfileViewNotification(
+            candidate.user.id,
+            req.user.userId,
+            defaultCompany.name
+          );
+        }
+      }
+
+      // Transform candidate data for public view (remove sensitive information)
+      const publicProfile = {
+        id: candidate.id,
+        firstName: candidate.firstName || candidate.user?.firstName,
+        lastName: candidate.lastName || candidate.user?.lastName,
+        profilePhoto: candidate.profilePhoto,
+        coverPhoto: candidate.coverPhoto,
+        user: {
+          name: candidate.user?.name,
+          email: candidate.user?.email, // You might want to hide this for privacy
+          firstName: candidate.user?.firstName,
+          lastName: candidate.user?.lastName,
+        },
+        profileData: candidate.profileData,
+        experience: candidate.experience,
+        education: candidate.education,
+        skills: candidate.skills,
+        ratings: candidate.ratings,
+        jobPreferences: candidate.jobPreferences,
+        location: candidate.location,
+        phone: candidate.phone,
+        headline: candidate.headline,
+        currentJobTitle: candidate.currentJobTitle,
+        summary: candidate.summary,
+      };
+
+      res.json(
+        createResponse(
+          "Candidate profile retrieved successfully",
+          publicProfile,
+        ),
+      );
+    } catch (error) {
+      console.error("Error getting public candidate profile:", error);
+      next(error);
     }
-
-    // Transform candidate data for public view (remove sensitive information)
-    const publicProfile = {
-      id: candidate.id,
-      firstName: candidate.firstName || candidate.user?.firstName,
-      lastName: candidate.lastName || candidate.user?.lastName,
-      profilePhoto: candidate.profilePhoto,
-      coverPhoto: candidate.coverPhoto,
-      user: {
-        name: candidate.user?.name,
-        email: candidate.user?.email, // You might want to hide this for privacy
-        firstName: candidate.user?.firstName,
-        lastName: candidate.user?.lastName,
-      },
-      profileData: candidate.profileData,
-      experience: candidate.experience,
-      education: candidate.education,
-      skills: candidate.skills,
-      ratings: candidate.ratings,
-      jobPreferences: candidate.jobPreferences,
-      location: candidate.location,
-      phone: candidate.phone,
-      headline: candidate.headline,
-      currentJobTitle: candidate.currentJobTitle,
-      summary: candidate.summary,
-    };
-
-    res.json(
-      createResponse("Candidate profile retrieved successfully", publicProfile),
-    );
-  } catch (error) {
-    console.error("Error getting public candidate profile:", error);
-    next(error);
-  }
-});
+  },
+);
 
 const { ObjectStorageService } = require("../objectStorage");
 
@@ -1359,7 +1444,7 @@ router.get("/skills", async (req, res, next) => {
   }
 });
 
-// Get skills
+// Mock API call example, likely from a frontend context
 getSkills: async (category = null) => {
   const url = category
     ? `${API_BASE_URL}/public/skills?category=${encodeURIComponent(category)}`

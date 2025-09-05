@@ -5,7 +5,8 @@ const { seedCategories } = require("./categories");
 const { seedCities, DEFAULT_CITIES } = require("./cities");
 const { seedEmailTemplates } = require("./email-templates");
 const { seedSkills } = require("./skills");
-const { seedSmsTemplates } = require("./sms-templates"); // Import the new seed function
+const { seedSmsTemplates } = require("./sms-templates");
+const { seedNotificationTemplates } = require('./notification-templates');
 
 const prisma = new PrismaClient();
 
@@ -66,8 +67,12 @@ async function seedAll() {
     await seedEmailTemplates();
 
     // 8. Seed SMS templates
-    console.log("\n8. Seeding SMS templates...");
+    console.log('\n📱 Step 8: Seeding SMS templates...');
     await seedSmsTemplates();
+
+    // 9. Seed notification templates
+    console.log('\n🔔 Step 9: Seeding notification templates...');
+    await seedNotificationTemplates();
 
     console.log("\n=====================================");
     console.log("🎉 All seeding completed successfully!");

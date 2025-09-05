@@ -4,6 +4,7 @@ import { Bars3Icon, BellIcon, GlobeAltIcon, BriefcaseIcon } from "@heroicons/rea
 import { useCandidateAuth } from "../../hooks/useCandidateAuth";
 import { useTranslation } from "react-i18next";
 import ProfileDropdown from "../ui/ProfileDropdown";
+import NotificationBell from '../ui/NotificationBell';
 
 const Header = ({ onMenuClick }) => {
   const { user, logout } = useCandidateAuth();
@@ -66,11 +67,7 @@ const Header = ({ onMenuClick }) => {
           </div>
 
           {/* Notifications */}
-          <button className="relative p-2 text-neutral-400 hover:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 rounded-full transition-colors">
-            <BellIcon className="h-5 w-5" />
-            {/* Notification badge */}
-            <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-secondary-500 ring-2 ring-white"></span>
-          </button>
+          <NotificationBell />
 
           {/* User dropdown */}
           <ProfileDropdown

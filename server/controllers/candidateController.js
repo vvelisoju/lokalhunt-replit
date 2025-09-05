@@ -4,6 +4,7 @@ const { createResponse, createErrorResponse } = require("../utils/response");
 const { ObjectStorageService } = require("../objectStorage");
 const { sendPushNotification } = require("../push");
 const { generateCandidateAbout } = require("./aiController");
+const notificationController = require("./notificationController");
 
 class CandidateController {
   // =======================
@@ -431,6 +432,7 @@ class CandidateController {
       // Check if candidate exists
       const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
+        include: { user: true },
       });
 
       if (!candidate) {
@@ -490,6 +492,23 @@ class CandidateController {
           },
         },
       });
+
+      // Send notification to employer about new application
+      try {
+        await notificationController.sendNewApplicationNotification(
+          ad.employer.userId,
+          candidate.id,
+          adId,
+          candidate.user?.firstName || candidate.user?.name || "A candidate",
+          ad.title,
+        );
+      } catch (notificationError) {
+        console.error(
+          "Failed to send new application notification:",
+          notificationError,
+        );
+        // Don't fail the application process if notification fails
+      }
 
       res
         .status(201)
@@ -580,6 +599,7 @@ class CandidateController {
 
       const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
+        include: { user: true },
       });
 
       if (!candidate) {
@@ -610,12 +630,37 @@ class CandidateController {
         );
       } else {
         // Add bookmark
-        await prisma.bookmark.create({
+        const bookmark = await prisma.bookmark.create({
           data: {
             candidateId: candidate.id,
             adId: adId,
           },
+          include: {
+            ad: {
+              include: {
+                employer: true,
+              },
+            },
+          },
         });
+
+        // Send notification to employer about job bookmark
+        try {
+          await notificationController.sendJobBookmarkNotification(
+            bookmark.ad.employer.userId,
+            candidate.id,
+            adId,
+            candidate.user?.firstName || candidate.user?.name || "A candidate",
+            bookmark.ad.title,
+          );
+        } catch (notificationError) {
+          console.error(
+            "Failed to send job bookmark notification:",
+            notificationError,
+          );
+          // Don't fail the bookmark process if notification fails
+        }
+
         res.json(
           createResponse("Job bookmarked successfully", { bookmarked: true }),
         );
@@ -3134,8 +3179,6 @@ class CandidateController {
       description: job.description,
     };
   }
-
-  
 }
 
 module.exports = new CandidateController();

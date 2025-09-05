@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { useTranslation } from 'react-i18next'
 import ProfileDropdown from '../ui/ProfileDropdown'
+import NotificationBell from '../ui/NotificationBell';
 
 const Header = ({ onMenuClick }) => {
   const { user, logout } = useAuth()
@@ -37,7 +38,7 @@ const Header = ({ onMenuClick }) => {
           </div>
 
           {/* Right side - Employers + notifications and user menu */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
             {/* Employers Button */}
             <Link
               to="/branch-admin/employers"
@@ -50,12 +51,7 @@ const Header = ({ onMenuClick }) => {
             </Link>
 
             {/* Notifications */}
-            <button
-              type="button"
-              className="p-2 text-gray-500 hover:text-gray-600 hover:bg-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <BellIcon className="h-6 w-6" aria-hidden="true" />
-            </button>
+            <NotificationBell />
 
             {/* User profile dropdown */}
             <ProfileDropdown

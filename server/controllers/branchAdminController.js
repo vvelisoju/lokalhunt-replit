@@ -1,4 +1,7 @@
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 const { createResponse, createErrorResponse } = require("../utils/response");
+const notificationController = require("./notificationController");
 
 class BranchAdminController {
   // =======================
@@ -784,6 +787,16 @@ class BranchAdminController {
           ad.status === "PENDING_APPROVAL" && ad.employer.mous.length > 0,
       };
 
+      // Trigger notification for profile view
+      try {
+        await notificationController.sendProfileViewNotification(
+          req.user.userId,
+          ad.employer.userId,
+        );
+      } catch (notificationError) {
+        console.error("Failed to send profile view notification:", notificationError);
+      }
+
       res.json(
         createResponse("Ad details retrieved successfully", adWithStats),
       );
@@ -1123,6 +1136,18 @@ class BranchAdminController {
         },
       });
 
+      // Send notification to candidate about allocation
+      try {
+        await notificationController.sendApplicationStatusNotification(
+          updatedAllocation.candidate.userId,
+          updatedAllocation.ad.title,
+          "ALLOCATED",
+          updatedAllocation.ad.company.name,
+        );
+      } catch (notificationError) {
+        console.error("Failed to send allocation notification:", notificationError);
+      }
+
       res.json(
         createResponse(
           "Candidate allocated to employer successfully",
@@ -1328,6 +1353,57 @@ class BranchAdminController {
           },
         },
       });
+
+      // Send job match notifications when ad is approved
+      if (action === "approve") {
+        try {
+          const jobDetails = {
+            title: updatedAd.title,
+            companyName: updatedAd.company.name,
+            locationId: updatedAd.locationId,
+            locationName: updatedAd.location?.name,
+            categoryName: updatedAd.categoryName,
+            salary: updatedAd.salaryMax
+              ? `${updatedAd.salaryMin || 0} - ${updatedAd.salaryMax}`
+              : "Competitive",
+          };
+
+          await notificationController.sendJobMatchNotifications(
+            adId,
+            jobDetails,
+          );
+        } catch (notificationError) {
+          console.error("Failed to send job match notifications:", notificationError);
+          // Don't fail the approval process if notifications fail
+        }
+      }
+
+      // Send notification for application status change (if ad is approved/rejected)
+      if (action === "approve") {
+        try {
+          await notificationController.sendApplicationStatusNotification(
+            null, // Candidate ID not directly available here, needs to be fetched or passed
+            updatedAd.title,
+            "APPROVED",
+            updatedAd.company.name,
+            updatedAd.id,
+          );
+        } catch (notificationError) {
+          console.error("Failed to send ad approval notification:", notificationError);
+        }
+      } else if (action === "reject") {
+        try {
+          await notificationController.sendApplicationStatusNotification(
+            null, // Candidate ID not directly available here
+            updatedAd.title,
+            "REJECTED",
+            updatedAd.company.name,
+            updatedAd.id,
+          );
+        } catch (notificationError) {
+          console.error("Failed to send ad rejection notification:", notificationError);
+        }
+      }
 
       res.json(createResponse(`Ad ${action}d successfully`, updatedAd));
     } catch (error) {
@@ -1555,6 +1631,28 @@ class BranchAdminController {
           },
         },
       });
+
+      // Send notification based on action
+      if (action === "screen") {
+        try {
+          await notificationController.sendApplicationStatusNotification(
+            updatedAllocation.candidate.userId,
+            updatedAllocation.ad.title,
+            "SHORTLISTED",
+            updatedAllocation.ad.company.name,
+          );
+        } catch (notificationError) {
+          console.error(
+            "Failed to send candidate shortlisted notification:",
+            notificationError,
+          );
+        }
+      } else if (action === "allocate") {
+        // The allocateCandidate function handles the notification for allocation.
+        // If this method is called with action 'allocate', it means it's a direct
+        // allocation after screening, so we might want a different notification
+        // or rely on allocateCandidate logic. For now, assume allocateCandidate handles it.
+      }
 
       res.json(
         createResponse(`Candidate ${action}ed successfully`, updatedAllocation),
@@ -2049,6 +2147,16 @@ class BranchAdminController {
         return res.status(404).json({ error: "Candidate not found" });
       }
 
+      // Trigger notification for candidate profile view by branch admin
+      try {
+        await notificationController.sendProfileViewNotification(
+          req.user.userId,
+          candidate.userId,
+        );
+      } catch (notificationError) {
+        console.error("Failed to send profile view notification:", notificationError);
+      }
+
       res.json(candidate);
     } catch (error) {
       console.error("Error fetching candidate profile:", error);
@@ -2231,6 +2339,7 @@ class BranchAdminController {
           );
       }
 
+      // Update ad status
       const updatedAd = await req.prisma.ad.update({
         where: { id: adId },
         data: {
@@ -2239,12 +2348,55 @@ class BranchAdminController {
           approvedBy: req.user.userId,
         },
         include: {
-          company: true,
-          location: true,
+          employer: {
+            include: {
+              user: true,
+            },
+          },
+          location: {
+            select: {
+              id: true,
+              name: true,
+              state: true,
+            },
+          },
         },
       });
 
-      res.json(createResponse("Ad approved successfully", updatedAd));
+      // Send notification to employer about ad approval
+      try {
+        const notificationController = require('./notificationController');
+        await notificationController.sendNotificationWithStorage(
+          updatedAd.employer.user.id,
+          'JOB_APPROVED',
+          {
+            jobTitle: updatedAd.title,
+            adId: updatedAd.id
+          }
+        );
+
+        // Send job match notifications to candidates
+        const jobDetails = {
+          title: updatedAd.title,
+          companyName: updatedAd.employer.user.name,
+          locationId: updatedAd.locationId,
+          locationName: updatedAd.location?.name,
+          categoryName: updatedAd.categoryName,
+          salary: updatedAd.salaryMax
+            ? `${updatedAd.salaryMin || 0} - ${updatedAd.salaryMax}`
+            : "Competitive",
+        };
+
+        await notificationController.sendJobMatchNotifications(
+          updatedAd.id,
+          jobDetails,
+        );
+      } catch (notificationError) {
+        console.error('Failed to send ad approval notification:', notificationError);
+        // Don't fail the main operation if notification fails
+      }
+
+      res.json(createResponse('Ad approved successfully', updatedAd));
     } catch (error) {
       next(error);
     }
@@ -2254,20 +2406,46 @@ class BranchAdminController {
   async rejectAd(req, res, next) {
     try {
       const { adId } = req.params;
-      const { notes } = req.body;
+      const { rejectionReason } = req.body;
 
+      // Update ad status
       const updatedAd = await req.prisma.ad.update({
         where: { id: adId },
         data: {
-          status: "REJECTED",
-          rejectionReason: notes,
+          status: 'REJECTED',
+          rejectedAt: new Date(),
+          rejectedBy: req.user.userId,
+          rejectionReason: rejectionReason || 'Not specified'
         },
+        include: {
+          employer: {
+            include: {
+              user: true
+            }
+          }
+        }
       });
 
-      res.json({ message: "Ad rejected successfully", ad: updatedAd });
+      // Send notification to employer about ad rejection
+      try {
+        const notificationController = require('./notificationController');
+        await notificationController.sendNotificationWithStorage(
+          updatedAd.employer.user.id,
+          'JOB_REJECTED',
+          {
+            jobTitle: updatedAd.title,
+            adId: updatedAd.id,
+            reason: rejectionReason || 'Please contact support for details'
+          }
+        );
+      } catch (notificationError) {
+        console.error('Failed to send ad rejection notification:', notificationError);
+        // Don't fail the main operation if notification fails
+      }
+
+      res.json(createResponse('Ad rejected successfully', updatedAd));
     } catch (error) {
-      console.error("Error rejecting ad:", error);
-      res.status(500).json({ error: "Failed to reject ad" });
+      next(error);
     }
   }
 
@@ -2369,6 +2547,17 @@ class BranchAdminController {
             },
           },
         });
+
+        // Send welcome notification to the new employer
+        try {
+          await notificationController.sendWelcomeNotification(
+            user.id,
+            name,
+            user.email,
+          );
+        } catch (notificationError) {
+          console.error("Failed to send welcome notification:", notificationError);
+        }
 
         return employer;
       });

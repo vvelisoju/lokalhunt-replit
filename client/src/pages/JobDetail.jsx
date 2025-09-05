@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'react-hot-toast'
@@ -17,7 +17,7 @@ const JobDetail = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, isAuthenticated } = useAuth()
-  
+
   // Using browser back functionality, no longer need 'from' parameter
   const [job, setJob] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -25,22 +25,22 @@ const JobDetail = () => {
   const [bookmarking, setBookmarking] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [hasApplied, setHasApplied] = useState(false)
+  const fetchingRef = useRef(false)
 
-  useEffect(() => {
-    loadJobDetail()
-  }, [id])
-
-  const loadJobDetail = async () => {
+  const loadJobDetail = useCallback(async () => {
+    if (fetchingRef.current) return
+    
     try {
+      fetchingRef.current = true
       setLoading(true)
-      
+
       // Get job details from public API
       const response = await publicApi.getJobById(id)
-      
+
       if (response) {
         const jobData = response.data || response
         setJob(jobData)
-        
+
         // If user is authenticated, check bookmark and application status from job data
         if (isAuthenticated && user?.role === 'CANDIDATE') {
           setIsBookmarked(jobData.isBookmarked || false)
@@ -56,8 +56,13 @@ const JobDetail = () => {
       navigate('/jobs')
     } finally {
       setLoading(false)
+      fetchingRef.current = false
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    loadJobDetail()
+  }, [loadJobDetail])
 
   const handleApplyToJob = async () => {
     if (!isAuthenticated) {
@@ -75,7 +80,7 @@ const JobDetail = () => {
     try {
       const response = await candidateApi.applyToJob(id)
       console.log('Apply response:', response)
-      
+
       // Handle different response formats
       if (response.status === 201 || response.data?.status === 'success' || response.success) {
         toast.success('Application submitted successfully!')
@@ -176,7 +181,7 @@ const JobDetail = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       <Header />
-      
+
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Back Button */}
         <button

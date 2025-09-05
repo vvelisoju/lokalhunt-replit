@@ -87,13 +87,24 @@ export const CandidateProvider = ({ children }) => {
     }
   }
 
-  // Profile operations
-  const fetchProfile = useCallback(async () => {
-    if (state.profileLoaded && state.profile) return
+  // Profile operations with improved caching
+  const fetchProfile = useCallback(async (forceRefresh = false) => {
+    if (state.profileLoaded && state.profile && !forceRefresh) {
+      console.log('Profile already loaded, skipping fetch')
+      return state.profile
+    }
+    
+    if (state.loading) {
+      console.log('Profile fetch already in progress, skipping')
+      return state.profile
+    }
+    
     try {
       setLoading(true)
+      console.log('Fetching profile data...')
       const response = await candidateApi.getProfile()
-      console.log('Full profile API response:', response)
+      console.log('Profile API response received')
+      
       // Handle API response structure - check different possible structures
       let profile = null
       if (response?.data?.data) {
@@ -139,13 +150,17 @@ export const CandidateProvider = ({ children }) => {
         }
       }
       
-      console.log('Extracted and sanitized profile data:', profile)
+      console.log('Profile data processed and cached')
       dispatch({ type: 'SET_PROFILE', payload: profile })
+      return profile
     } catch (error) {
       console.error('Profile fetch error:', error)
       setError(error.message || 'Failed to load profile')
+      dispatch({ type: 'SET_PROFILE', payload: null })
+    } finally {
+      setLoading(false)
     }
-  }, [state.profileLoaded, state.profile])
+  }, [])
 
   const updateProfile = useCallback(async (profileData) => {
     try {
@@ -174,11 +189,23 @@ export const CandidateProvider = ({ children }) => {
     }
   }, [showSuccess])
 
-  // Applications operations
-  const fetchApplications = useCallback(async (params = {}) => {
+  // Applications operations with improved caching
+  const fetchApplications = useCallback(async (params = {}, forceRefresh = false) => {
+    if (state.applicationsLoaded && !forceRefresh && Object.keys(params).length === 0) {
+      console.log('Applications already loaded, skipping fetch')
+      return state.applications
+    }
+    
+    if (state.loading) {
+      console.log('Applications fetch already in progress, skipping')
+      return
+    }
+    
     try {
       setLoading(true)
+      console.log('Fetching applications data...')
       const response = await candidateApi.getApplications(params)
+      
       if (response.data && Array.isArray(response.data)) {
         dispatch({ type: 'SET_APPLICATIONS', payload: response.data })
         console.log('Applications fetched successfully:', response.data.length, 'applications')
@@ -299,6 +326,11 @@ export const CandidateProvider = ({ children }) => {
     dispatch({ type: 'CLEAR_DATA' })
   }, [])
 
+  const resetLoadingStates = useCallback(() => {
+    console.log('CandidateContext: Resetting loading states for fresh data fetch')
+    dispatch({ type: 'CLEAR_DATA' })
+  }, [])
+
   // Make clearData globally accessible for logout
   useEffect(() => {
     window.candidateContext = { clearData }
@@ -319,13 +351,15 @@ export const CandidateProvider = ({ children }) => {
     uploadResume,
     deleteResume,
     clearData,
+    resetLoadingStates,
     dispatch
   }), [
     state,
     fetchProfile,
     updateProfile,
     fetchApplications,
-    fetchBookmarks
+    fetchBookmarks,
+    resetLoadingStates
   ])
 
   return (

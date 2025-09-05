@@ -50,7 +50,7 @@ const Register = () => {
       newErrors.lastName = 'Last name is required'
     }
 
-    
+
 
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone number is required'
@@ -106,11 +106,11 @@ const Register = () => {
           localStorage.setItem('token', data.data.token)
           localStorage.setItem('user', JSON.stringify(data.data.user))
         }
-        
+
         // Set flag to show onboarding for new users
         localStorage.setItem('showOnboarding', 'true')
         localStorage.setItem('onboardingCompleted', 'false')
-        
+
         // Navigate to dashboard
         navigate('/candidate/dashboard')
       } else {
@@ -165,9 +165,10 @@ const Register = () => {
           Or{' '}
           <Link
             to="/candidate/login"
+            state={{ source: 'register' }}
             className="font-medium text-blue-600 hover:text-blue-500"
           >
-            sign in to your existing account
+            Sign in here
           </Link>
         </p>
       </div>
@@ -201,7 +202,7 @@ const Register = () => {
               />
             </div>
 
-            
+
 
             <FormInput
               label="Phone Number"
