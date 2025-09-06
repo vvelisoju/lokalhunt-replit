@@ -80,61 +80,74 @@ const Sidebar = ({ isOpen, onClose }) => {
         lg:shadow-none shadow-2xl
       `}
       >
-        {/* Mobile Header with Close Button */}
-        <div className="relative flex items-center justify-center h-20 px-4 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-secondary-50 lg:border-neutral-200">
-          {/* Centered Logo */}
+        {/* Mobile Header with Close Button - Native iOS/Android style */}
+        <div className="relative flex items-center justify-between h-16 px-5 border-b border-gray-100 bg-white lg:bg-gradient-to-r lg:from-primary-50 lg:to-secondary-50 lg:border-neutral-200 lg:h-20 lg:justify-center">
+          {/* Logo - Left aligned on mobile, centered on desktop */}
           <Link
             to="/candidate/dashboard"
             onClick={onClose}
-            className="flex items-center hover:scale-105 transition-transform duration-200"
+            className="flex items-center lg:hover:scale-105 transition-transform duration-200"
           >
             <img
               src={logoImage}
               alt="LokalHunt"
-              className="h-14 lg:h-16 w-auto object-contain"
+              className="h-10 lg:h-16 w-auto object-contain"
             />
           </Link>
 
-          {/* Close button - positioned absolutely on mobile */}
+          {/* Close button - Mobile native style */}
           <button
             onClick={onClose}
-            className="lg:hidden absolute right-4 top-1/2 transform -translate-y-1/2 p-2 rounded-full hover:bg-white hover:bg-opacity-80 transition-all duration-200 active:scale-95"
+            className="lg:hidden p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-all duration-200 active:scale-95"
             aria-label="Close menu"
           >
-            <XMarkIcon className="h-6 w-6 text-gray-700" />
+            <XMarkIcon className="h-5 w-5 text-gray-600" />
           </button>
         </div>
 
-        {/* Navigation - Mobile optimized spacing */}
-        <nav className="mt-8 px-4 lg:mt-8 lg:px-4">
-          <ul className="space-y-2 lg:space-y-2">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              return (
-                <li key={item.name}>
-                  <Link
-                    to={item.href}
-                    onClick={onClose}
-                    className={`
-                      group flex items-center px-5 lg:px-3 py-5 lg:py-3 text-lg lg:text-sm font-medium rounded-2xl lg:rounded-lg 
-                      transition-all duration-200 active:scale-[0.98] lg:hover:scale-[1.02] min-h-[56px] lg:min-h-[44px]
-                      ${
-                        isActive(item.href)
-                          ? "bg-gradient-to-r from-green-500 to-blue-500 text-white shadow-lg lg:shadow-md"
-                          : "text-gray-700 hover:bg-gray-50 lg:hover:bg-gray-100 hover:text-green-600 active:bg-gray-100"
-                      }
-                    `}
-                  >
-                    <Icon className="mr-5 lg:mr-3 h-7 w-7 lg:h-5 lg:w-5 flex-shrink-0" />
-                    <span className="font-semibold lg:font-medium text-base lg:text-sm">
-                      {item.name}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+        {/* Navigation - Mobile native list style */}
+        <div className="flex-1 overflow-y-auto bg-gray-50 lg:bg-white">
+          <nav className="pt-2 lg:mt-8 lg:px-4">
+            <ul className="space-y-0 lg:space-y-2">
+              {navigation.map((item, index) => {
+                const Icon = item.icon;
+                return (
+                  <li key={item.name}>
+                    <Link
+                      to={item.href}
+                      onClick={onClose}
+                      className={`
+                        group flex items-center px-5 py-4 lg:px-3 lg:py-3 text-base lg:text-sm font-medium lg:rounded-lg 
+                        transition-all duration-200 active:bg-gray-200 lg:active:scale-[0.98] lg:hover:scale-[1.02] 
+                        min-h-[52px] lg:min-h-[44px] border-b border-gray-200 lg:border-0
+                        ${
+                          isActive(item.href)
+                            ? "bg-blue-50 text-blue-600 border-l-4 border-l-blue-600 lg:border-l-0 lg:bg-gradient-to-r lg:from-green-500 lg:to-blue-500 lg:text-white lg:shadow-lg"
+                            : "text-gray-700 bg-white hover:bg-gray-100 lg:hover:bg-gray-100 lg:hover:text-green-600"
+                        }
+                      `}
+                    >
+                      <Icon className={`mr-4 lg:mr-3 h-6 w-6 lg:h-5 lg:w-5 flex-shrink-0 ${
+                        isActive(item.href) ? "text-blue-600 lg:text-white" : "text-gray-500"
+                      }`} />
+                      <span className={`font-medium lg:font-medium text-base lg:text-sm ${
+                        isActive(item.href) ? "text-blue-600 lg:text-white" : "text-gray-900"
+                      }`}>
+                        {item.name}
+                      </span>
+                      {/* iOS style chevron indicator for active item on mobile */}
+                      {isActive(item.href) && (
+                        <div className="ml-auto lg:hidden">
+                          <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                        </div>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        </div>
 
         {/* Help/Support Section */}
         {/* <div className="mt-6 px-4 lg:mt-6 lg:px-4">
@@ -181,8 +194,8 @@ const Sidebar = ({ isOpen, onClose }) => {
           </div>
         </div> */}
 
-        {/* Mobile-specific bottom spacing and safe area */}
-        <div className="h-16 lg:h-0 pb-safe"></div>
+        {/* Mobile-specific bottom safe area */}
+        <div className="h-8 lg:h-0 bg-gray-50 lg:bg-white border-t border-gray-200 lg:border-0"></div>
       </div>
     </>
   );

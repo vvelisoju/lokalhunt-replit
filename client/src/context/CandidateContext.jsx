@@ -89,6 +89,7 @@ export const CandidateProvider = ({ children }) => {
 
   // Profile operations with improved caching
   const fetchProfile = useCallback(async (forceRefresh = false) => {
+    // Prevent duplicate calls more effectively
     if (state.profileLoaded && state.profile && !forceRefresh) {
       console.log('Profile already loaded, skipping fetch')
       return state.profile
@@ -96,7 +97,17 @@ export const CandidateProvider = ({ children }) => {
     
     if (state.loading) {
       console.log('Profile fetch already in progress, skipping')
-      return state.profile
+      return new Promise((resolve) => {
+        // Wait for current fetch to complete
+        const checkLoading = () => {
+          if (!state.loading) {
+            resolve(state.profile)
+          } else {
+            setTimeout(checkLoading, 100)
+          }
+        }
+        checkLoading()
+      })
     }
     
     try {
@@ -354,7 +365,9 @@ export const CandidateProvider = ({ children }) => {
     resetLoadingStates,
     dispatch
   }), [
-    state,
+    state.profile,
+    state.loading,
+    state.profileLoaded,
     fetchProfile,
     updateProfile,
     fetchApplications,

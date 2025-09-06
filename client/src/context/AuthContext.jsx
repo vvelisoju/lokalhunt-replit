@@ -24,12 +24,25 @@ export const AuthProvider = ({ children }) => {
   const checkAuthStatus = async () => {
     try {
       const token = localStorage.getItem("token");
-      if (token) {
+      const storedUser = localStorage.getItem("user");
+      
+      if (token && storedUser) {
         // Set auth header
         api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        
+        // Parse stored user data for immediate state update (prevents flickering)
+        try {
+          const userData = JSON.parse(storedUser);
+          console.log("AuthContext: Setting user from storage immediately:", userData);
+          setUser(userData);
+          setIsAuthenticated(true);
+          setLoading(false); // Set loading false immediately with stored data
+        } catch (parseError) {
+          console.error("AuthContext: Error parsing stored user data:", parseError);
+        }
 
         // Always use the universal auth profile endpoint - works for all user roles
-        console.log("AuthContext: Checking auth status using /auth/profile");
+        console.log("AuthContext: Verifying auth status using /auth/profile");
         const response = await api.get("/auth/profile");
         console.log("AuthContext: Auth profile response:", response.data);
 
@@ -39,9 +52,11 @@ export const AuthProvider = ({ children }) => {
             response.data.success !== false)
         ) {
           const userData = response.data.data || response.data;
-          console.log("AuthContext: Setting user data:", userData);
+          console.log("AuthContext: Updating user data from server:", userData);
           setUser(userData);
           setIsAuthenticated(true);
+          // Update stored user data
+          localStorage.setItem("user", JSON.stringify(userData));
         } else {
           throw new Error("Invalid profile response");
         }
@@ -50,6 +65,7 @@ export const AuthProvider = ({ children }) => {
         console.log("AuthContext: No token found");
         setUser(null);
         setIsAuthenticated(false);
+        setLoading(false);
       }
     } catch (error) {
       console.error("AuthContext: Auth check failed:", error);
@@ -60,9 +76,6 @@ export const AuthProvider = ({ children }) => {
       delete api.defaults.headers.common["Authorization"];
       setUser(null);
       setIsAuthenticated(false);
-    } finally {
-      // Set loading to false immediately to prevent delays
-      console.log("AuthContext: Setting loading to false after auth check");
       setLoading(false);
     }
   };
@@ -276,39 +289,39 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log("AuthContext: Starting logout process");
       
-      // CRITICAL: Set loading to false IMMEDIATELY to prevent infinite loading
-      setLoading(false);
-
-      // Try to call logout endpoint, but don't fail if it doesn't exist
-      try {
-        await authService.logout();
-      } catch (error) {
-        // Ignore API errors during logout - still proceed with client-side cleanup
-        console.log("Logout API call failed, proceeding with client-side cleanup");
-      }
-
-      // Import and use common logout function
+      // CRITICAL: Import and clear all data FIRST to prevent any state inconsistencies
       const { clearAllAuthData } = await import("../utils/authUtils");
-
-      // CRITICAL: Clear candidate context FIRST before clearing auth data
+      
+      // Clear candidate context IMMEDIATELY before any other operations
       if (window.candidateContext?.clearData) {
         console.log("AuthContext: Clearing candidate context data");
         window.candidateContext.clearData();
       }
-
-      // Clear all storage to prevent loops
+      
+      // Clear all storage data FIRST
       console.log("AuthContext: Clearing all auth data from storage");
       clearAllAuthData();
-
-      // THEN reset local auth state - CRITICAL: Ensure all states are reset
-      console.log("AuthContext: Resetting auth state");
+      
+      // Clear API headers immediately
+      delete api.defaults.headers.common["Authorization"];
+      
+      // NOW reset authentication state AFTER clearing storage
+      console.log("AuthContext: Resetting auth state after clearing storage");
       setUser(null);
       setIsAuthenticated(false);
-      // Loading is already set to false above
+      setLoading(false);
+      
+      // Try to call logout endpoint, but don't wait for it or fail if it doesn't work
+      authService.logout().catch(() => {
+        console.log("Logout API call failed, but continuing with client-side cleanup");
+      });
 
-      console.log("AuthContext: Logout complete, navigating to login");
+      console.log("AuthContext: Auth state reset complete, navigating to login");
 
-      // Navigate immediately without delay and indicate logout source
+      // Set logout redirect flag to prevent loading loops
+      sessionStorage.setItem('logout_redirect', 'true');
+      
+      // Navigate immediately
       if (navigate && typeof navigate === "function") {
         navigate("/login", { 
           replace: true, 
@@ -321,10 +334,31 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("AuthContext: Logout error:", error);
       
-      // Even on error, ensure loading is false and redirect
-      setLoading(false);
+      // Even on error, force clear everything immediately
+      try {
+        const { clearAllAuthData } = await import("../utils/authUtils");
+        clearAllAuthData();
+      } catch (e) {
+        // Fallback manual clear
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      
+      // Force clear candidate context
+      if (window.candidateContext?.clearData) {
+        window.candidateContext.clearData();
+      }
+      
+      // Clear API headers
+      delete api.defaults.headers.common["Authorization"];
+      
+      // Reset states immediately
       setUser(null);
       setIsAuthenticated(false);
+      setLoading(false);
+      
+      // Set logout redirect flag
+      sessionStorage.setItem('logout_redirect', 'true');
       
       if (navigate && typeof navigate === "function") {
         navigate("/login", { 
@@ -451,7 +485,22 @@ export const AuthProvider = ({ children }) => {
     refreshUser,
     fetchUserProfile,
     clearLoadingAfterNavigation,
+    setUser,
+    setIsAuthenticated,
+    setLoading,
   };
+
+  // Make auth context globally accessible for logout utility
+  useEffect(() => {
+    window.authContext = {
+      setUser,
+      setIsAuthenticated, 
+      setLoading
+    };
+    return () => {
+      delete window.authContext;
+    };
+  }, []);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

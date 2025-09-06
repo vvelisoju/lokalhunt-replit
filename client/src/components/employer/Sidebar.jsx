@@ -102,160 +102,173 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   return (
     <>
-      {/* Mobile overlay */}
+      {/* Mobile overlay with blur effect */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 backdrop-blur-sm lg:hidden"
           onClick={onClose}
         />
       )}
 
-      {/* Sidebar - Mobile optimized */}
+      {/* Sidebar - Full width on mobile, native mobile design */}
       <div
         className={`
-        fixed inset-y-0 left-0 z-50 w-full sm:w-80 lg:w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+        fixed inset-y-0 left-0 z-50 w-full sm:w-80 lg:w-64 bg-white lg:bg-white lg:border-r lg:border-gray-200 
+        transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
+        lg:shadow-none shadow-2xl
       `}
       >
-        {/* Header with Logo and Close Button - Increased height */}
-        <div className="flex items-center justify-center relative h-20 px-4 border-b border-neutral-200 bg-gradient-to-r from-green-50 to-blue-50">
+        {/* Mobile Header with Close Button - Native iOS/Android style */}
+        <div className="relative flex items-center justify-between h-16 px-5 border-b border-gray-100 bg-white lg:bg-gradient-to-r lg:from-green-50 lg:to-blue-50 lg:border-neutral-200 lg:h-20 lg:justify-center">
+          {/* Logo - Left aligned on mobile, centered on desktop */}
           <Link
             to={`${routeBase}/dashboard`}
-            className="flex items-center hover:scale-105 transition-transform duration-200"
+            onClick={onClose}
+            className="flex items-center lg:hover:scale-105 transition-transform duration-200"
           >
             <img
               src={logoImage}
               alt="LokalHunt"
-              className="h-14 w-auto object-contain"
+              className="h-10 lg:h-16 w-auto object-contain"
             />
           </Link>
 
-          {/* Close button - only visible on mobile */}
+          {/* Close button - Mobile native style */}
           <button
             onClick={onClose}
-            className="lg:hidden absolute right-4 p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-white/60 active:bg-white/80 transition-all duration-200"
-            aria-label="Close sidebar"
+            className="lg:hidden p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-all duration-200 active:scale-95"
+            aria-label="Close menu"
           >
-            <XMarkIcon className="h-6 w-6" />
+            <XMarkIcon className="h-5 w-5 text-gray-600" />
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 overflow-y-auto">
-          <ul className="space-y-2">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              const isPremiumItem = item.isPremium;
-              const isLocked = isPremiumItem && !hasActivePlan;
+        {/* Navigation - Mobile native list style */}
+        <div className="flex-1 overflow-y-auto bg-gray-50 lg:bg-white">
+          <nav className="pt-2 lg:pt-6 lg:px-4">
+            <ul className="space-y-0 lg:space-y-2">
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                const isPremiumItem = item.isPremium;
+                const isLocked = isPremiumItem && !hasActivePlan;
 
-              return (
-                <li key={item.name} className="relative group">
-                  {isPremiumItem && isLocked ? (
-                    <button
-                      onClick={() => {
-                        // Show upgrade modal instead of being completely disabled
-                        window.dispatchEvent(
-                          new CustomEvent("showPremiumUpgrade"),
-                        );
-                        onClose();
-                      }}
-                      className="group flex items-center w-full px-4 py-3.5 text-base font-medium rounded-xl transition-all duration-200 text-gray-600 hover:text-orange-600 hover:bg-orange-50 relative"
-                      title={item.tooltip}
-                    >
-                      <div className="flex items-center w-full">
-                        <Icon
-                          className="mr-4 flex-shrink-0 h-6 w-6 text-gray-400 group-hover:text-orange-500"
-                          aria-hidden="true"
-                        />
-                        <span className="flex-1 text-left">{item.name}</span>
-                        <LockClosedIcon className="h-4 w-4 text-gray-400 group-hover:text-orange-500 ml-2" />
-                      </div>
-
-                      {/* Tooltip */}
-                      <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 pointer-events-none">
-                        {item.tooltip}
-                        <div className="absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
-                      </div>
-                    </button>
-                  ) : (
-                    <Link
-                      to={item.href}
-                      onClick={onClose}
-                      className={`
-                        group flex items-center px-4 py-3.5 text-base font-medium rounded-xl transition-all duration-200 active:scale-[0.98] relative
-                        ${
-                          isActive(item.href)
-                            ? "bg-gradient-to-r from-green-500 to-blue-500 text-white shadow-lg shadow-green-200"
-                            : isPremiumItem
-                              ? "text-gray-700 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-orange-50 active:bg-gradient-to-r active:from-yellow-100 active:to-orange-100 hover:text-orange-600 border border-transparent hover:border-orange-200"
-                              : "text-gray-700 hover:bg-gray-50 active:bg-gray-100 hover:text-green-600"
-                        }
-                      `}
-                    >
-                      <div
-                        className={`flex items-center w-full ${item.name === "Top Candidates" ? "justify-start" : ""}`}
+                return (
+                  <li key={item.name} className="relative group">
+                    {isPremiumItem && isLocked ? (
+                      <button
+                        onClick={() => {
+                          // Show upgrade modal instead of being completely disabled
+                          window.dispatchEvent(
+                            new CustomEvent("showPremiumUpgrade"),
+                          );
+                          onClose();
+                        }}
+                        className={`
+                          group flex items-center w-full px-5 py-4 lg:px-4 lg:py-3.5 text-base lg:text-base font-medium lg:rounded-xl 
+                          transition-all duration-200 active:bg-gray-200 lg:active:scale-[0.98] lg:hover:scale-[1.02] 
+                          min-h-[52px] lg:min-h-[44px] border-b border-gray-200 lg:border-0
+                          text-gray-600 bg-white hover:bg-orange-50 lg:hover:bg-orange-50 hover:text-orange-600 lg:border lg:border-transparent lg:hover:border-orange-200
+                        `}
+                        title={item.tooltip}
                       >
-                        <Icon
-                          className={`mr-4 flex-shrink-0 h-6 w-6 transition-colors ${
-                            isActive(item.href)
-                              ? "text-white"
-                              : isPremiumItem
-                                ? "text-orange-400 group-hover:text-orange-500"
-                                : "text-gray-400 group-hover:text-green-500"
-                          }`}
-                          aria-hidden="true"
-                        />
-                        <span className="flex-1 text-left">{item.name}</span>
-                        {isPremiumItem && (
-                          <StarIcon
-                            className={`h-4 w-4 ml-2 text-left ${
-                              isActive(item.href)
-                                ? "text-white"
-                                : "text-orange-400 group-hover:text-orange-500"
-                            }`}
-                          />
-                        )}
-                      </div>
+                        <Icon className="mr-4 lg:mr-4 h-6 w-6 lg:h-6 lg:w-6 flex-shrink-0 text-gray-400 group-hover:text-orange-500" />
+                        <span className="flex-1 text-left font-medium lg:font-medium text-base lg:text-base text-gray-700">
+                          {item.name}
+                        </span>
+                        <LockClosedIcon className="h-4 w-4 text-gray-400 group-hover:text-orange-500 ml-2" />
 
-                      {/* Tooltip for premium item */}
-                      {isPremiumItem && item.tooltip && (
-                        <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 pointer-events-none max-w-xs">
-                          {hasActivePlan ? (
-                            <div className="space-y-1">
-                              <div className="flex items-center space-x-1">
-                                <CheckCircleIcon className="h-4 w-4 text-green-400" />
-                                <span className="font-semibold">
-                                  HR-Assist Active
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-300">
-                                Access premium pre-screened candidates
-                              </div>
-                            </div>
-                          ) : (
-                            item.tooltip
-                          )}
+                        {/* Desktop Tooltip */}
+                        <div className="hidden lg:block absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 pointer-events-none">
+                          {item.tooltip}
                           <div className="absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
                         </div>
-                      )}
+                      </button>
+                    ) : (
+                      <Link
+                        to={item.href}
+                        onClick={onClose}
+                        className={`
+                          group flex items-center px-5 py-4 lg:px-4 lg:py-3.5 text-base lg:text-base font-medium lg:rounded-xl 
+                          transition-all duration-200 active:bg-gray-200 lg:active:scale-[0.98] lg:hover:scale-[1.02] 
+                          min-h-[52px] lg:min-h-[44px] border-b border-gray-200 lg:border-0
+                          ${
+                            isActive(item.href)
+                              ? "bg-blue-50 text-blue-600 border-l-4 border-l-blue-600 lg:border-l-0 lg:bg-gradient-to-r lg:from-green-500 lg:to-blue-500 lg:text-white lg:shadow-lg"
+                              : isPremiumItem
+                                ? "text-gray-700 bg-white hover:bg-gradient-to-r hover:from-yellow-50 hover:to-orange-50 lg:hover:bg-gradient-to-r lg:hover:from-yellow-50 lg:hover:to-orange-50 hover:text-orange-600 lg:border lg:border-transparent lg:hover:border-orange-200"
+                                : "text-gray-700 bg-white hover:bg-gray-100 lg:hover:bg-gray-50 hover:text-green-600"
+                          }
+                        `}
+                      >
+                        <Icon className={`mr-4 lg:mr-4 h-6 w-6 lg:h-6 lg:w-6 flex-shrink-0 ${
+                          isActive(item.href) 
+                            ? "text-blue-600 lg:text-white" 
+                            : isPremiumItem
+                              ? "text-orange-400 group-hover:text-orange-500"
+                              : "text-gray-500"
+                        }`} />
+                        <span className={`flex-1 font-medium lg:font-medium text-base lg:text-base ${
+                          isActive(item.href) ? "text-blue-600 lg:text-white" : "text-gray-900"
+                        }`}>
+                          {item.name}
+                        </span>
+                        {isPremiumItem && (
+                          <StarIcon className={`h-4 w-4 ml-2 ${
+                            isActive(item.href)
+                              ? "text-blue-600 lg:text-white"
+                              : "text-orange-400 group-hover:text-orange-500"
+                          }`} />
+                        )}
+                        
+                        {/* iOS style chevron indicator for active item on mobile */}
+                        {isActive(item.href) && (
+                          <div className="ml-auto lg:hidden">
+                            <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                          </div>
+                        )}
 
-                      {/* HR-Assist Active Badge */}
-                      {isPremiumItem && hasActivePlan && !isLocked && (
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-green-400 to-green-500 rounded-full border-2 border-white shadow-sm animate-pulse"></div>
-                      )}
-                    </Link>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                        {/* Desktop Tooltip for premium item */}
+                        {isPremiumItem && item.tooltip && (
+                          <div className="hidden lg:block absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 pointer-events-none max-w-xs">
+                            {hasActivePlan ? (
+                              <div className="space-y-1">
+                                <div className="flex items-center space-x-1">
+                                  <CheckCircleIcon className="h-4 w-4 text-green-400" />
+                                  <span className="font-semibold">
+                                    HR-Assist Active
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-300">
+                                  Access premium pre-screened candidates
+                                </div>
+                              </div>
+                            ) : (
+                              item.tooltip
+                            )}
+                            <div className="absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
+                          </div>
+                        )}
+
+                        {/* HR-Assist Active Badge */}
+                        {isPremiumItem && hasActivePlan && !isLocked && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-green-400 to-green-500 rounded-full border-2 border-white shadow-sm animate-pulse"></div>
+                        )}
+                      </Link>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        </div>
 
           {/* Quick Actions */}
-          <div className="mt-8">
-            <h3 className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          <div className="mt-0 lg:mt-8">
+            <h3 className="hidden lg:block px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
               Quick Actions
             </h3>
-            <ul className="space-y-2">
+            <ul className="space-y-0 lg:space-y-2">
               {quickActions.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -264,13 +277,17 @@ const Sidebar = ({ isOpen, onClose }) => {
                       <Link
                         to={item.href}
                         onClick={onClose}
-                        className="group flex items-center px-4 py-3.5 text-base font-medium rounded-xl transition-all duration-200 active:scale-[0.98] text-gray-700 hover:bg-green-50 active:bg-green-100 hover:text-green-600 border border-transparent hover:border-green-200"
+                        className={`
+                          group flex items-center px-5 py-4 lg:px-4 lg:py-3.5 text-base lg:text-base font-medium lg:rounded-xl 
+                          transition-all duration-200 active:bg-gray-200 lg:active:scale-[0.98] lg:hover:scale-[1.02] 
+                          min-h-[52px] lg:min-h-[44px] border-b border-gray-200 lg:border-0
+                          text-gray-700 bg-white hover:bg-green-50 lg:hover:bg-green-50 hover:text-green-600 lg:border lg:border-transparent lg:hover:border-green-200
+                        `}
                       >
-                        <Icon
-                          className="mr-4 flex-shrink-0 h-6 w-6 text-gray-400 group-hover:text-green-500"
-                          aria-hidden="true"
-                        />
-                        {item.name}
+                        <Icon className="mr-4 lg:mr-4 h-6 w-6 lg:h-6 lg:w-6 flex-shrink-0 text-gray-500 group-hover:text-green-500" />
+                        <span className="font-medium lg:font-medium text-base lg:text-base text-gray-900">
+                          {item.name}
+                        </span>
                       </Link>
                     ) : (
                       <button
@@ -278,13 +295,17 @@ const Sidebar = ({ isOpen, onClose }) => {
                           item.action();
                           onClose();
                         }}
-                        className="group flex items-center w-full px-4 py-3.5 text-base font-medium rounded-xl transition-all duration-200 active:scale-[0.98] text-gray-700 hover:bg-blue-50 active:bg-blue-100 hover:text-blue-600 border border-transparent hover:border-blue-200"
+                        className={`
+                          group flex items-center w-full px-5 py-4 lg:px-4 lg:py-3.5 text-base lg:text-base font-medium lg:rounded-xl 
+                          transition-all duration-200 active:bg-gray-200 lg:active:scale-[0.98] lg:hover:scale-[1.02] 
+                          min-h-[52px] lg:min-h-[44px] border-b border-gray-200 lg:border-0
+                          text-gray-700 bg-white hover:bg-blue-50 lg:hover:bg-blue-50 hover:text-blue-600 lg:border lg:border-transparent lg:hover:border-blue-200
+                        `}
                       >
-                        <Icon
-                          className="mr-4 flex-shrink-0 h-6 w-6 text-gray-400 group-hover:text-blue-500"
-                          aria-hidden="true"
-                        />
-                        {item.name}
+                        <Icon className="mr-4 lg:mr-4 h-6 w-6 lg:h-6 lg:w-6 flex-shrink-0 text-gray-500 group-hover:text-blue-500" />
+                        <span className="font-medium lg:font-medium text-base lg:text-base text-gray-900">
+                          {item.name}
+                        </span>
                       </button>
                     )}
                   </li>
@@ -294,25 +315,28 @@ const Sidebar = ({ isOpen, onClose }) => {
           </div>
 
           {/* Help & Support */}
-          <div className="mt-auto pt-8">
+          <div className="mt-0 lg:mt-auto lg:pt-8">
             <button
               onClick={() => {
                 setShowHelpModal(true);
                 onClose();
               }}
-              className="group flex items-center w-full px-4 py-3.5 text-base font-medium rounded-xl transition-all duration-200 active:scale-[0.98] text-gray-700 hover:bg-blue-50 active:bg-blue-100 hover:text-blue-600 border border-transparent hover:border-blue-200"
+              className={`
+                group flex items-center w-full px-5 py-4 lg:px-4 lg:py-3.5 text-base lg:text-base font-medium lg:rounded-xl 
+                transition-all duration-200 active:bg-gray-200 lg:active:scale-[0.98] lg:hover:scale-[1.02] 
+                min-h-[52px] lg:min-h-[44px] border-b border-gray-200 lg:border-0
+                text-gray-700 bg-white hover:bg-blue-50 lg:hover:bg-blue-50 hover:text-blue-600 lg:border lg:border-transparent lg:hover:border-blue-200
+              `}
             >
-              <QuestionMarkCircleIcon
-                className="mr-4 flex-shrink-0 h-6 w-6 text-gray-400 group-hover:text-blue-500"
-                aria-hidden="true"
-              />
-              {t("employer.sidebar.helpSupport", "Help & Support")}
+              <QuestionMarkCircleIcon className="mr-4 lg:mr-4 h-6 w-6 lg:h-6 lg:w-6 flex-shrink-0 text-gray-500 group-hover:text-blue-500" />
+              <span className="font-medium lg:font-medium text-base lg:text-base text-gray-900">
+                {t("employer.sidebar.helpSupport", "Help & Support")}
+              </span>
             </button>
-
-            {/* Mobile-specific bottom spacing */}
-            <div className="h-6 lg:h-0"></div>
           </div>
-        </nav>
+
+          {/* Mobile-specific bottom safe area */}
+          <div className="h-8 lg:h-0 bg-gray-50 lg:bg-white border-t border-gray-200 lg:border-0"></div>
       </div>
 
       {/* Help & Support Modal */}

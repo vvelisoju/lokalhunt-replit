@@ -119,12 +119,13 @@ const Badge = ({ children, variant, className }) => {
     secondary: "bg-gray-100 text-gray-800 border border-gray-200",
   };
   return (
-    <span className={`${baseStyle} ${variants[variant] || variants.primary} ${className}`}>
+    <span
+      className={`${baseStyle} ${variants[variant] || variants.primary} ${className}`}
+    >
       {children}
     </span>
   );
 };
-
 
 const LinkedInProfile = () => {
   const { user } = useCandidateAuth();
@@ -160,7 +161,7 @@ const LinkedInProfile = () => {
       console.log("LinkedInProfile: Fetching profile for user:", user);
       fetchProfile();
     }
-  }, [user, profile, loading, fetchProfile]);
+  }, [user, fetchProfile]);
 
   // Clear profile data when user changes (logout/login with different user)
   useEffect(() => {
@@ -318,9 +319,9 @@ const LinkedInProfile = () => {
         if (dispatch) {
           dispatch({ type: "CLEAR_PROFILE" });
         }
-        setTimeout(() => {
-          fetchProfile();
-        }, 100); // Small delay for smooth transition
+        // setTimeout(() => {
+        //   fetchProfile();
+        // }, 100); // Small delay for smooth transition
 
         console.log(
           "🎉 Profile photo upload completed successfully - PUBLIC URL:",
@@ -379,9 +380,10 @@ const LinkedInProfile = () => {
         if (dispatch) {
           dispatch({ type: "CLEAR_PROFILE" });
         }
-        setTimeout(() => {
-          fetchProfile();
-        }, 100); // Small delay for smooth transition
+
+        // setTimeout(() => {
+        //   fetchProfile();
+        // }, 100); // Small delay for smooth transition
 
         console.log(
           "🎉 Cover photo upload completed successfully - PUBLIC URL:",
@@ -402,31 +404,10 @@ const LinkedInProfile = () => {
   useEffect(() => {
     if (profile && JSON.stringify(profile) !== JSON.stringify(profileData)) {
       console.log("Profile data received in component:", profile);
-      console.log("Profile user data:", profile?.user);
-      console.log("Profile profileData field:", profile?.profileData);
-      console.log(
-        "Job preferences structure:",
-        profile?.profileData?.jobPreferences,
-      );
-      console.log("Profile photo URL:", profile?.profilePhoto);
-      console.log("Cover photo URL:", profile?.coverPhoto);
-      console.log(
-        "Processed profile photo URL:",
-        getImageUrl(profile?.profilePhoto),
-      );
-      console.log(
-        "Processed cover photo URL:",
-        getImageUrl(profile?.coverPhoto),
-      );
       setProfileData(profile);
       // Set openToWork status from the fetched profile data
       const openToWorkStatus =
         profile?.openToWork || profile?.profileData?.openToWork || false;
-      console.log("Profile loaded:", {
-        profileOpenToWork: profile?.openToWork,
-        profileDataOpenToWork: profile?.profileData?.openToWork,
-        finalStatus: openToWorkStatus,
-      });
       setOpenToWork(openToWorkStatus);
     }
   }, [profile, profileData]);
@@ -1103,7 +1084,8 @@ const LinkedInProfile = () => {
                     </div>
                   )}
                   {/* Experience Level */}
-                  {(profileData?.jobPreferences?.experienceLevel || profileData?.experienceLevel) && (
+                  {(profileData?.jobPreferences?.experienceLevel ||
+                    profileData?.experienceLevel) && (
                     <div className="flex items-center">
                       <span className="w-4 h-4 mr-2 flex-shrink-0 text-xs">
                         📊
@@ -1642,7 +1624,7 @@ const LinkedInProfile = () => {
 
                   {/* Availability & Additional Preferences */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {(profileData?.availabilityStatus || 
+                    {(profileData?.availabilityStatus ||
                       profileData?.profileData?.jobPreferences?.availability ||
                       profileData?.jobPreferences?.availabilityDate) && (
                       <div className="p-2 sm:p-3 bg-lime-50 rounded-lg border border-lime-200">
@@ -1682,15 +1664,16 @@ const LinkedInProfile = () => {
                   </div>
 
                   {/* Travel Willingness */}
-                  {(profileData?.jobPreferences?.travelWillingness !== undefined ||
+                  {(profileData?.jobPreferences?.travelWillingness !==
+                    undefined ||
                     profileData?.travelWillingness !== undefined) && (
                     <div className="p-2 sm:p-3 bg-amber-50 rounded-lg border border-amber-200">
                       <h4 className="font-medium text-gray-900 mb-2 text-xs sm:text-sm">
                         Travel Preference
                       </h4>
                       <span className="px-2 py-1 bg-amber-100 text-amber-800 text-xs rounded-full font-medium">
-                        {(profileData?.jobPreferences?.travelWillingness ||
-                        profileData?.travelWillingness)
+                        {profileData?.jobPreferences?.travelWillingness ||
+                        profileData?.travelWillingness
                           ? "Willing to travel"
                           : "Prefers local work"}
                       </span>

@@ -186,31 +186,43 @@ const Dashboard = () => {
   const quickStats = [
     {
       name: t("stats.applications", "Applications"),
-      value: applications?.length || 0, // Use applications length directly
+      value: applications?.length || 0,
       icon: BriefcaseIcon,
       color: "blue",
+      bgColor: "bg-blue-50",
+      iconColor: "text-blue-600",
       href: "/candidate/applications",
+      trend: applications?.length > 0 ? "stable" : "none",
     },
     {
       name: t("stats.appliedJobs", "Applied Jobs"),
-      value: applications?.length || 0, // Use applications length directly
+      value: applications?.length || 0,
       icon: BriefcaseIcon,
       color: applications?.length > 0 ? "green" : "gray",
+      bgColor: applications?.length > 0 ? "bg-green-50" : "bg-gray-50",
+      iconColor: applications?.length > 0 ? "text-green-600" : "text-gray-600",
       href: "/candidate/applications",
+      trend: applications?.length > 0 ? "up" : "none",
     },
     {
       name: t("stats.bookmarks", "Bookmarks"),
       value: stats.bookmarks || 0,
       icon: BookmarkIcon,
-      color: "green",
+      color: "emerald",
+      bgColor: "bg-emerald-50",
+      iconColor: "text-emerald-600",
       href: "/candidate/bookmarks",
+      trend: stats.bookmarks > 0 ? "stable" : "none",
     },
     {
       name: t("stats.profileViews", "Profile Views"),
       value: stats.profileViews || 0,
       icon: EyeIcon,
       color: "purple",
+      bgColor: "bg-purple-50",
+      iconColor: "text-purple-600",
       href: "/candidate/profile",
+      trend: stats.profileViews > 5 ? "up" : stats.profileViews > 0 ? "stable" : "none",
     },
   ];
 
@@ -302,41 +314,54 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Quick Stats - Mobile optimized grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+      {/* Enhanced Quick Stats - Mobile Native Design */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {quickStats.map((stat) => {
           const Icon = stat.icon;
+          const getTrendIcon = (trend) => {
+            if (trend === "up") return "↗️";
+            if (trend === "down") return "↘️";
+            if (trend === "stable") return "➡️";
+            return "";
+          };
+
           return (
             <Link key={stat.name} to={stat.href}>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-                <div className="flex flex-col items-center text-center p-2 sm:p-4">
-                  <div
-                    className={`
-                    p-1.5 sm:p-3 rounded-lg mb-1 sm:mb-2
-                    ${stat.color === "blue" ? "bg-blue-100" : ""}
-                    ${stat.color === "green" ? "bg-green-100" : ""}
-                    ${stat.color === "purple" ? "bg-purple-100" : ""}
-                    ${stat.color === "gray" ? "bg-gray-100" : ""}
-                  `}
-                  >
-                    <Icon
-                      className={`
-                      h-4 w-4 sm:h-6 sm:w-6
-                      ${stat.color === "blue" ? "text-blue-600" : ""}
-                      ${stat.color === "green" ? "text-green-600" : ""}
-                      ${stat.color === "purple" ? "text-purple-600" : ""}
-                      ${stat.color === "gray" ? "text-gray-600" : ""}
-                    `}
-                    />
+              <Card className="hover:shadow-lg active:shadow-sm active:scale-[0.98] transition-all duration-200 cursor-pointer h-full overflow-hidden border-0 shadow-sm hover:shadow-md">
+                <div className="flex flex-col items-center text-center p-3 sm:p-5 relative">
+                  {/* Trend Indicator */}
+                  {stat.trend !== "none" && (
+                    <div className="absolute top-2 right-2 text-xs opacity-70">
+                      {getTrendIcon(stat.trend)}
+                    </div>
+                  )}
+                  
+                  {/* Enhanced Icon with Background */}
+                  <div className={`${stat.bgColor} rounded-2xl p-3 sm:p-4 mb-2 sm:mb-3 shadow-sm`}>
+                    <Icon className={`h-5 w-5 sm:h-7 sm:w-7 ${stat.iconColor}`} />
                   </div>
-                  <div>
-                    <p className="text-xs sm:text-sm font-medium text-gray-600 mb-0.5 sm:mb-1 leading-tight">
-                      {stat.name}
-                    </p>
-                    <p className="text-base sm:text-2xl font-bold text-gray-900">
+                  
+                  {/* Stats Content */}
+                  <div className="space-y-1">
+                    {/* Value - More Prominent */}
+                    <p className="text-xl sm:text-3xl font-bold text-gray-900 leading-none tracking-tight">
                       {stat.value}
                     </p>
+                    
+                    {/* Label - Refined Typography */}
+                    <p className="text-xs sm:text-sm font-semibold text-gray-600 leading-tight px-1">
+                      {stat.name}
+                    </p>
                   </div>
+
+                  {/* Subtle Bottom Accent */}
+                  <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${
+                    stat.color === "blue" ? "bg-blue-200" : 
+                    stat.color === "green" ? "bg-green-200" : 
+                    stat.color === "emerald" ? "bg-emerald-200" : 
+                    stat.color === "purple" ? "bg-purple-200" : 
+                    "bg-gray-200"
+                  }`}></div>
                 </div>
               </Card>
             </Link>

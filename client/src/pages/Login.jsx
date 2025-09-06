@@ -27,9 +27,6 @@ const Login = () => {
                          navigationSource === '/forgot-password' ||
                          location.state?.source === 'logout' ||
                          location.state?.fromLogout;
-  
-  // Don't show loading for users coming from auth pages
-  const shouldShowLoading = loading && !isFromAuthPages;
 
   // State declarations moved to the top to comply with Rules of Hooks
   const [formData, setFormData] = useState({
@@ -45,24 +42,66 @@ const Login = () => {
     const hasValidToken =
       localStorage.getItem("token") || localStorage.getItem("candidateToken");
 
+    // Skip redirect if coming from logout to prevent loops
+    const isFromLogout = location.state?.source === 'logout' || 
+                        location.state?.fromLogout ||
+                        sessionStorage.getItem('logout_redirect') === 'true';
+    
+    console.log("Login useEffect - Auth state:", { 
+      isAuthenticated, 
+      hasUser: !!user, 
+      hasValidToken, 
+      loading, 
+      isFromLogout,
+      pathname: location.pathname 
+    });
+
+    // CRITICAL FIX: If no valid token but isAuthenticated is true, this is an inconsistent state from logout
+    // Force clear the authentication state immediately
+    if (isAuthenticated && !hasValidToken && !loading) {
+      console.log("Login useEffect - Detected inconsistent auth state after logout, resetting");
+      
+      // Import and use the logout utility to clear everything properly
+      import("../utils/authUtils").then(({ performLogout }) => {
+        performLogout(navigate);
+      }).catch(() => {
+        // Fallback: manually clear state
+        if (window.authContext) {
+          window.authContext.setUser?.(null);
+          window.authContext.setIsAuthenticated?.(false);
+          window.authContext.setLoading?.(false);
+        }
+      });
+      
+      return;
+    }
+
     // Only redirect if user is authenticated AND has valid token AND currently on the login page
-    // Also ensure loading is false to prevent redirect during loading state
+    // Also ensure loading is false and not coming from logout
     if (
       isAuthenticated &&
       user?.role &&
       hasValidToken &&
       location.pathname === "/login" &&
-      !loading
+      !loading &&
+      !isFromLogout
     ) {
       console.log(
         "User already authenticated on login page, checking redirect:",
         user.role,
       );
 
-      // Add a small delay to prevent rapid redirects during logout
-      const timeoutId = setTimeout(() => {
-        // Double-check authentication state again after delay
-        if (isAuthenticated && user?.role && !loading) {
+      // Use requestAnimationFrame for smoother redirect without visible flicker
+      const redirect = () => {
+        // Double-check authentication state and ensure not from logout
+        const stillFromLogout = location.state?.source === 'logout' || 
+                               location.state?.fromLogout ||
+                               sessionStorage.getItem('logout_redirect') === 'true';
+        
+        if (isAuthenticated && user?.role && !loading && !stillFromLogout) {
+          // Clear any logout redirect flag
+          sessionStorage.removeItem('logout_redirect');
+          
           // Check if they came from a protected route
           const returnUrl = location.state?.from?.pathname;
 
@@ -75,6 +114,11 @@ const Login = () => {
             switch (user.role) {
               case "CANDIDATE":
                 console.log("Redirecting to candidate dashboard");
+                // Ensure candidateToken is set for candidates
+                const token = localStorage.getItem("token");
+                if (token) {
+                  localStorage.setItem("candidateToken", token);
+                }
                 navigate("/candidate/dashboard", { replace: true });
                 break;
               case "EMPLOYER":
@@ -89,13 +133,21 @@ const Login = () => {
                 console.log(
                   "Unknown role, redirecting to candidate dashboard as default",
                 );
+                // Only set candidateToken if user is actually a candidate
+                if (user.role === "CANDIDATE") {
+                  const token = localStorage.getItem("token");
+                  if (token) {
+                    localStorage.setItem("candidateToken", token);
+                  }
+                }
                 navigate("/candidate/dashboard", { replace: true });
             }
           }
         }
-      }, 200); // 200ms delay to let logout complete
+      };
 
-      return () => clearTimeout(timeoutId);
+      // Use requestAnimationFrame for immediate but smooth redirect
+      requestAnimationFrame(redirect);
     }
   }, [
     isAuthenticated,
@@ -210,10 +262,13 @@ const Login = () => {
           }
           navigate("/candidate/dashboard", { replace: true });
         } else {
-          // Default to candidate dashboard
-          const token = localStorage.getItem("token");
-          if (token) {
-            localStorage.setItem("candidateToken", token);
+          // Default fallback - only set candidateToken for actual candidates
+          console.log("Unknown role, redirecting to candidate dashboard as default");
+          if (user?.role === "CANDIDATE") {
+            const token = localStorage.getItem("token");
+            if (token) {
+              localStorage.setItem("candidateToken", token);
+            }
           }
           navigate("/candidate/dashboard", { replace: true });
         }
@@ -353,28 +408,25 @@ const Login = () => {
     }
   };
 
-  // Show loading screen while authentication is being checked
-  // But add a shorter timeout for better UX when navigating from other pages
-  const [showLoadingTimeout, setShowLoadingTimeout] = useState(false);
+  // Check if coming from logout - more comprehensive check
+  const isFromLogout = location.state?.source === 'logout' || 
+                      location.state?.fromLogout ||
+                      sessionStorage.getItem('logout_redirect') === 'true';
 
+  // Clear logout redirect flag if it exists - but do it in useEffect to avoid infinite re-renders
   useEffect(() => {
-    if (shouldShowLoading) {
-      const timeout = setTimeout(() => {
-        console.log("Login: Loading timeout reached, proceeding to login form");
-        setShowLoadingTimeout(true);
-      }, 800); // Reduced to 0.8 seconds for better UX
-
-      return () => clearTimeout(timeout);
-    } else {
-      // Reset timeout state when loading is false
-      setShowLoadingTimeout(false);
+    if (sessionStorage.getItem('logout_redirect')) {
+      sessionStorage.removeItem('logout_redirect');
     }
-  }, [shouldShowLoading]);
+  }, []);
 
-  // Only show loading screen for a brief moment during initial auth check
-  // Skip loading for users coming from auth pages or logout
-  // Also skip if user is already authenticated to prevent flickering
-  if (shouldShowLoading && !showLoadingTimeout && !isAuthenticated) {
+  // CRITICAL FIX: Show loading if we have authentication data but not from logout
+  // This prevents the form from rendering while we have valid auth data
+  const hasValidAuthData = localStorage.getItem("token") && localStorage.getItem("user");
+  const shouldShowLoading = (loading && !isFromAuthPages) || (hasValidAuthData && !isFromLogout);
+
+  // Show loading screen during initial auth check or when we have auth data
+  if (shouldShowLoading && !isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 flex items-center justify-center">
         <div className="text-center">
@@ -383,10 +435,23 @@ const Login = () => {
           </div>
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
           <p className="mt-4 text-sm text-gray-600">
-            {location.state?.source === 'logout' || location.state?.fromLogout 
-              ? "Logging out..." 
-              : "Checking authentication..."}
+            {hasValidAuthData ? "Redirecting to dashboard..." : "Checking authentication..."}
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render login form if user is authenticated (prevents flickering) but allow if from logout
+  if (isAuthenticated && !loading && !isFromLogout) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="flex items-center justify-center mb-6">
+            <img src="/images/logo.png" alt="LokalHunt Logo" className="h-14" />
+          </div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-sm text-gray-600">Redirecting to dashboard...</p>
         </div>
       </div>
     );

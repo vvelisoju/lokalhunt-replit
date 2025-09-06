@@ -334,10 +334,10 @@ const JobsList = ({
       {/* Results Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-base font-medium text-gray-900">
+          {/* <h2 className="text-base font-medium text-gray-900">
             Total jobs found:{" "}
             <span className="text-blue-600 font-semibold">{totalJobs}</span>
-          </h2>
+          </h2> */}
         </div>
 
         <div className="flex items-center space-x-3">
