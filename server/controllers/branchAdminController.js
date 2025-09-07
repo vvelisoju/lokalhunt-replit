@@ -573,11 +573,11 @@ class BranchAdminController {
             approvedAt: { gte: startDate },
           },
         }),
-        // Ads rejected (archived)
+        // Ads rejected (closed)
         req.prisma.ad.count({
           where: {
             locationId: cityId,
-            status: "ARCHIVED",
+            status: "CLOSED",
             updatedAt: { gte: startDate },
           },
         }),
@@ -794,7 +794,10 @@ class BranchAdminController {
           ad.employer.userId,
         );
       } catch (notificationError) {
-        console.error("Failed to send profile view notification:", notificationError);
+        console.error(
+          "Failed to send profile view notification:",
+          notificationError,
+        );
       }
 
       res.json(
@@ -1145,7 +1148,10 @@ class BranchAdminController {
           updatedAllocation.ad.company.name,
         );
       } catch (notificationError) {
-        console.error("Failed to send allocation notification:", notificationError);
+        console.error(
+          "Failed to send allocation notification:",
+          notificationError,
+        );
       }
 
       res.json(
@@ -1373,7 +1379,10 @@ class BranchAdminController {
             jobDetails,
           );
         } catch (notificationError) {
-          console.error("Failed to send job match notifications:", notificationError);
+          console.error(
+            "Failed to send job match notifications:",
+            notificationError,
+          );
           // Don't fail the approval process if notifications fail
         }
       }
@@ -1389,7 +1398,10 @@ class BranchAdminController {
             updatedAd.id,
           );
         } catch (notificationError) {
-          console.error("Failed to send ad approval notification:", notificationError);
+          console.error(
+            "Failed to send ad approval notification:",
+            notificationError,
+          );
         }
       } else if (action === "reject") {
         try {
@@ -1401,7 +1413,10 @@ class BranchAdminController {
             updatedAd.id,
           );
         } catch (notificationError) {
-          console.error("Failed to send ad rejection notification:", notificationError);
+          console.error(
+            "Failed to send ad rejection notification:",
+            notificationError,
+          );
         }
       }
 
@@ -2154,7 +2169,10 @@ class BranchAdminController {
           candidate.userId,
         );
       } catch (notificationError) {
-        console.error("Failed to send profile view notification:", notificationError);
+        console.error(
+          "Failed to send profile view notification:",
+          notificationError,
+        );
       }
 
       res.json(candidate);
@@ -2365,14 +2383,14 @@ class BranchAdminController {
 
       // Send notification to employer about ad approval
       try {
-        const notificationController = require('./notificationController');
+        const notificationController = require("./notificationController");
         await notificationController.sendNotificationWithStorage(
           updatedAd.employer.user.id,
-          'JOB_APPROVED',
+          "JOB_APPROVED",
           {
             jobTitle: updatedAd.title,
-            adId: updatedAd.id
-          }
+            adId: updatedAd.id,
+          },
         );
 
         // Send job match notifications to candidates
@@ -2392,11 +2410,14 @@ class BranchAdminController {
           jobDetails,
         );
       } catch (notificationError) {
-        console.error('Failed to send ad approval notification:', notificationError);
+        console.error(
+          "Failed to send ad approval notification:",
+          notificationError,
+        );
         // Don't fail the main operation if notification fails
       }
 
-      res.json(createResponse('Ad approved successfully', updatedAd));
+      res.json(createResponse("Ad approved successfully", updatedAd));
     } catch (error) {
       next(error);
     }
@@ -2412,38 +2433,41 @@ class BranchAdminController {
       const updatedAd = await req.prisma.ad.update({
         where: { id: adId },
         data: {
-          status: 'REJECTED',
+          status: "REJECTED",
           rejectedAt: new Date(),
           rejectedBy: req.user.userId,
-          rejectionReason: rejectionReason || 'Not specified'
+          rejectionReason: rejectionReason || "Not specified",
         },
         include: {
           employer: {
             include: {
-              user: true
-            }
-          }
-        }
+              user: true,
+            },
+          },
+        },
       });
 
       // Send notification to employer about ad rejection
       try {
-        const notificationController = require('./notificationController');
+        const notificationController = require("./notificationController");
         await notificationController.sendNotificationWithStorage(
           updatedAd.employer.user.id,
-          'JOB_REJECTED',
+          "JOB_REJECTED",
           {
             jobTitle: updatedAd.title,
             adId: updatedAd.id,
-            reason: rejectionReason || 'Please contact support for details'
-          }
+            reason: rejectionReason || "Please contact support for details",
+          },
         );
       } catch (notificationError) {
-        console.error('Failed to send ad rejection notification:', notificationError);
+        console.error(
+          "Failed to send ad rejection notification:",
+          notificationError,
+        );
         // Don't fail the main operation if notification fails
       }
 
-      res.json(createResponse('Ad rejected successfully', updatedAd));
+      res.json(createResponse("Ad rejected successfully", updatedAd));
     } catch (error) {
       next(error);
     }
@@ -2556,7 +2580,10 @@ class BranchAdminController {
             user.email,
           );
         } catch (notificationError) {
-          console.error("Failed to send welcome notification:", notificationError);
+          console.error(
+            "Failed to send welcome notification:",
+            notificationError,
+          );
         }
 
         return employer;

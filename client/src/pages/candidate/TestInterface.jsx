@@ -10,7 +10,7 @@ import Alert from '../../components/ui/Alert'
 import Loader from '../../components/ui/Loader'
 
 const TestInterface = () => {
-  const { toast } = useToast()
+  const { success: showSuccess, error: showError } = useToast()
   const { user, isAuthenticated, login, register, logout } = useCandidateAuth()
   const { 
     profile, 
@@ -65,9 +65,9 @@ const TestInterface = () => {
       error: error ? error.message : null,
       success: !error
     }
-    
+
     setApiResponses(prev => [logEntry, ...prev.slice(0, 19)]) // Keep last 20 logs
-    
+
     if (debugMode) {
       console.log(`[API TEST] ${action}:`, error || response)
     }
@@ -82,13 +82,13 @@ const TestInterface = () => {
       data,
       timestamp: new Date().toISOString()
     }
-    
+
     setTestResults(prev => [...prev, result])
-    
+
     if (success) {
-      toast.success(step, message)
+      showSuccess(step, message)
     } else {
-      toast.error(step, message)
+      showError(step, message)
     }
   }
 
@@ -104,7 +104,7 @@ const TestInterface = () => {
       try {
         const registerResponse = await register(testCredentials)
         logApiResponse('Register', registerResponse)
-        
+
         if (registerResponse.success) {
           addTestResult('Registration', true, 'Account created successfully', registerResponse.user)
         } else {
@@ -261,7 +261,7 @@ const TestInterface = () => {
   const clearTestData = () => {
     setTestResults([])
     setApiResponses([])
-    toast.info('Test Data Cleared', 'All test results and logs have been cleared')
+    showSuccess('Test Data Cleared', 'All test results and logs have been cleared')
   }
 
   return (
@@ -274,7 +274,7 @@ const TestInterface = () => {
         <p className="text-gray-600">
           Comprehensive testing interface for all candidate features and API endpoints
         </p>
-        
+
         {/* Status Bar */}
         <div className="mt-4 flex items-center gap-4">
           <div className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -284,13 +284,13 @@ const TestInterface = () => {
           }`}>
             {isAuthenticated ? 'Authenticated' : 'Not Authenticated'}
           </div>
-          
+
           {user && (
             <div className="text-sm text-gray-600">
               Logged in as: {user.firstName} {user.lastName} ({user.email})
             </div>
           )}
-          
+
           <Button
             onClick={() => setDebugMode(!debugMode)}
             variant={debugMode ? 'primary' : 'secondary'}
@@ -312,7 +312,7 @@ const TestInterface = () => {
                 Runs complete end-to-end test including registration, login, profile management, 
                 applications, bookmarks, and dashboard access.
               </p>
-              
+
               {/* Test Credentials */}
               <div className="mb-4">
                 <h3 className="font-medium mb-2">Test Account Credentials:</h3>
@@ -340,7 +340,7 @@ const TestInterface = () => {
                     'Run Automated Test'
                   )}
                 </Button>
-                
+
                 <Button
                   onClick={clearTestData}
                   variant="secondary"
@@ -355,7 +355,7 @@ const TestInterface = () => {
           <Card>
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">Test Results</h2>
-              
+
               {testResults.length === 0 ? (
                 <p className="text-gray-500">No tests run yet</p>
               ) : (
@@ -400,7 +400,7 @@ const TestInterface = () => {
           <Card>
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">Manual Exploration</h2>
-              
+
               {/* Authentication Tests */}
               <div className="mb-6">
                 <h3 className="font-medium mb-3">Authentication</h3>
@@ -426,7 +426,7 @@ const TestInterface = () => {
                   >
                     Fetch Profile
                   </Button>
-                  
+
                   <Button 
                     onClick={() => updateProfile(profileData)} 
                     size="sm" 
@@ -449,7 +449,7 @@ const TestInterface = () => {
                     placeholder="Enter job ID"
                     size="sm"
                   />
-                  
+
                   <div className="grid grid-cols-2 gap-2">
                     <Button onClick={testBookmarkAdd} size="sm" disabled={!isAuthenticated}>
                       Add Bookmark
@@ -503,7 +503,7 @@ const TestInterface = () => {
           <Card>
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">Current Data</h2>
-              
+
               {loading && (
                 <div className="flex items-center gap-2 mb-4">
                   <Loader size="sm" />
@@ -584,7 +584,7 @@ const TestInterface = () => {
         <Card className="mt-8">
           <div className="p-6">
             <h2 className="text-xl font-semibold mb-4">API Response Log</h2>
-            
+
             {apiResponses.length === 0 ? (
               <p className="text-gray-500">No API calls logged yet</p>
             ) : (
@@ -604,7 +604,7 @@ const TestInterface = () => {
                         {new Date(log.timestamp).toLocaleTimeString()}
                       </span>
                     </div>
-                    
+
                     {log.error ? (
                       <div className="text-red-600">Error: {log.error}</div>
                     ) : (

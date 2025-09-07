@@ -38,7 +38,7 @@ const CandidateProfileView = () => {
       // Use different API endpoints based on user role
       let apiUrl = '';
       if (user?.role === 'EMPLOYER') {
-        apiUrl = `/api/employer/candidates/${candidateId}/profile`;
+        apiUrl = `/api/employers/candidates/${candidateId}/profile`;
       } else if (user?.role === 'BRANCH_ADMIN') {
         apiUrl = `/api/branch-admin/candidates/${candidateId}/profile`;
       } else {

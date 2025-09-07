@@ -81,7 +81,7 @@ const AdsList = () => {
     { value: "DRAFT", label: "Draft" },
     { value: "PENDING_APPROVAL", label: "Pending Approval" },
     { value: "APPROVED", label: "Approved" },
-    { value: "ARCHIVED", label: "Archived" },
+    { value: "CLOSED", label: "Closed" },
   ];
 
   useEffect(() => {
@@ -201,12 +201,9 @@ const AdsList = () => {
     <div>
       <div>
         {/* Header */}
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center px-2 mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900"></h1>
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
-              Job Ads
-            </h1>
+            <h1 class="text-xl font-bold text-gray-900">Job Ads</h1>
             <p className="text-gray-600 mt-1 text-xs">
               {isAdminView()
                 ? "Employer job postings - Admin view"
@@ -224,7 +221,7 @@ const AdsList = () => {
               >
                 <Button>
                   <PlusIcon className="h-4 w-4 mr-2" />
-                  Add
+                  Create Job
                 </Button>
               </Link>
             )}

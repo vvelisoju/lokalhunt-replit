@@ -11,7 +11,7 @@ import {
   LockClosedIcon,
 } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
-import { toast } from "react-hot-toast";
+import { useToast } from "../components/ui/Toast";
 
 const Login = () => {
   const { t } = useTranslation();
@@ -20,13 +20,16 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || "/";
+  const { success: showSuccess, error: showError } = useToast();
 
   // Check if user came from register/forgot-password/logout
-  const navigationSource = location.state?.from?.pathname || location.state?.source;
-  const isFromAuthPages = navigationSource === '/register' || 
-                         navigationSource === '/forgot-password' ||
-                         location.state?.source === 'logout' ||
-                         location.state?.fromLogout;
+  const navigationSource =
+    location.state?.from?.pathname || location.state?.source;
+  const isFromAuthPages =
+    navigationSource === "/register" ||
+    navigationSource === "/forgot-password" ||
+    location.state?.source === "logout" ||
+    location.state?.fromLogout;
 
   // State declarations moved to the top to comply with Rules of Hooks
   const [formData, setFormData] = useState({
@@ -43,36 +46,41 @@ const Login = () => {
       localStorage.getItem("token") || localStorage.getItem("candidateToken");
 
     // Skip redirect if coming from logout to prevent loops
-    const isFromLogout = location.state?.source === 'logout' || 
-                        location.state?.fromLogout ||
-                        sessionStorage.getItem('logout_redirect') === 'true';
-    
-    console.log("Login useEffect - Auth state:", { 
-      isAuthenticated, 
-      hasUser: !!user, 
-      hasValidToken, 
-      loading, 
+    const isFromLogout =
+      location.state?.source === "logout" ||
+      location.state?.fromLogout ||
+      sessionStorage.getItem("logout_redirect") === "true";
+
+    console.log("Login useEffect - Auth state:", {
+      isAuthenticated,
+      hasUser: !!user,
+      hasValidToken,
+      loading,
       isFromLogout,
-      pathname: location.pathname 
+      pathname: location.pathname,
     });
 
     // CRITICAL FIX: If no valid token but isAuthenticated is true, this is an inconsistent state from logout
     // Force clear the authentication state immediately
     if (isAuthenticated && !hasValidToken && !loading) {
-      console.log("Login useEffect - Detected inconsistent auth state after logout, resetting");
-      
+      console.log(
+        "Login useEffect - Detected inconsistent auth state after logout, resetting",
+      );
+
       // Import and use the logout utility to clear everything properly
-      import("../utils/authUtils").then(({ performLogout }) => {
-        performLogout(navigate);
-      }).catch(() => {
-        // Fallback: manually clear state
-        if (window.authContext) {
-          window.authContext.setUser?.(null);
-          window.authContext.setIsAuthenticated?.(false);
-          window.authContext.setLoading?.(false);
-        }
-      });
-      
+      import("../utils/authUtils")
+        .then(({ performLogout }) => {
+          performLogout(navigate);
+        })
+        .catch(() => {
+          // Fallback: manually clear state
+          if (window.authContext) {
+            window.authContext.setUser?.(null);
+            window.authContext.setIsAuthenticated?.(false);
+            window.authContext.setLoading?.(false);
+          }
+        });
+
       return;
     }
 
@@ -94,14 +102,15 @@ const Login = () => {
       // Use requestAnimationFrame for smoother redirect without visible flicker
       const redirect = () => {
         // Double-check authentication state and ensure not from logout
-        const stillFromLogout = location.state?.source === 'logout' || 
-                               location.state?.fromLogout ||
-                               sessionStorage.getItem('logout_redirect') === 'true';
-        
+        const stillFromLogout =
+          location.state?.source === "logout" ||
+          location.state?.fromLogout ||
+          sessionStorage.getItem("logout_redirect") === "true";
+
         if (isAuthenticated && user?.role && !loading && !stillFromLogout) {
           // Clear any logout redirect flag
-          sessionStorage.removeItem('logout_redirect');
-          
+          sessionStorage.removeItem("logout_redirect");
+
           // Check if they came from a protected route
           const returnUrl = location.state?.from?.pathname;
 
@@ -161,22 +170,12 @@ const Login = () => {
   // Show success message from password reset
   useEffect(() => {
     if (location.state?.message && location.state?.type === "success") {
-      toast.success(location.state.message, {
-        duration: 4000,
-        style: {
-          background: "#10b981",
-          color: "#ffffff",
-          fontWeight: "600",
-          padding: "16px",
-          borderRadius: "12px",
-          maxWidth: "500px",
-        },
-      });
+      showSuccess(location.state.message);
 
       // Clear the state to prevent showing the message again on refresh
       navigate(location.pathname, { replace: true });
     }
-  }, [location.state, navigate, location.pathname]);
+  }, [location.state, navigate, location.pathname, showSuccess]);
 
   // Redirect authenticated users appropriately - only when on login page
 
@@ -215,7 +214,7 @@ const Login = () => {
 
     if (!validateForm()) {
       // Show validation error message
-      toast.error("Please fill in all required fields correctly.");
+      showError("Please fill in all required fields correctly.");
       return;
     }
 
@@ -237,7 +236,7 @@ const Login = () => {
         const user = result.user;
         console.log("Login successful, user:", user, "role:", user?.role);
 
-        toast.success("Login successful! Redirecting...");
+        showSuccess("Login successful! Redirecting...");
 
         // IMMEDIATE navigation without delay to prevent flickering
         const returnUrl = location.state?.from?.pathname;
@@ -263,7 +262,9 @@ const Login = () => {
           navigate("/candidate/dashboard", { replace: true });
         } else {
           // Default fallback - only set candidateToken for actual candidates
-          console.log("Unknown role, redirecting to candidate dashboard as default");
+          console.log(
+            "Unknown role, redirecting to candidate dashboard as default",
+          );
           if (user?.role === "CANDIDATE") {
             const token = localStorage.getItem("token");
             if (token) {
@@ -289,7 +290,7 @@ const Login = () => {
           result.error.toLowerCase().includes("verification"))
       ) {
         errorMessage =
-          "Please verify your account before logging in. Check your SMS for verification code.";
+          "Your account needs verification. Use 'Forgot Password' to complete your registration and set your password";
       } else if (
         result.error &&
         (result.error.toLowerCase().includes("not found") ||
@@ -307,17 +308,7 @@ const Login = () => {
         errorMessage = result.error;
       }
 
-      toast.error(errorMessage, {
-        duration: 4000,
-        style: {
-          background: "#ef4444",
-          color: "#ffffff",
-          fontWeight: "600",
-          padding: "16px",
-          borderRadius: "12px",
-          maxWidth: "500px",
-        },
-      });
+      showError(errorMessage);
 
       // Also set form errors for visual feedback
       setErrors({
@@ -341,14 +332,14 @@ const Login = () => {
         if (status === 401) {
           if (serverMessage && serverMessage.toLowerCase().includes("verify")) {
             errorMessage =
-              "Please verify your account before logging in. Check your SMS for verification code.";
+              "Your account needs verification. Use 'Forgot Password' to complete your registration and set your password";
           } else {
             errorMessage = "Wrong password. Try again or login with OTP.";
           }
         } else if (status === 403) {
           if (serverMessage && serverMessage.toLowerCase().includes("verify")) {
             errorMessage =
-              "Please verify your account before logging in. Check your SMS for verification code.";
+              "Your account needs verification. Use 'Forgot Password' to complete your registration and set your password";
           } else {
             errorMessage = "Account is deactivated. Please contact support.";
           }
@@ -363,7 +354,7 @@ const Login = () => {
             serverMessage.toLowerCase().includes("verification")
           ) {
             errorMessage =
-              "Please verify your account before logging in. Check your SMS for verification code.";
+              "Your account needs verification. Use 'Forgot Password' to complete your registration and set your password";
           } else if (
             serverMessage.toLowerCase().includes("not found") ||
             serverMessage.toLowerCase().includes("exist")
@@ -382,17 +373,7 @@ const Login = () => {
         errorMessage = `Login failed: ${error.message}`;
       }
 
-      toast.error(errorMessage, {
-        duration: 4000,
-        style: {
-          background: "#ef4444",
-          color: "#ffffff",
-          fontWeight: "600",
-          padding: "16px",
-          borderRadius: "12px",
-          maxWidth: "500px",
-        },
-      });
+      showError(errorMessage);
 
       // Also set form errors for visual feedback
       setErrors({
@@ -409,21 +390,24 @@ const Login = () => {
   };
 
   // Check if coming from logout - more comprehensive check
-  const isFromLogout = location.state?.source === 'logout' || 
-                      location.state?.fromLogout ||
-                      sessionStorage.getItem('logout_redirect') === 'true';
+  const isFromLogout =
+    location.state?.source === "logout" ||
+    location.state?.fromLogout ||
+    sessionStorage.getItem("logout_redirect") === "true";
 
   // Clear logout redirect flag if it exists - but do it in useEffect to avoid infinite re-renders
   useEffect(() => {
-    if (sessionStorage.getItem('logout_redirect')) {
-      sessionStorage.removeItem('logout_redirect');
+    if (sessionStorage.getItem("logout_redirect")) {
+      sessionStorage.removeItem("logout_redirect");
     }
   }, []);
 
   // CRITICAL FIX: Show loading if we have authentication data but not from logout
   // This prevents the form from rendering while we have valid auth data
-  const hasValidAuthData = localStorage.getItem("token") && localStorage.getItem("user");
-  const shouldShowLoading = (loading && !isFromAuthPages) || (hasValidAuthData && !isFromLogout);
+  const hasValidAuthData =
+    localStorage.getItem("token") && localStorage.getItem("user");
+  const shouldShowLoading =
+    (loading && !isFromAuthPages) || (hasValidAuthData && !isFromLogout);
 
   // Show loading screen during initial auth check or when we have auth data
   if (shouldShowLoading && !isAuthenticated) {
@@ -435,7 +419,9 @@ const Login = () => {
           </div>
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
           <p className="mt-4 text-sm text-gray-600">
-            {hasValidAuthData ? "Redirecting to dashboard..." : "Checking authentication..."}
+            {hasValidAuthData
+              ? "Redirecting to dashboard..."
+              : "Checking authentication..."}
           </p>
         </div>
       </div>
@@ -451,7 +437,9 @@ const Login = () => {
             <img src="/images/logo.png" alt="LokalHunt Logo" className="h-14" />
           </div>
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-sm text-gray-600">Redirecting to dashboard...</p>
+          <p className="mt-4 text-sm text-gray-600">
+            Redirecting to dashboard...
+          </p>
         </div>
       </div>
     );

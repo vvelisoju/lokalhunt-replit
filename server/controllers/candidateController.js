@@ -195,14 +195,18 @@ class CandidateController {
         // Handle salary range
         if (jobPreferences.salaryRange !== undefined) {
           if (jobPreferences.salaryRange.min !== undefined) {
-            updateData.preferredSalaryMin = jobPreferences.salaryRange.min === "" || jobPreferences.salaryRange.min === null 
-              ? null 
-              : jobPreferences.salaryRange.min;
+            updateData.preferredSalaryMin =
+              jobPreferences.salaryRange.min === "" ||
+              jobPreferences.salaryRange.min === null
+                ? null
+                : jobPreferences.salaryRange.min;
           }
           if (jobPreferences.salaryRange.max !== undefined) {
-            updateData.preferredSalaryMax = jobPreferences.salaryRange.max === "" || jobPreferences.salaryRange.max === null 
-              ? null 
-              : jobPreferences.salaryRange.max;
+            updateData.preferredSalaryMax =
+              jobPreferences.salaryRange.max === "" ||
+              jobPreferences.salaryRange.max === null
+                ? null
+                : jobPreferences.salaryRange.max;
           }
         }
 
@@ -553,6 +557,11 @@ class CandidateController {
           include: {
             ad: {
               include: {
+                employer: {
+                  include: {
+                    user: { select: { name: true, email: true, phone: true } },
+                  },
+                },
                 company: true,
                 location: true,
                 _count: {
@@ -698,6 +707,11 @@ class CandidateController {
           include: {
             ad: {
               include: {
+                employer: {
+                  include: {
+                    user: { select: { name: true, email: true, phone: true } },
+                  },
+                },
                 company: true,
                 location: true,
                 _count: {
@@ -1235,14 +1249,18 @@ class CandidateController {
           updateData.preferredLocations = jobPreferences.preferredLocations;
         if (jobPreferences.salaryRange !== undefined) {
           if (jobPreferences.salaryRange.min !== undefined) {
-            updateData.preferredSalaryMin = jobPreferences.salaryRange.min === "" || jobPreferences.salaryRange.min === null 
-              ? null 
-              : jobPreferences.salaryRange.min;
+            updateData.preferredSalaryMin =
+              jobPreferences.salaryRange.min === "" ||
+              jobPreferences.salaryRange.min === null
+                ? null
+                : jobPreferences.salaryRange.min;
           }
           if (jobPreferences.salaryRange.max !== undefined) {
-            updateData.preferredSalaryMax = jobPreferences.salaryRange.max === "" || jobPreferences.salaryRange.max === null 
-              ? null 
-              : jobPreferences.salaryRange.max;
+            updateData.preferredSalaryMax =
+              jobPreferences.salaryRange.max === "" ||
+              jobPreferences.salaryRange.max === null
+                ? null
+                : jobPreferences.salaryRange.max;
           }
         }
         if (jobPreferences.jobTypes !== undefined)
@@ -1911,7 +1929,9 @@ class CandidateController {
               company: true,
               location: true,
               employer: {
-                include: { user: { select: { name: true, email: true } } },
+                include: {
+                  user: { select: { name: true, email: true, phone: true } },
+                },
               },
             },
           },
@@ -2122,6 +2142,11 @@ class CandidateController {
         skip,
         take: parseInt(limit),
         include: {
+          employer: {
+            include: {
+              user: { select: { name: true, email: true, phone: true } },
+            },
+          },
           company: true,
           location: true,
           employer: { select: { isVerified: true } },
@@ -2240,6 +2265,11 @@ class CandidateController {
         skip,
         take: parseInt(limit),
         include: {
+          employer: {
+            include: {
+              user: { select: { name: true, email: true, phone: true } },
+            },
+          },
           company: true,
           location: true,
           employer: { select: { isVerified: true } },
@@ -3059,6 +3089,11 @@ class CandidateController {
           skip,
           take: parseInt(limit),
           include: {
+            employer: {
+              include: {
+                user: { select: { name: true, email: true, phone: true } },
+              },
+            },
             company: {
               select: {
                 id: true,

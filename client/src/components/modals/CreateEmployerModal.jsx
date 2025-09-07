@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { UserIcon, EnvelopeIcon, PhoneIcon, EyeIcon, EyeSlashIcon, BuildingOfficeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
@@ -7,8 +6,10 @@ import FormInput from '../ui/FormInput';
 import Button from '../ui/Button';
 import CityDropdown from '../ui/CityDropdown';
 import Modal from '../ui/Modal';
+import { useToast } from '../ui/Toast';
 
 const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
+  const { success, error: showError } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -90,7 +91,7 @@ const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
     e.preventDefault();
 
     if (!validateForm()) {
-      toast.error('Please fix the errors below');
+      showError('Please fix the errors below');
       return;
     }
 
@@ -112,7 +113,7 @@ const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
         console.log('Registration response:', response);
 
         if (response.success || response.status === 'success') {
-          toast.success('Employer created successfully!');
+          success('Employer created successfully!');
           // Reset form first
           setFormData({
             firstName: '',
@@ -138,13 +139,13 @@ const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
 
           if (errorMessage.toLowerCase().includes('email already exists') ||
               errorMessage.toLowerCase().includes('user with this email')) {
-            toast.error('This email address is already registered. Please use a different email.');
+            showError('This email address is already registered. Please use a different email.');
           } else if (errorMessage.includes('passwordHash')) {
-            toast.error('There was an issue with the password. Please try again.');
+            showError('There was an issue with the password. Please try again.');
           } else if (errorMessage.includes('Invalid')) {
-            toast.error('Please check all fields and try again.');
+            showError('Please check all fields and try again.');
           } else {
-            toast.error('Unable to create employer account. Please try again.');
+            showError('Unable to create employer account. Please try again.');
           }
         }
       } catch (apiError) {
@@ -153,9 +154,9 @@ const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
         if (apiError.response && apiError.response.data) {
           const errorData = apiError.response.data;
           if (errorData.statusCode === 409 || errorData.message?.toLowerCase().includes('email already exists')) {
-            toast.error('This email address is already registered. Please use a different email.');
+            showError('This email address is already registered. Please use a different email.');
           } else {
-            toast.error(errorData.message || 'Unable to create employer account.');
+            showError(errorData.message || 'Unable to create employer account.');
           }
         } else {
           throw apiError; // Re-throw to be caught by outer catch
@@ -165,11 +166,11 @@ const CreateEmployerModal = ({ isOpen, onClose, onSuccess }) => {
       console.error('Error creating employer:', error);
       // Show user-friendly error for network or unexpected errors
       if (error.response && error.response.status === 409) {
-        toast.error('This email address is already registered. Please use a different email.');
+        showError('This email address is already registered. Please use a different email.');
       } else if (error.message && error.message.includes('Network')) {
-        toast.error('Network error. Please check your connection and try again.');
+        showError('Network error. Please check your connection and try again.');
       } else {
-        toast.error('Unable to create employer account. Please try again or contact support.');
+        showError('Unable to create employer account. Please try again or contact support.');
       }
     } finally {
       setIsLoading(false);

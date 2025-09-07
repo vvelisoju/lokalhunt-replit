@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -18,7 +17,7 @@ import Loader from "../../components/ui/Loader";
 import CandidateCard from "../../components/ui/CandidateCard";
 import { useRole } from "../../context/RoleContext";
 import { useSubscription } from "../../context/SubscriptionContext";
-import { toast } from "react-hot-toast";
+import { useToast } from "../../components/ui/Toast"; // Import the custom Toast hook
 
 const PremiumCandidates = () => {
   const [premiumCandidates, setPremiumCandidates] = useState([]);
@@ -33,6 +32,7 @@ const PremiumCandidates = () => {
   // Subscription context
   const { subscription, hasHRAssistPlan, isLoading } = useSubscription();
   const hasActivePlan = hasHRAssistPlan();
+  const { toast } = useToast(); // Destructure toast from the custom hook
 
   useEffect(() => {
     if (hasActivePlan && !isLoading) {
@@ -46,7 +46,7 @@ const PremiumCandidates = () => {
       setPremiumCandidates([]);
     } catch (error) {
       console.error("Error loading premium candidates:", error);
-      toast.error("Failed to load premium candidates");
+      toast.error("Failed to load premium candidates"); // Use custom toast here
     }
   };
 
@@ -67,7 +67,7 @@ const PremiumCandidates = () => {
             <p className="text-orange-100 text-lg">
               Upgrade to HR-Assist Plan to access pre-screened top talent
             </p>
-            
+
             {/* Current Plan Indicator */}
             <div className="mt-6 inline-flex items-center px-4 py-2 bg-white bg-opacity-20 rounded-full">
               <span className="text-orange-100 text-sm">
@@ -84,7 +84,7 @@ const PremiumCandidates = () => {
                 <h2 className="text-2xl font-bold text-gray-900 mb-8">
                   Why Choose HR-Assist Plan?
                 </h2>
-                
+
                 <div className="space-y-6">
                   <div className="flex items-start space-x-4">
                     <div className="bg-green-100 rounded-full p-2 flex-shrink-0">
@@ -93,7 +93,7 @@ const PremiumCandidates = () => {
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-2">Quality Guarantee</h3>
                       <p className="text-gray-600">
-                        Pre-screened candidates with verified skills and experience. 
+                        Pre-screened candidates with verified skills and experience.
                         Only the top 10% make it to your premium list.
                       </p>
                     </div>
@@ -106,7 +106,7 @@ const PremiumCandidates = () => {
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-2">Emergency Support</h3>
                       <p className="text-gray-600">
-                        24/7 dedicated support from our recruitment experts. 
+                        24/7 dedicated support from our recruitment experts.
                         Get urgent hiring needs resolved within hours.
                       </p>
                     </div>
@@ -119,7 +119,7 @@ const PremiumCandidates = () => {
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-2">Save Time</h3>
                       <p className="text-gray-600">
-                        Skip the initial screening process. Our team does the heavy lifting 
+                        Skip the initial screening process. Our team does the heavy lifting
                         so you can focus on final interviews.
                       </p>
                     </div>
@@ -138,7 +138,7 @@ const PremiumCandidates = () => {
                     <p className="text-gray-600 mb-6">
                       Access to 500+ pre-screened candidates in your industry
                     </p>
-                    
+
                     {/* Mock candidate previews */}
                     <div className="space-y-3">
                       {[1, 2, 3].map((i) => (
@@ -247,7 +247,7 @@ const PremiumCandidates = () => {
               Premium Candidates Coming Soon
             </h3>
             <p className="text-gray-600 max-w-md mx-auto">
-              Our team is currently curating the best candidates for your industry. 
+              Our team is currently curating the best candidates for your industry.
               You'll be notified as soon as premium candidates are available.
             </p>
           </div>

@@ -6,6 +6,7 @@ import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
+import useToast from '../hooks/useToast'; // Import the custom toast hook
 import { 
   MagnifyingGlassIcon, 
   MapPinIcon,
@@ -25,18 +26,19 @@ import { useAuth } from '../context/AuthContext'
 import Loader from '../components/ui/Loader'
 
 const Jobs = () => {
-  const { t } = useTranslation()
-  const navigate = useNavigate()
-  const { user, isAuthenticated } = useAuth()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [jobs, setJobs] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [applying, setApplying] = useState(null)
-  const [totalJobs, setTotalJobs] = useState(0)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [jobsPerPage] = useState(12)
-  const [showLoginModal, setShowLoginModal] = useState(false)
-  
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [applying, setApplying] = useState(null);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [jobsPerPage] = useState(12);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const { success, error: showError } = useToast();
+
   // Filter states
   const [filters, setFilters] = useState({
     search: searchParams.get('search') || '',
@@ -46,12 +48,12 @@ const Jobs = () => {
     experience: [],
     salaryRange: '',
     sortBy: 'newest'
-  })
+  });
 
   // Categories and other filter data
-  const [categories, setCategories] = useState([])
-  const [locations, setLocations] = useState([])
-  const [skills, setSkills] = useState([])
+  const [categories, setCategories] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [skills, setSkills] = useState([]);
 
   const jobTypes = [
     { id: 'REMOTE', label: 'Remote', value: 'REMOTE' },
@@ -60,21 +62,21 @@ const Jobs = () => {
     { id: 'PART_TIME', label: 'Part Time', value: 'PART_TIME' },
     { id: 'FULL_TIME', label: 'Full Time', value: 'FULL_TIME' },
     { id: 'INTERNSHIP', label: 'Internship', value: 'INTERNSHIP' }
-  ]
+  ];
 
   const experienceLevels = [
     { id: 'ENTRY', label: 'Entry Level (0-2 years)', value: 'ENTRY' },
     { id: 'MID', label: 'Mid Level (2-5 years)', value: 'MID' },
     { id: 'SENIOR', label: 'Senior Level (5+ years)', value: 'SENIOR' },
     { id: 'EXECUTIVE', label: 'Executive Level', value: 'EXECUTIVE' }
-  ]
+  ];
 
   const salaryRanges = [
     { id: '0-25000', label: '₹0 - ₹25,000', value: '0-25000' },
     { id: '25000-50000', label: '₹25,000 - ₹50,000', value: '25000-50000' },
     { id: '50000-100000', label: '₹50,000 - ₹1,00,000', value: '50000-100000' },
     { id: '100000+', label: '₹1,00,000+', value: '100000+' }
-  ]
+  ];
 
   const sortOptions = [
     { value: 'newest', label: 'Newest First' },
@@ -82,13 +84,13 @@ const Jobs = () => {
     { value: 'salary-high', label: 'Salary: High to Low' },
     { value: 'salary-low', label: 'Salary: Low to High' },
     { value: 'relevance', label: 'Most Relevant' }
-  ]
+  ];
 
   // Refs for preventing multiple API calls and debouncing
-  const mountedRef = useRef(true)
-  const loadingRef = useRef(false)
-  const searchTimeoutRef = useRef(null)
-  const lastParamsRef = useRef('')
+  const mountedRef = useRef(true);
+  const loadingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
+  const lastParamsRef = useRef('');
 
   // Memoized API parameters to prevent unnecessary re-renders
   const apiParams = useMemo(() => {
@@ -102,101 +104,101 @@ const Jobs = () => {
       experience: filters.experience.join(','),
       salaryRange: filters.salaryRange,
       sortBy: filters.sortBy
-    }
+    };
 
     // Remove empty parameters
     Object.keys(params).forEach(key => {
       if (!params[key] || params[key] === '') {
-        delete params[key]
+        delete params[key];
       }
-    })
+    });
 
-    return params
-  }, [currentPage, jobsPerPage, filters])
+    return params;
+  }, [currentPage, jobsPerPage, filters]);
 
   // Debounced load jobs function
   const debouncedLoadJobs = useCallback(async (params, isSearching = false) => {
     // Clear existing timeout for search debouncing
     if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
+      clearTimeout(searchTimeoutRef.current);
     }
 
     // If it's a search operation, debounce it
     if (isSearching && filters.search) {
       searchTimeoutRef.current = setTimeout(() => {
-        loadJobsInternal(params)
-      }, 400) // 400ms debounce
-      return
+        loadJobsInternal(params);
+      }, 400); // 400ms debounce
+      return;
     }
 
     // For non-search operations, load immediately
-    loadJobsInternal(params)
-  }, [filters.search])
+    loadJobsInternal(params);
+  }, [filters.search]);
 
   const loadJobsInternal = useCallback(async (params) => {
     // Prevent duplicate API calls
-    const paramsString = JSON.stringify(params)
+    const paramsString = JSON.stringify(params);
     if (loadingRef.current || lastParamsRef.current === paramsString) {
-      return
+      return;
     }
 
-    loadingRef.current = true
-    lastParamsRef.current = paramsString
+    loadingRef.current = true;
+    lastParamsRef.current = paramsString;
 
     try {
-      setLoading(true)
+      setLoading(true);
 
       // Use candidate API for authenticated users to get bookmark/application status
       // Otherwise use public API
-      let response
+      let response;
       if (isAuthenticated === true && user?.role === 'CANDIDATE') {
-        response = await candidateApi.searchJobsWithStatus(params)
+        response = await candidateApi.searchJobsWithStatus(params);
       } else {
-        response = await publicApi.searchJobs(params)
+        response = await publicApi.searchJobs(params);
       }
-      
+
       if (mountedRef.current) {
-        const jobs = response.data?.jobs || []
-        setJobs(jobs)
-        setTotalJobs(response.data?.total || 0)
+        const jobs = response.data?.jobs || [];
+        setJobs(jobs);
+        setTotalJobs(response.data?.total || 0);
       }
     } catch (error) {
-      console.error('Error loading jobs:', error)
+      console.error('Error loading jobs:', error);
       if (mountedRef.current) {
-        setJobs([])
-        setTotalJobs(0)
+        setJobs([]);
+        setTotalJobs(0);
       }
     } finally {
-      loadingRef.current = false
+      loadingRef.current = false;
       if (mountedRef.current) {
-        setLoading(false)
+        setLoading(false);
       }
     }
-  }, [isAuthenticated, user?.role])
+  }, [isAuthenticated, user?.role]);
 
   // Single useEffect that loads jobs when necessary
   useEffect(() => {
     // Only load jobs if authentication state is determined
     if (isAuthenticated !== null && isAuthenticated !== undefined) {
-      const isSearchOperation = filters.search !== lastParamsRef.current?.search
-      debouncedLoadJobs(apiParams, isSearchOperation)
+      const isSearchOperation = filters.search !== lastParamsRef.current?.search;
+      debouncedLoadJobs(apiParams, isSearchOperation);
     }
-  }, [apiParams, isAuthenticated, user?.role, debouncedLoadJobs])
+  }, [apiParams, isAuthenticated, user?.role, debouncedLoadJobs]);
 
   // Load filter data on mount
   useEffect(() => {
-    loadFilterData()
-  }, [])
+    loadFilterData();
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      mountedRef.current = false
+      mountedRef.current = false;
       if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current)
+        clearTimeout(searchTimeoutRef.current);
       }
-    }
-  }, [])
+    };
+  }, []);
 
 
 
@@ -206,14 +208,14 @@ const Jobs = () => {
       const [categoriesRes, citiesRes] = await Promise.all([
         publicApi.getCategories().catch(() => ({ data: [] })),
         publicApi.getCities().catch(() => ({ data: [] }))
-      ])
+      ]);
 
-      setCategories(categoriesRes.data || [])
-      setLocations(citiesRes.data || [])
+      setCategories(categoriesRes.data || []);
+      setLocations(citiesRes.data || []);
     } catch (error) {
-      console.error('Error loading filter data:', error)
+      console.error('Error loading filter data:', error);
     }
-  }
+  };
 
   const handleFilterChange = (filterType, value) => {
     if (filterType === 'jobType' || filterType === 'experience') {
@@ -222,26 +224,26 @@ const Jobs = () => {
         [filterType]: prev[filterType].includes(value)
           ? prev[filterType].filter(item => item !== value)
           : [...prev[filterType], value]
-      }))
+      }));
     } else {
       setFilters(prev => ({
         ...prev,
         [filterType]: value
-      }))
+      }));
     }
 
     // Reset to first page when filters change
-    setCurrentPage(1)
+    setCurrentPage(1);
 
     // Update URL params
-    const newSearchParams = new URLSearchParams(searchParams)
+    const newSearchParams = new URLSearchParams(searchParams);
     if (value && filterType !== 'jobType' && filterType !== 'experience') {
-      newSearchParams.set(filterType, value)
+      newSearchParams.set(filterType, value);
     } else if (!value || value === '') {
-      newSearchParams.delete(filterType)
+      newSearchParams.delete(filterType);
     }
-    setSearchParams(newSearchParams)
-  }
+    setSearchParams(newSearchParams);
+  };
 
   const clearAllFilters = () => {
     setFilters({
@@ -252,204 +254,270 @@ const Jobs = () => {
       experience: [],
       salaryRange: '',
       sortBy: 'newest'
-    })
-    setCurrentPage(1)
-    setSearchParams(new URLSearchParams())
-  }
+    });
+    setCurrentPage(1);
+    setSearchParams(new URLSearchParams());
+  };
 
   // Optimized Apply function with instant UI updates
   const handleApplyToJob = useCallback(async (jobId, event) => {
-    event.stopPropagation() // Prevent card click navigation
+    event.stopPropagation(); // Prevent card click navigation
 
     // Check authentication first
     if (!isAuthenticated) {
-      toast.error('Please log in to apply for jobs')
-      setShowLoginModal(true)
-      return
+      showError('Please log in to apply for jobs');
+      setShowLoginModal(true);
+      return;
     }
-    
+
     if (!isAuthenticated) {
-      toast.error('Please log in to apply for jobs')
-      return
+      showError('Please log in to apply for jobs');
+      return;
     }
 
     if (user?.role !== 'CANDIDATE') {
-      toast.error('Only candidates can apply for jobs')
-      return
+      showError('Only candidates can apply for jobs');
+      return;
     }
 
-    setApplying(jobId)
+    setApplying(jobId);
     try {
-      const response = await candidateApi.applyToJob(jobId)
+      const response = await candidateApi.applyToJob(jobId);
       if (response.status === 'success') {
-        toast.success('Application submitted successfully!')
+        success('Application submitted successfully!');
         // Update the job in the list to show applied status
         setJobs(prev => prev.map(job => 
           job.id === jobId ? { ...job, hasApplied: true } : job
-        ))
+        ));
       } else {
-        toast.error(response.message || 'Failed to submit application')
+        showError(response.message || 'Failed to submit application');
       }
     } catch (error) {
-      console.error('Error applying to job:', error)
+      console.error('Error applying to job:', error);
       if (error.response?.status === 409) {
-        toast.error('You have already applied to this job')
+        showError('You have already applied to this job');
         setJobs(prev => prev.map(job => 
           job.id === jobId ? { ...job, hasApplied: true } : job
-        ))
+        ));
       } else {
-        toast.error(error.response?.data?.message || 'Failed to submit application')
+        showError(error.response?.data?.message || 'Failed to apply for job');
       }
     } finally {
-      setApplying(null)
+      setApplying(null);
     }
-  }, [isAuthenticated, user?.role])
+  }, [isAuthenticated, user?.role]);
 
   const handleJobCardClick = (jobId) => {
-    navigate(`/jobs/${jobId}`)
-  }
+    navigate(`/jobs/${jobId}`);
+  };
 
   const handleBookmarkJob = useCallback(async (jobId, event) => {
-    event.stopPropagation() // Prevent card click navigation
-    
+    event.stopPropagation(); // Prevent card click navigation
+
     if (!isAuthenticated) {
-      toast.error('Please log in to bookmark jobs')
-      return
+      showError('Please log in to bookmark jobs');
+      return;
     }
 
     if (user?.role !== 'CANDIDATE') {
-      toast.error('Only candidates can bookmark jobs')
-      return
+      showError('Only candidates can bookmark jobs');
+      return;
     }
 
     try {
-      const job = jobs.find(j => j.id === jobId)
+      const job = jobs.find(j => j.id === jobId);
       if (job?.isBookmarked) {
-        await candidateApi.removeBookmark(jobId)
-        toast.success('Job removed from bookmarks')
+        await candidateApi.removeBookmark(jobId);
+        success('Job removed from bookmarks');
       } else {
-        await candidateApi.addBookmark(jobId)
-        toast.success('Job bookmarked successfully')
+        await candidateApi.addBookmark(jobId);
+        success('Job bookmarked successfully');
       }
-      
+
       // Update the job in the list instantly
       setJobs(prev => prev.map(job => 
         job.id === jobId ? { ...job, isBookmarked: !job.isBookmarked } : job
-      ))
+      ));
     } catch (error) {
-      console.error('Error bookmarking job:', error)
-      toast.error('Failed to bookmark job')
+      console.error('Error bookmarking job:', error);
+      if (job?.isBookmarked) {
+        showError(error.response?.data?.message || 'Failed to remove bookmark');
+      } else {
+        showError(error.response?.data?.message || 'Failed to bookmark job');
+      }
     }
-  }, [isAuthenticated, user?.role, jobs])
+  }, [isAuthenticated, user?.role, jobs]);
 
   // Memoized JobCard component to prevent unnecessary re-renders
-  const JobCard = React.memo(({ job }) => (
-    <div 
-      key={job.id}
-      onClick={() => handleJobCardClick(job.id)}
-      className="bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer p-6"
-    >
-      {/* Company Logo and Info */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-            {job.company?.logo ? (
-              <img src={job.company.logo} alt={job.company?.name} className="w-full h-full object-cover" />
-            ) : (
-              <BriefcaseIcon className="w-6 h-6 text-gray-400" />
-            )}
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-900 text-lg leading-tight">{job.title}</h3>
-            <p className="text-gray-600 text-sm">{job.company?.name}</p>
-          </div>
+  const JobCard = React.memo(({ job }) => {
+    const jobTypeBadge = getJobTypeBadge(job.categorySpecificFields?.employmentType);
+    const salaryDisplay = formatSalary(job.categorySpecificFields?.salaryMin, job.categorySpecificFields?.salaryMax);
+
+    return (
+      <div 
+        key={job.id}
+        onClick={() => handleJobCardClick(job.id)}
+        className="bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer p-6 relative"
+      >
+        {/* Status Badges */}
+        <div className="absolute top-4 right-4 flex flex-col items-end space-y-2">
+          {job.featured && (
+            <div className="relative">
+              <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-semibold">
+                Featured
+              </span>
+              <StarSolidIcon className="h-4 w-4 text-orange-500 absolute -top-1 -right-1" />
+            </div>
+          )}
+          {job.hasApplied && (
+            <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-semibold">
+              Applied
+            </span>
+          )}
         </div>
 
         {/* Bookmark Button */}
         <button
           onClick={(e) => handleBookmarkJob(job.id, e)}
-          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-          disabled={!isAuthenticated || user?.role !== 'CANDIDATE'}
+          className="absolute top-4 left-4 p-1 hover:bg-gray-100 rounded-full transition-colors"
+          title={job.isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
         >
           {job.isBookmarked ? (
-            <StarSolidIcon className="w-5 h-5 text-yellow-500" />
+            <StarSolidIcon className="h-5 w-5 text-yellow-500" />
           ) : (
-            <StarIcon className="w-5 h-5 text-gray-400 hover:text-yellow-500" />
+            <StarIcon className="h-5 w-5 text-gray-400 hover:text-yellow-500 transition-colors" />
           )}
         </button>
-      </div>
 
-      {/* Job Details */}
-      <div className="space-y-2 mb-4">
-        <div className="flex items-center text-sm text-gray-600">
-          <UsersIcon className="w-4 h-4 mr-2" />
-          <span>{job.vacancies || job.numberOfPositions || 1} Vacancy</span>
-        </div>
-        
-        <div className="flex items-center text-sm text-gray-600">
-          <CurrencyRupeeIcon className="w-4 h-4 mr-2" />
-          <span>
-            {job.categorySpecificFields?.salaryMin && job.categorySpecificFields?.salaryMax 
-              ? formatSalary(job.categorySpecificFields.salaryMin, job.categorySpecificFields.salaryMax)
-              : 'Salary not disclosed'
-            }
-          </span>
-        </div>
-
-        <div className="flex items-center text-sm text-gray-600">
-          <MapPinIcon className="w-4 h-4 mr-2" />
-          <span>{job.location?.name ? `${job.location.name}${job.location.state ? `, ${job.location.state}` : ''}` : 'Location not specified'}</span>
-        </div>
-      </div>
-
-      {/* Posted Date */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center text-xs text-gray-500">
-          <ClockIcon className="w-4 h-4 mr-1" />
-          <span>Recently posted</span>
+        {/* Company Logo and Basic Info */}
+        <div className="flex items-start mb-4 mt-6">
+          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
+            {job.company?.logo ? (
+              <img 
+                src={job.company.logo} 
+                alt={job.company.name}
+                className="w-8 h-8 object-contain"
+              />
+            ) : (
+              <BriefcaseIcon className="h-6 w-6 text-gray-500" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-gray-900 text-base mb-1 line-clamp-2">
+              {job.title}
+            </h3>
+            <p className="text-sm text-gray-600 truncate">{job.company?.name}</p>
+            {job.categorySpecificFields?.employmentType && (
+              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mt-2 ${jobTypeBadge.class}`}>
+                {jobTypeBadge.label}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Apply Button */}
-        <div>
-          {job.hasApplied ? (
-            <span className="px-4 py-2 bg-green-100 text-green-800 text-sm font-medium rounded-lg">
-              Applied
+        {/* Job Details */}
+        <div className="space-y-3 mb-6">
+          <div className="flex items-center text-sm text-gray-600">
+            <UsersIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span>{job.vacancies || 1} Vacancy</span>
+          </div>
+
+          <div className="flex items-center text-sm text-gray-600">
+            <CurrencyRupeeIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span className="truncate">{salaryDisplay}</span>
+          </div>
+
+          <div className="flex items-center text-sm text-gray-600">
+            <MapPinIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span className="truncate">
+              {job.location?.name || job.company?.city?.name || 'Location not specified'}
             </span>
-          ) : (
-            <Button
-              onClick={(e) => handleApplyToJob(job.id, e)}
-              disabled={applying === job.id}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg disabled:opacity-50"
-            >
-              {applying === job.id ? 'Applying...' : 'Apply Now'}
-            </Button>
+          </div>
+
+          {job.categorySpecificFields?.experience && (
+            <div className="flex items-center text-sm text-gray-600">
+              <BriefcaseIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="truncate">
+                {job.categorySpecificFields.experience} experience
+              </span>
+            </div>
           )}
+
+          {job.description && (
+            <div className="text-sm text-gray-600">
+              <p className="line-clamp-2 leading-relaxed">
+                {job.description}
+              </p>
+            </div>
+          )}
+
+          {job.categorySpecificFields?.skills && job.categorySpecificFields.skills.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {job.categorySpecificFields.skills.slice(0, 3).map((skill, index) => (
+                <span key={index} className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs">
+                  {skill}
+                </span>
+              ))}
+              {job.categorySpecificFields.skills.length > 3 && (
+                <span className="bg-gray-50 text-gray-600 px-2 py-1 rounded text-xs">
+                  +{job.categorySpecificFields.skills.length - 3} more
+                </span>
+              )}
+            </div>
+          )}
+
+          {job.validUntil && (
+            <div className="flex items-center text-sm text-gray-500">
+              <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span>Valid until {new Date(job.validUntil).toLocaleDateString()}</span>
+            </div>
+          )}
+
+          <div className="flex items-center text-sm text-gray-500">
+            <ClockIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span>{formatDate(job.createdAt)}</span>
+          </div>
         </div>
+
+        {/* Action Button */}
+        <button
+          onClick={(e) => handleApplyToJob(job.id, e)}
+          disabled={job.hasApplied || applying === job.id}
+          className={`w-full py-3 rounded-lg font-medium transition-all duration-200 text-sm ${
+            job.hasApplied
+              ? 'bg-green-100 text-green-700 cursor-not-allowed'
+              : applying === job.id
+              ? 'bg-blue-100 text-blue-700 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700 active:transform active:scale-95'
+          }`}
+        >
+          {applying === job.id ? 'Applying...' : job.hasApplied ? 'Applied' : 'Apply Now'}
+        </button>
       </div>
-    </div>
-  ))
+    );
+  });
 
   const formatSalary = (salaryMin, salaryMax) => {
-    if (!salaryMin && !salaryMax) return 'Salary not disclosed'
+    if (!salaryMin && !salaryMax) return 'Salary not disclosed';
     if (salaryMin && salaryMax) {
-      return `₹${salaryMin.toLocaleString()} - ₹${salaryMax.toLocaleString()}`
+      return `₹${salaryMin.toLocaleString()} - ₹${salaryMax.toLocaleString()}`;
     }
-    if (salaryMin) return `₹${salaryMin.toLocaleString()}+`
-    return `Up to ₹${salaryMax.toLocaleString()}`
-  }
+    if (salaryMin) return `₹${salaryMin.toLocaleString()}+`;
+    return `Up to ₹${salaryMax.toLocaleString()}`;
+  };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'Recently posted'
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffTime = Math.abs(now - date)
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
-    if (diffDays === 1) return '1 day ago'
-    if (diffDays <= 7) return `${diffDays} days ago`
-    if (diffDays <= 30) return `${Math.ceil(diffDays / 7)} weeks ago`
-    return date.toLocaleDateString()
-  }
+    if (!dateString) return 'Recently posted';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays <= 7) return `${diffDays} days ago`;
+    if (diffDays <= 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
+    return date.toLocaleDateString();
+  };
 
   const getJobTypeBadge = (jobType) => {
     const badgeClasses = {
@@ -459,8 +527,8 @@ const Jobs = () => {
       FREELANCE: 'bg-yellow-100 text-yellow-800',
       REMOTE: 'bg-indigo-100 text-indigo-800',
       INTERNSHIP: 'bg-pink-100 text-pink-800'
-    }
-    
+    };
+
     const labels = {
       FULL_TIME: 'Full Time',
       PART_TIME: 'Part Time',
@@ -468,13 +536,13 @@ const Jobs = () => {
       FREELANCE: 'Freelance',
       REMOTE: 'Remote',
       INTERNSHIP: 'Internship'
-    }
-    
+    };
+
     return {
       class: badgeClasses[jobType] || 'bg-gray-100 text-gray-800',
       label: labels[jobType] || jobType
-    }
-  }
+    };
+  };
 
   // Loading skeleton component
   const JobCardSkeleton = () => (
@@ -493,14 +561,14 @@ const Jobs = () => {
       </div>
       <div className="h-8 bg-gray-200 rounded"></div>
     </div>
-  )
+  );
 
-  const totalPages = Math.ceil(totalJobs / jobsPerPage)
+  const totalPages = Math.ceil(totalJobs / jobsPerPage);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      
+
 
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -644,7 +712,7 @@ const Jobs = () => {
                   Total jobs found: <span className="text-primary-600">{totalJobs}</span>
                 </h2>
               </div>
-              
+
               <div className="flex items-center space-x-4">
                 <label className="text-sm text-gray-700">Sort:</label>
                 <select
@@ -681,188 +749,49 @@ const Jobs = () => {
                 ))}
               </div>
             )}
-                      {/* Status Badges */}
-                      <div className="absolute top-4 right-4 flex flex-col items-end space-y-2">
-                        {job.featured && (
-                          <div className="relative">
-                            <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-semibold">
-                              Featured
-                            </span>
-                            <StarSolidIcon className="h-4 w-4 text-orange-500 absolute -top-1 -right-1" />
-                          </div>
-                        )}
-                        {job.hasApplied && (
-                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-semibold">
-                            Applied
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Bookmark Button */}
-                      <button
-                        onClick={(e) => handleBookmarkJob(job.id, e)}
-                        className="absolute top-4 left-4 p-1 hover:bg-gray-100 rounded-full transition-colors"
-                        title={job.isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
-                      >
-                        {job.isBookmarked ? (
-                          <StarSolidIcon className="h-5 w-5 text-yellow-500" />
-                        ) : (
-                          <StarIcon className="h-5 w-5 text-gray-400 hover:text-yellow-500 transition-colors" />
-                        )}
-                      </button>
-
-                      {/* Company Logo and Basic Info */}
-                      <div className="flex items-start mb-4 mt-6">
-                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
-                          {job.company?.logo ? (
-                            <img 
-                              src={job.company.logo} 
-                              alt={job.company.name}
-                              className="w-8 h-8 object-contain"
-                            />
-                          ) : (
-                            <BriefcaseIcon className="h-6 w-6 text-gray-500" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 text-base mb-1 line-clamp-2">
-                            {job.title}
-                          </h3>
-                          <p className="text-sm text-gray-600 truncate">{job.company?.name}</p>
-                          {job.categorySpecificFields?.employmentType && (
-                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mt-2 ${jobTypeBadge.class}`}>
-                              {jobTypeBadge.label}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Job Details */}
-                      <div className="space-y-3 mb-6">
-                        <div className="flex items-center text-sm text-gray-600">
-                          <UsersIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                          <span>{job.vacancies || 1} Vacancy</span>
-                        </div>
-                        
-                        <div className="flex items-center text-sm text-gray-600">
-                          <CurrencyRupeeIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                          <span className="truncate">{salaryDisplay}</span>
-                        </div>
-                        
-                        <div className="flex items-center text-sm text-gray-600">
-                          <MapPinIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                          <span className="truncate">
-                            {job.location?.name || job.company?.city?.name || 'Location not specified'}
-                          </span>
-                        </div>
-
-                        {job.categorySpecificFields?.experience && (
-                          <div className="flex items-center text-sm text-gray-600">
-                            <BriefcaseIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                            <span className="truncate">
-                              {job.categorySpecificFields.experience} experience
-                            </span>
-                          </div>
-                        )}
-
-                        {job.description && (
-                          <div className="text-sm text-gray-600">
-                            <p className="line-clamp-2 leading-relaxed">
-                              {job.description}
-                            </p>
-                          </div>
-                        )}
-
-                        {job.categorySpecificFields?.skills && job.categorySpecificFields.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {job.categorySpecificFields.skills.slice(0, 3).map((skill, index) => (
-                              <span key={index} className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs">
-                                {skill}
-                              </span>
-                            ))}
-                            {job.categorySpecificFields.skills.length > 3 && (
-                              <span className="bg-gray-50 text-gray-600 px-2 py-1 rounded text-xs">
-                                +{job.categorySpecificFields.skills.length - 3} more
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        
-                        {job.validUntil && (
-                          <div className="flex items-center text-sm text-gray-500">
-                            <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                            <span>Valid until {new Date(job.validUntil).toLocaleDateString()}</span>
-                          </div>
-                        )}
-                        
-                        <div className="flex items-center text-sm text-gray-500">
-                          <ClockIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                          <span>{formatDate(job.createdAt)}</span>
-                        </div>
-                      </div>
-
-                      {/* Action Button */}
-                      <button
-                        onClick={(e) => handleApplyToJob(job.id, e)}
-                        disabled={job.hasApplied || applying === job.id}
-                        className={`w-full py-3 rounded-lg font-medium transition-all duration-200 text-sm ${
-                          job.hasApplied
-                            ? 'bg-green-100 text-green-700 cursor-not-allowed'
-                            : applying === job.id
-                            ? 'bg-blue-100 text-blue-700 cursor-not-allowed'
-                            : 'bg-blue-600 text-white hover:bg-blue-700 active:transform active:scale-95'
-                        }`}
-                      >
-                        {applying === job.id ? 'Applying...' : job.hasApplied ? 'Applied' : 'Apply Now'}
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center mt-8 space-x-2">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                
-                {[...Array(Math.min(totalPages, 5))].map((_, index) => {
-                  const page = currentPage <= 3 ? index + 1 : currentPage - 2 + index
-                  if (page > totalPages) return null
-                  
-                  return (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-3 py-2 text-sm rounded-lg ${
-                        currentPage === page
-                          ? 'bg-primary-600 text-white'
-                          : 'border border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  )
-                })}
-                
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center mt-8 space-x-2">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+
+          {[...Array(Math.min(totalPages, 5))].map((_, index) => {
+            const page = currentPage <= 3 ? index + 1 : currentPage - 2 + index;
+            if (page > totalPages) return null;
+
+            return (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`px-3 py-2 text-sm rounded-lg ${
+                  currentPage === page
+                    ? 'bg-primary-600 text-white'
+                    : 'border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {page}
+              </button>
+            );
+          })}
+
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {/* Login Modal */}
       <Modal
@@ -887,8 +816,8 @@ const Jobs = () => {
             </Button>
             <Button
               onClick={() => {
-                setShowLoginModal(false)
-                navigate('/login')
+                setShowLoginModal(false);
+                navigate('/login');
               }}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
@@ -897,10 +826,10 @@ const Jobs = () => {
           </div>
         </div>
       </Modal>
-      
+
       <Footer />
     </div>
-  )
-}
+  );
+};
 
-export default Jobs
+export default Jobs;

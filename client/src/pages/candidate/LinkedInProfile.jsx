@@ -1,20 +1,31 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
+  ArrowLeftIcon,
   PencilIcon,
-  PlusIcon,
-  DocumentArrowDownIcon,
   MapPinIcon,
-  CalendarIcon,
+  EnvelopeIcon,
+  DocumentArrowDownIcon,
+  PhoneIcon,
+  GlobeAltIcon,
   BuildingOfficeIcon,
+  CalendarIcon,
+  DocumentTextIcon,
   AcademicCapIcon,
-  CheckBadgeIcon,
-  CameraIcon,
+  BriefcaseIcon,
+  StarIcon,
+  PlusIcon,
   TrashIcon,
+  CheckIcon,
+  XMarkIcon,
+  EyeIcon,
+  HeartIcon,
+  CameraIcon,
   TagIcon,
 } from "@heroicons/react/24/outline";
+import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
 
 // AboutContent component for expandable text
-const AboutContent = ({ summary, loading, onEdit }) => {
+const AboutContent = ({ summary, loading, onEdit, viewOnly = false }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSeeMore, setShowSeeMore] = useState(false);
 
@@ -69,7 +80,9 @@ const AboutContent = ({ summary, loading, onEdit }) => {
   }
 
   if (!summary) {
-    return (
+    return viewOnly ? (
+      <p className="text-gray-500 italic text-sm">No summary available</p>
+    ) : (
       <button
         onClick={onEdit}
         className="text-gray-500 hover:text-blue-600 cursor-pointer text-left transition-colors text-sm w-full text-left"
@@ -127,11 +140,19 @@ const Badge = ({ children, variant, className }) => {
   );
 };
 
-const LinkedInProfile = () => {
+const LinkedInProfile = ({
+  viewOnly = false,
+  candidateId = null,
+  profileData: initialProfileData,
+  onBack = null,
+  isBookmarked = false,
+  onBookmarkToggle,
+  bookmarkLoading = false,
+}) => {
   const { user } = useCandidateAuth();
   const { profile, fetchProfile, updateProfile, loading, dispatch } =
     useCandidate();
-  const [profileData, setProfileData] = useState(null);
+  const [profileData, setProfileData] = useState(initialProfileData);
 
   // Modal states
   const [showAboutModal, setShowAboutModal] = useState(false);
@@ -157,11 +178,15 @@ const LinkedInProfile = () => {
   );
 
   useEffect(() => {
-    if (user && !profile && !loading) {
+    if (viewOnly && initialProfileData) {
+      // View mode: use provided external profile data, don't fetch anything
+      setProfileData(initialProfileData);
+      return; // Early return to prevent any further fetching
+    } else if (!viewOnly && user && !profile && !loading) {
       console.log("LinkedInProfile: Fetching profile for user:", user);
       fetchProfile();
     }
-  }, [user, fetchProfile]);
+  }, [viewOnly, initialProfileData, user, profile, loading]);
 
   // Clear profile data when user changes (logout/login with different user)
   useEffect(() => {
@@ -180,6 +205,9 @@ const LinkedInProfile = () => {
       setOpenToWork(profileData.profileData.openToWork);
     }
   }, [profileData?.profileData?.openToWork]);
+
+  // Override fetchProfile to prevent calls in viewOnly mode
+  const optimizedFetchProfile = viewOnly ? () => {} : fetchProfile;
 
   // Upload handlers for ObjectUploader
   const handleGetUploadParameters = useCallback(async () => {
@@ -402,6 +430,11 @@ const LinkedInProfile = () => {
   };
 
   useEffect(() => {
+    // Skip this effect if we're in view-only mode with external data
+    if (viewOnly && initialProfileData) {
+      return;
+    }
+
     if (profile && JSON.stringify(profile) !== JSON.stringify(profileData)) {
       console.log("Profile data received in component:", profile);
       setProfileData(profile);
@@ -410,7 +443,7 @@ const LinkedInProfile = () => {
         profile?.openToWork || profile?.profileData?.openToWork || false;
       setOpenToWork(openToWorkStatus);
     }
-  }, [profile, profileData]);
+  }, [profile, profileData, viewOnly, initialProfileData]);
 
   const handleGenerateResume = () => {
     // TODO: Implement resume generation
@@ -489,15 +522,17 @@ const LinkedInProfile = () => {
         summary: summary,
       },
     };
-    const result = await updateProfile(updatedProfile);
-    // Use the returned profile data to ensure consistency
-    if (result) {
-      setProfileData(result);
-    } else {
-      setProfileData(updatedProfile);
+    if (!viewOnly) {
+      const result = await updateProfile(updatedProfile);
+      // Use the returned profile data to ensure consistency
+      if (result) {
+        setProfileData(result);
+      } else {
+        setProfileData(updatedProfile);
+      }
+      // Refresh profile from context to ensure data sync
+      await optimizedFetchProfile();
     }
-    // Refresh profile from context to ensure data sync
-    await fetchProfile();
   };
 
   // Experience section handlers
@@ -609,6 +644,8 @@ const LinkedInProfile = () => {
 
   // Skills with Experience section handlers
   const handleSaveSkillsWithExperience = async (skillsArray) => {
+    if (viewOnly) return; // Don't save in view-only mode
+
     console.log("Saving additional skills:", skillsArray);
 
     try {
@@ -635,7 +672,7 @@ const LinkedInProfile = () => {
         setProfileData(result);
       }
       // Refresh profile from context to ensure data sync
-      await fetchProfile();
+      await optimizedFetchProfile();
     } catch (error) {
       console.error("Failed to save skills with experience:", error);
       throw error;
@@ -865,6 +902,56 @@ const LinkedInProfile = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Back Button and Header */}
+      <div className="bg-white shadow-sm overflow-hidden px-3 sm:px-6 py-3 border-b border-gray-200">
+        <div className="flex items-center justify-between mb-6 lg:mb-8">
+          <button
+            onClick={onBack}
+            className="flex items-center px-3 py-2 lg:px-4 lg:py-2 text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg transition-colors duration-200"
+          >
+            <ArrowLeftIcon className="h-4 w-4 lg:h-5 lg:w-5 mr-2" />
+            <span className="text-sm lg:text-base">Back</span>
+          </button>
+
+          <div className="flex items-center space-x-2 lg:space-x-4">
+            {viewOnly && onBookmarkToggle && (
+              <button
+                onClick={onBookmarkToggle}
+                disabled={bookmarkLoading}
+                className={`flex items-center px-3 py-2 lg:px-4 lg:py-2 border rounded-lg transition-colors duration-200 ${
+                  isBookmarked
+                    ? "text-red-600 bg-red-50 border-red-200 hover:bg-red-100"
+                    : "text-pink-600 bg-pink-50 border-pink-200 hover:bg-pink-100"
+                } ${bookmarkLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                {isBookmarked ? (
+                  <HeartIconSolid className="h-4 w-4 lg:h-5 lg:w-5 mr-2" />
+                ) : (
+                  <HeartIcon className="h-4 w-4 lg:h-5 lg:w-5 mr-2" />
+                )}
+                <span className="text-sm lg:text-base">
+                  {bookmarkLoading
+                    ? "Updating..."
+                    : isBookmarked
+                      ? "Bookmarked"
+                      : "Bookmark"}
+                </span>
+              </button>
+            )}
+
+            {!viewOnly && (
+              <button
+                onClick={() => setShowEditProfileModal(true)}
+                className="flex items-center px-3 py-2 lg:px-4 lg:py-2 text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors duration-200"
+              >
+                <PencilIcon className="h-4 w-4 lg:h-5 lg:w-5 mr-2" />
+                <span className="text-sm lg:text-base">Edit Profile</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Mobile-First Profile Header */}
       <div className="bg-white shadow-sm overflow-hidden">
         {/* Cover Banner - Mobile Optimized */}
@@ -881,18 +968,20 @@ const LinkedInProfile = () => {
           ) : (
             <div className="h-full bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 transition-all duration-500"></div>
           )}
-          <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
-            <ObjectUploader
-              maxNumberOfFiles={1}
-              maxFileSize={10485760}
-              onGetUploadParameters={handleGetCoverImageUploadParameters}
-              onComplete={handleCoverPhotoComplete}
-              buttonClassName="bg-white bg-opacity-90 backdrop-blur-sm text-gray-700 p-1 sm:px-3 sm:py-2 rounded-full text-xs sm:text-sm font-medium hover:bg-opacity-100 transition-all duration-200 shadow-lg"
-            >
-              <span className="hidden sm:inline">📷 Enhance cover</span>
-              <span className="sm:hidden text-xs">📷</span>
-            </ObjectUploader>
-          </div>
+          {!viewOnly && (
+            <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
+              <ObjectUploader
+                maxNumberOfFiles={1}
+                maxFileSize={10485760}
+                onGetUploadParameters={handleGetCoverImageUploadParameters}
+                onComplete={handleCoverPhotoComplete}
+                buttonClassName="bg-white bg-opacity-90 backdrop-blur-sm text-gray-700 p-1 sm:px-3 sm:py-2 rounded-full text-xs sm:text-sm font-medium hover:bg-opacity-100 transition-all duration-200 shadow-lg"
+              >
+                <span className="hidden sm:inline">📷 Enhance cover</span>
+                <span className="sm:hidden text-xs">📷</span>
+              </ObjectUploader>
+            </div>
+          )}
         </div>
 
         {/* Profile Section - Mobile Optimized */}
@@ -946,17 +1035,19 @@ const LinkedInProfile = () => {
               )}
 
               {/* Camera Icon - Smaller in mobile */}
-              <ObjectUploader
-                maxNumberOfFiles={1}
-                maxFileSize={10485760}
-                onGetUploadParameters={handleGetProfileImageUploadParameters}
-                onComplete={handleProfilePhotoComplete}
-                buttonClassName="absolute bottom-0 right-0 sm:bottom-1 sm:right-1 bg-white p-1 sm:p-1.5 rounded-full shadow-lg hover:shadow-xl transition-all"
-                allowedFileTypes={["image/*"]}
-                uploadType="image"
-              >
-                <CameraIcon className="h-2.5 w-2.5 sm:h-4 sm:w-4 text-gray-600" />
-              </ObjectUploader>
+              {!viewOnly && (
+                <ObjectUploader
+                  maxNumberOfFiles={1}
+                  maxFileSize={10485760}
+                  onGetUploadParameters={handleGetProfileImageUploadParameters}
+                  onComplete={handleProfilePhotoComplete}
+                  buttonClassName="absolute bottom-0 right-0 sm:bottom-1 sm:right-1 bg-white p-1 sm:p-1.5 rounded-full shadow-lg hover:shadow-xl transition-all"
+                  allowedFileTypes={["image/*"]}
+                  uploadType="image"
+                >
+                  <CameraIcon className="h-2.5 w-2.5 sm:h-4 sm:w-4 text-gray-600" />
+                </ObjectUploader>
+              )}
             </div>
           </div>
 
@@ -997,13 +1088,15 @@ const LinkedInProfile = () => {
                   </>
                 )}
               </div>
-              <button
-                onClick={() => setShowEditProfileModal(true)}
-                className="text-gray-500 hover:text-blue-600 transition-all duration-200 p-2 hover:bg-blue-50 rounded-full ml-2 flex-shrink-0"
-                title="Edit Profile"
-              >
-                <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200 hover:scale-110" />
-              </button>
+              {!viewOnly && (
+                <button
+                  onClick={() => setShowEditProfileModal(true)}
+                  className="text-gray-500 hover:text-blue-600 transition-all duration-200 p-2 hover:bg-blue-50 rounded-full ml-2 flex-shrink-0"
+                  title="Edit Profile"
+                >
+                  <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200 hover:scale-110" />
+                </button>
+              )}
             </div>
 
             {/* Contact Info - Mobile Stack */}
@@ -1108,19 +1201,21 @@ const LinkedInProfile = () => {
           </div>
 
           {/* Action Buttons - Mobile Optimized */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mb-3">
-            <Button
-              variant={openToWork ? "outline" : "primary"}
-              onClick={handleToggleOpenToWork}
-              className={`px-4 sm:px-6 py-2 rounded-full font-medium transition-all duration-200 text-sm sm:text-base ${
-                openToWork
-                  ? "border-red-300 text-red-600 hover:bg-red-50"
-                  : "bg-blue-600 text-white hover:bg-blue-700"
-              }`}
-            >
-              {openToWork ? "Remove Open to Work" : "Set Open to Work"}
-            </Button>
-          </div>
+          {!viewOnly && (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mb-3">
+              <Button
+                variant={openToWork ? "outline" : "primary"}
+                onClick={handleToggleOpenToWork}
+                className={`px-4 sm:px-6 py-2 rounded-full font-medium transition-all duration-200 text-sm sm:text-base ${
+                  openToWork
+                    ? "border-red-300 text-red-600 hover:bg-red-50"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
+              >
+                {openToWork ? "Remove Open to Work" : "Set Open to Work"}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1134,13 +1229,15 @@ const LinkedInProfile = () => {
                 About
                 <div className="ml-2 w-6 sm:w-8 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded"></div>
               </h2>
-              <button
-                onClick={() => setShowAboutModal(true)}
-                className="text-gray-500 hover:text-blue-600 transition-all duration-200 p-1.5 sm:p-2 hover:bg-blue-50 rounded-full"
-                title="Edit About"
-              >
-                <PencilIcon className="h-4 w-4 transition-transform duration-200 hover:scale-110" />
-              </button>
+              {!viewOnly && (
+                <button
+                  onClick={() => setShowAboutModal(true)}
+                  className="text-gray-500 hover:text-blue-600 transition-all duration-200 p-1.5 sm:p-2 hover:bg-blue-50 rounded-full"
+                  title="Edit About"
+                >
+                  <PencilIcon className="h-4 w-4 transition-transform duration-200 hover:scale-110" />
+                </button>
+              )}
             </div>
             <AboutContent
               summary={profileData?.profileData?.summary}
@@ -1158,13 +1255,15 @@ const LinkedInProfile = () => {
                 Skills
                 <div className="ml-2 w-6 sm:w-8 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded"></div>
               </h2>
-              <button
-                onClick={() => setShowSkillsWithExperienceModal(true)}
-                className="text-gray-500 hover:text-gray-700 transition-colors p-1.5 sm:p-2"
-                title="Edit Skills"
-              >
-                <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-              </button>
+              {!viewOnly && (
+                <button
+                  onClick={() => setShowSkillsWithExperienceModal(true)}
+                  className="text-gray-500 hover:text-gray-700 transition-colors p-1.5 sm:p-2"
+                  title="Edit Skills"
+                >
+                  <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                </button>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -1209,14 +1308,16 @@ const LinkedInProfile = () => {
                   <p className="text-xs text-gray-400 mb-4">
                     Add skills to showcase your expertise
                   </p>
-                  <Button
-                    variant="outline"
-                    className="mt-3 text-sm"
-                    onClick={() => setShowSkillsWithExperienceModal(true)}
-                  >
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Add Skills
-                  </Button>
+                  {!viewOnly && (
+                    <Button
+                      variant="outline"
+                      className="mt-3 text-sm"
+                      onClick={() => setShowSkillsWithExperienceModal(true)}
+                    >
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      Add Skills
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -1269,17 +1370,19 @@ const LinkedInProfile = () => {
                     >
                       View
                     </Button>
-                    <ObjectUploader
-                      maxNumberOfFiles={1}
-                      maxFileSize={10485760} // 10MB
-                      onGetUploadParameters={handleGetResumeUploadParameters}
-                      onComplete={handleResumeUploadComplete}
-                      allowedFileTypes={["application/pdf", ".pdf"]}
-                      uploadType="resume"
-                      buttonClassName="text-blue-600 hover:bg-blue-50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm"
-                    >
-                      Update
-                    </ObjectUploader>
+                    {!viewOnly && (
+                      <ObjectUploader
+                        maxNumberOfFiles={1}
+                        maxFileSize={10485760} // 10MB
+                        onGetUploadParameters={handleGetResumeUploadParameters}
+                        onComplete={handleResumeUploadComplete}
+                        allowedFileTypes={["application/pdf", ".pdf"]}
+                        uploadType="resume"
+                        buttonClassName="text-blue-600 hover:bg-blue-50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm"
+                      >
+                        Update
+                      </ObjectUploader>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -1288,18 +1391,24 @@ const LinkedInProfile = () => {
                   <p className="mb-4 text-sm">
                     Upload your resume to help employers
                   </p>
-                  <ObjectUploader
-                    maxNumberOfFiles={1}
-                    maxFileSize={10485760} // 10MB
-                    onGetUploadParameters={handleGetResumeUploadParameters}
-                    onComplete={handleResumeUploadComplete}
-                    allowedFileTypes={["application/pdf", ".pdf"]}
-                    uploadType="resume"
-                    buttonClassName="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm inline-flex items-center"
-                  >
-                    <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
-                    Upload Resume
-                  </ObjectUploader>
+                  {!viewOnly ? (
+                    <ObjectUploader
+                      maxNumberOfFiles={1}
+                      maxFileSize={10485760} // 10MB
+                      onGetUploadParameters={handleGetResumeUploadParameters}
+                      onComplete={handleResumeUploadComplete}
+                      allowedFileTypes={["application/pdf", ".pdf"]}
+                      uploadType="resume"
+                      buttonClassName="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm inline-flex items-center"
+                    >
+                      <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
+                      Upload Resume
+                    </ObjectUploader>
+                  ) : (
+                    <p className="text-gray-500 italic text-sm">
+                      No resume uploaded
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -1313,13 +1422,15 @@ const LinkedInProfile = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 Job Preferences
               </h2>
-              <button
-                onClick={() => setShowPreferencesModal(true)}
-                className="text-gray-500 hover:text-gray-700 transition-colors p-1.5 sm:p-2"
-                title="Edit Preferences"
-              >
-                <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-              </button>
+              {!viewOnly && (
+                <button
+                  onClick={() => setShowPreferencesModal(true)}
+                  className="text-gray-500 hover:text-gray-700 transition-colors p-1.5 sm:p-2"
+                  title="Edit Preferences"
+                >
+                  <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                </button>
+              )}
             </div>
 
             <div className="space-y-3 sm:space-y-4">
@@ -1683,14 +1794,16 @@ const LinkedInProfile = () => {
               ) : (
                 <div className="text-center py-6 text-gray-500">
                   <p className="text-sm">No job preferences added yet</p>
-                  <Button
-                    variant="outline"
-                    className="mt-3 text-sm"
-                    onClick={() => setShowPreferencesModal(true)}
-                  >
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Add Job Preferences
-                  </Button>
+                  {!viewOnly && (
+                    <Button
+                      variant="outline"
+                      className="mt-3 text-sm"
+                      onClick={() => setShowPreferencesModal(true)}
+                    >
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      Add Job Preferences
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -1705,13 +1818,15 @@ const LinkedInProfile = () => {
                 Experience
                 <div className="ml-2 w-5 sm:w-6 h-0.5 bg-gradient-to-r from-orange-500 to-red-500 rounded"></div>
               </h2>
-              <button
-                onClick={handleAddExperience}
-                className="text-gray-500 hover:text-blue-600 transition-all duration-200 p-1.5 sm:p-2 hover:bg-blue-50 rounded-full"
-                title="Add Experience"
-              >
-                <PlusIcon className="h-4 w-4 transition-transform duration-200 hover:scale-110" />
-              </button>
+              {!viewOnly && (
+                <button
+                  onClick={handleAddExperience}
+                  className="text-gray-500 hover:text-blue-600 transition-all duration-200 p-1.5 sm:p-2 hover:bg-blue-50 rounded-full"
+                  title="Add Experience"
+                >
+                  <PlusIcon className="h-4 w-4 transition-transform duration-200 hover:scale-110" />
+                </button>
+              )}
             </div>
 
             <div className="space-y-3 sm:space-y-4">
@@ -1758,22 +1873,24 @@ const LinkedInProfile = () => {
                             </p>
                           )}
                         </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                          <button
-                            onClick={() => handleEditExperience(exp, index)}
-                            className="text-gray-500 hover:text-blue-600 transition-colors p-1"
-                            title="Edit Experience"
-                          >
-                            <PencilIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteExperience(index)}
-                            className="text-gray-500 hover:text-red-600 transition-colors p-1"
-                            title="Delete Experience"
-                          >
-                            <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                          </button>
-                        </div>
+                        {!viewOnly && (
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                            <button
+                              onClick={() => handleEditExperience(exp, index)}
+                              className="text-gray-500 hover:text-blue-600 transition-colors p-1"
+                              title="Edit Experience"
+                            >
+                              <PencilIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteExperience(index)}
+                              className="text-gray-500 hover:text-red-600 transition-colors p-1"
+                              title="Delete Experience"
+                            >
+                              <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1782,14 +1899,16 @@ const LinkedInProfile = () => {
                 <div className="text-center py-6 text-gray-500">
                   <BuildingOfficeIcon className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 text-gray-300" />
                   <p className="text-sm">No experience added yet</p>
-                  <Button
-                    variant="outline"
-                    className="mt-3 text-sm"
-                    onClick={handleAddExperience}
-                  >
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Add Experience
-                  </Button>
+                  {!viewOnly && (
+                    <Button
+                      variant="outline"
+                      className="mt-3 text-sm"
+                      onClick={handleAddExperience}
+                    >
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      Add Experience
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -1801,13 +1920,15 @@ const LinkedInProfile = () => {
           <div className="p-3 sm:p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold text-gray-900">Education</h2>
-              <button
-                onClick={handleAddEducation}
-                className="text-gray-500 hover:text-gray-700 transition-colors p-1.5 sm:p-2"
-                title="Add Education"
-              >
-                <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-              </button>
+              {!viewOnly && (
+                <button
+                  onClick={handleAddEducation}
+                  className="text-gray-500 hover:text-gray-700 transition-colors p-1.5 sm:p-2"
+                  title="Add Education"
+                >
+                  <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                </button>
+              )}
             </div>
 
             <div className="space-y-3 sm:space-y-4">
@@ -1850,22 +1971,24 @@ const LinkedInProfile = () => {
                             </p>
                           )}
                         </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                          <button
-                            onClick={() => handleEditEducation(edu, index)}
-                            className="text-gray-500 hover:text-blue-600 transition-colors p-1"
-                            title="Edit Education"
-                          >
-                            <PencilIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteEducation(index)}
-                            className="text-gray-500 hover:text-red-600 transition-colors p-1"
-                            title="Delete Education"
-                          >
-                            <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                          </button>
-                        </div>
+                        {!viewOnly && (
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                            <button
+                              onClick={() => handleEditEducation(edu, index)}
+                              className="text-gray-500 hover:text-blue-600 transition-colors p-1"
+                              title="Edit Education"
+                            >
+                              <PencilIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteEducation(index)}
+                              className="text-gray-500 hover:text-red-600 transition-colors p-1"
+                              title="Delete Education"
+                            >
+                              <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1874,14 +1997,16 @@ const LinkedInProfile = () => {
                 <div className="text-center py-6 text-gray-500">
                   <AcademicCapIcon className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 text-gray-300" />
                   <p className="text-sm">No education added yet</p>
-                  <Button
-                    variant="outline"
-                    className="mt-3 text-sm"
-                    onClick={handleAddEducation}
-                  >
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Add Education
-                  </Button>
+                  {!viewOnly && (
+                    <Button
+                      variant="outline"
+                      className="mt-3 text-sm"
+                      onClick={handleAddEducation}
+                    >
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      Add Education
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -1889,130 +2014,134 @@ const LinkedInProfile = () => {
         </div>
       </div>
 
-      {/* All Modals */}
-      <EditAboutModal
-        isOpen={showAboutModal}
-        onClose={() => setShowAboutModal(false)}
-        currentSummary={profileData?.profileData?.summary}
-        onSave={handleSaveAbout}
-      />
+      {/* All Modals - Only render in edit mode */}
+      {!viewOnly && (
+        <>
+          <EditAboutModal
+            isOpen={showAboutModal}
+            onClose={() => setShowAboutModal(false)}
+            currentSummary={profileData?.profileData?.summary}
+            onSave={handleSaveAbout}
+          />
 
-      <EditExperienceModal
-        isOpen={showExperienceModal}
-        onClose={() => setShowExperienceModal(false)}
-        experience={editingExperience}
-        onSave={handleSaveExperience}
-        isEditing={experienceIndex >= 0}
-      />
+          <EditExperienceModal
+            isOpen={showExperienceModal}
+            onClose={() => setShowExperienceModal(false)}
+            experience={editingExperience}
+            onSave={handleSaveExperience}
+            isEditing={experienceIndex >= 0}
+          />
 
-      <EditEducationModal
-        isOpen={showEducationModal}
-        onClose={() => setShowEducationModal(false)}
-        education={editingEducation}
-        onSave={handleSaveEducation}
-        isEditing={educationIndex >= 0}
-      />
+          <EditEducationModal
+            isOpen={showEducationModal}
+            onClose={() => setShowEducationModal(false)}
+            education={editingEducation}
+            onSave={handleSaveEducation}
+            isEditing={educationIndex >= 0}
+          />
 
-      <FileUploadModal
-        isOpen={showProfilePictureModal}
-        onClose={() => setShowProfilePictureModal(false)}
-        onUpload={handleProfilePictureUpload}
-        title="Upload Profile Picture"
-        acceptedTypes="image/*"
-      />
+          <FileUploadModal
+            isOpen={showProfilePictureModal}
+            onClose={() => setShowProfilePictureModal(false)}
+            onUpload={handleProfilePictureUpload}
+            title="Upload Profile Picture"
+            acceptedTypes="image/*"
+          />
 
-      <FileUploadModal
-        isOpen={showCoverModal}
-        onClose={() => setShowCoverModal(false)}
-        onUpload={handleCoverUpload}
-        title="Upload Cover Photo"
-        acceptedTypes="image/*"
-      />
+          <FileUploadModal
+            isOpen={showCoverModal}
+            onClose={() => setShowCoverModal(false)}
+            onUpload={handleCoverUpload}
+            title="Upload Cover Photo"
+            acceptedTypes="image/*"
+          />
 
-      <EditSkillsModal
-        isOpen={showSkillsModal}
-        onClose={() => setShowSkillsModal(false)}
-        skills={profileData?.skills || profileData?.ratings}
-        onSave={handleSaveSkills}
-      />
+          <EditSkillsModal
+            isOpen={showSkillsModal}
+            onClose={() => setShowSkillsModal(false)}
+            skills={profileData?.skills || profileData?.ratings}
+            onSave={handleSaveSkills}
+          />
 
-      <EditSkillsWithExperienceModal
-        isOpen={showSkillsWithExperienceModal}
-        onClose={() => setShowSkillsWithExperienceModal(false)}
-        skillsWithExperience={profileData?.skillsWithExperience || {}}
-        onSave={handleSaveSkillsWithExperience}
-      />
+          <EditSkillsWithExperienceModal
+            isOpen={showSkillsWithExperienceModal}
+            onClose={() => setShowSkillsWithExperienceModal(false)}
+            skillsWithExperience={profileData?.skillsWithExperience || {}}
+            onSave={handleSaveSkillsWithExperience}
+          />
 
-      <EditPreferencesModal
-        isOpen={showPreferencesModal}
-        onClose={() => setShowPreferencesModal(false)}
-        preferences={{
-          // Combine data from jobPreferences object and individual fields
-          ...(profileData?.jobPreferences || {}),
-          ...(profileData?.profileData?.jobPreferences || {}),
-          // Individual candidate fields for compatibility
-          currentEmploymentStatus:
-            profileData?.currentEmploymentStatus ||
-            profileData?.jobPreferences?.currentEmploymentStatus,
-          jobTypes:
-            profileData?.preferredJobTypes ||
-            profileData?.jobPreferences?.jobTypes ||
-            [],
-          preferredRoles:
-            profileData?.preferredJobTitles ||
-            profileData?.jobPreferences?.preferredRoles ||
-            profileData?.jobPreferences?.jobTitles ||
-            [],
-          industry:
-            profileData?.preferredIndustries ||
-            profileData?.jobPreferences?.industry ||
-            [],
-          preferredLocations:
-            profileData?.preferredLocations ||
-            profileData?.jobPreferences?.preferredLocations ||
-            [],
-          salaryRange: {
-            min:
-              profileData?.preferredSalaryMin ||
-              profileData?.jobPreferences?.salaryRange?.min ||
-              "",
-            max:
-              profileData?.preferredSalaryMax ||
-              profileData?.jobPreferences?.salaryRange?.max ||
-              "",
-          },
-          workType:
-            profileData?.remoteWorkPreference ||
-            profileData?.jobPreferences?.workType ||
-            "",
-          languages:
-            profileData?.preferredLanguages ||
-            profileData?.jobPreferences?.languages ||
-            [],
-          shiftPreference:
-            profileData?.shiftPreference ||
-            profileData?.jobPreferences?.shiftPreference ||
-            "",
-          travelWillingness:
-            profileData?.travelWillingness ||
-            profileData?.jobPreferences?.travelWillingness ||
-            false,
-          noticePeriod:
-            profileData?.noticePeriod ||
-            profileData?.jobPreferences?.noticePeriod ||
-            "",
-          availability: profileData?.availabilityStatus || "",
-          experienceLevel: profileData?.experienceLevel || "",
-        }}
-        onSave={handleSavePreferences}
-      />
+          <EditPreferencesModal
+            isOpen={showPreferencesModal}
+            onClose={() => setShowPreferencesModal(false)}
+            preferences={{
+              // Combine data from jobPreferences object and individual fields
+              ...(profileData?.jobPreferences || {}),
+              ...(profileData?.profileData?.jobPreferences || {}),
+              // Individual candidate fields for compatibility
+              currentEmploymentStatus:
+                profileData?.currentEmploymentStatus ||
+                profileData?.jobPreferences?.currentEmploymentStatus,
+              jobTypes:
+                profileData?.preferredJobTypes ||
+                profileData?.jobPreferences?.jobTypes ||
+                [],
+              preferredRoles:
+                profileData?.preferredJobTitles ||
+                profileData?.jobPreferences?.preferredRoles ||
+                profileData?.jobPreferences?.jobTitles ||
+                [],
+              industry:
+                profileData?.preferredIndustries ||
+                profileData?.jobPreferences?.industry ||
+                [],
+              preferredLocations:
+                profileData?.preferredLocations ||
+                profileData?.jobPreferences?.preferredLocations ||
+                [],
+              salaryRange: {
+                min:
+                  profileData?.preferredSalaryMin ||
+                  profileData?.jobPreferences?.salaryRange?.min ||
+                  "",
+                max:
+                  profileData?.preferredSalaryMax ||
+                  profileData?.jobPreferences?.salaryRange?.max ||
+                  "",
+              },
+              workType:
+                profileData?.remoteWorkPreference ||
+                profileData?.jobPreferences?.workType ||
+                "",
+              languages:
+                profileData?.preferredLanguages ||
+                profileData?.jobPreferences?.languages ||
+                [],
+              shiftPreference:
+                profileData?.shiftPreference ||
+                profileData?.jobPreferences?.shiftPreference ||
+                "",
+              travelWillingness:
+                profileData?.travelWillingness ||
+                profileData?.jobPreferences?.travelWillingness ||
+                false,
+              noticePeriod:
+                profileData?.noticePeriod ||
+                profileData?.jobPreferences?.noticePeriod ||
+                "",
+              availability: profileData?.availabilityStatus || "",
+              experienceLevel: profileData?.experienceLevel || "",
+            }}
+            onSave={handleSavePreferences}
+          />
 
-      <EditProfileModal
-        isOpen={showEditProfileModal}
-        onClose={() => setShowEditProfileModal(false)}
-        profileData={profileData}
-        onSave={handleSaveProfile}
-      />
+          <EditProfileModal
+            isOpen={showEditProfileModal}
+            onClose={() => setShowEditProfileModal(false)}
+            profileData={profileData}
+            onSave={handleSaveProfile}
+          />
+        </>
+      )}
     </div>
   );
 };

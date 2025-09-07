@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import {
@@ -92,7 +91,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   const quickActions = [
     {
-      name: t("employer.sidebar.postJob", "Post Job"),
+      name: t("employer.sidebar.postJob", "Create Job"),
       href: `${routeBase}/ads/new`,
       icon: PlusIcon,
     },
@@ -116,7 +115,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         fixed inset-y-0 left-0 z-50 w-full sm:w-80 lg:w-64 bg-white lg:bg-white lg:border-r lg:border-gray-200 
         transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
-        lg:shadow-none shadow-2xl
+        lg:shadow-none shadow-2xl overflow-x-hidden
       `}
       >
         {/* Mobile Header with Close Button - Native iOS/Android style */}
@@ -145,7 +144,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         </div>
 
         {/* Navigation - Mobile native list style */}
-        <div className="flex-1 overflow-y-auto bg-gray-50 lg:bg-white">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50 lg:bg-white">
           <nav className="pt-2 lg:pt-6 lg:px-4">
             <ul className="space-y-0 lg:space-y-2">
               {navigation.map((item) => {
@@ -173,10 +172,10 @@ const Sidebar = ({ isOpen, onClose }) => {
                         title={item.tooltip}
                       >
                         <Icon className="mr-4 lg:mr-4 h-6 w-6 lg:h-6 lg:w-6 flex-shrink-0 text-gray-400 group-hover:text-orange-500" />
-                        <span className="flex-1 text-left font-medium lg:font-medium text-base lg:text-base text-gray-700">
+                        <span className="flex-1 text-left font-medium lg:font-medium text-base lg:text-base text-gray-700 truncate">
                           {item.name}
                         </span>
-                        <LockClosedIcon className="h-4 w-4 text-gray-400 group-hover:text-orange-500 ml-2" />
+                        <LockClosedIcon className="h-4 w-4 text-gray-400 group-hover:text-orange-500 ml-2 flex-shrink-0" />
 
                         {/* Desktop Tooltip */}
                         <div className="hidden lg:block absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 pointer-events-none">
@@ -201,29 +200,37 @@ const Sidebar = ({ isOpen, onClose }) => {
                           }
                         `}
                       >
-                        <Icon className={`mr-4 lg:mr-4 h-6 w-6 lg:h-6 lg:w-6 flex-shrink-0 ${
-                          isActive(item.href) 
-                            ? "text-blue-600 lg:text-white" 
-                            : isPremiumItem
-                              ? "text-orange-400 group-hover:text-orange-500"
-                              : "text-gray-500"
-                        }`} />
-                        <span className={`flex-1 font-medium lg:font-medium text-base lg:text-base ${
-                          isActive(item.href) ? "text-blue-600 lg:text-white" : "text-gray-900"
-                        }`}>
+                        <Icon
+                          className={`mr-4 lg:mr-4 h-6 w-6 lg:h-6 lg:w-6 flex-shrink-0 ${
+                            isActive(item.href)
+                              ? "text-blue-600 lg:text-white"
+                              : isPremiumItem
+                                ? "text-orange-400 group-hover:text-orange-500"
+                                : "text-gray-500"
+                          }`}
+                        />
+                        <span
+                          className={`flex-1 font-medium lg:font-medium text-base lg:text-base truncate ${
+                            isActive(item.href)
+                              ? "text-blue-600 lg:text-white"
+                              : "text-gray-900"
+                          }`}
+                        >
                           {item.name}
                         </span>
                         {isPremiumItem && (
-                          <StarIcon className={`h-4 w-4 ml-2 ${
-                            isActive(item.href)
-                              ? "text-blue-600 lg:text-white"
-                              : "text-orange-400 group-hover:text-orange-500"
-                          }`} />
+                          <StarIcon
+                            className={`h-4 w-4 ml-2 flex-shrink-0 ${
+                              isActive(item.href)
+                                ? "text-blue-600 lg:text-white"
+                                : "text-orange-400 group-hover:text-orange-500"
+                            }`}
+                          />
                         )}
-                        
+
                         {/* iOS style chevron indicator for active item on mobile */}
                         {isActive(item.href) && (
-                          <div className="ml-auto lg:hidden">
+                          <div className="ml-auto lg:hidden flex-shrink-0">
                             <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
                           </div>
                         )}
@@ -263,80 +270,80 @@ const Sidebar = ({ isOpen, onClose }) => {
           </nav>
         </div>
 
-          {/* Quick Actions */}
-          <div className="mt-0 lg:mt-8">
-            <h3 className="hidden lg:block px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-              Quick Actions
-            </h3>
-            <ul className="space-y-0 lg:space-y-2">
-              {quickActions.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <li key={item.name}>
-                    {item.href ? (
-                      <Link
-                        to={item.href}
-                        onClick={onClose}
-                        className={`
+        {/* Quick Actions */}
+        <div className="mt-0 lg:mt-8 overflow-hidden">
+          <h3 className="hidden lg:block px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+            Quick Actions
+          </h3>
+          <ul className="space-y-0 lg:space-y-2">
+            {quickActions.map((item) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.name}>
+                  {item.href ? (
+                    <Link
+                      to={item.href}
+                      onClick={onClose}
+                      className={`
                           group flex items-center px-5 py-4 lg:px-4 lg:py-3.5 text-base lg:text-base font-medium lg:rounded-xl 
                           transition-all duration-200 active:bg-gray-200 lg:active:scale-[0.98] lg:hover:scale-[1.02] 
                           min-h-[52px] lg:min-h-[44px] border-b border-gray-200 lg:border-0
                           text-gray-700 bg-white hover:bg-green-50 lg:hover:bg-green-50 hover:text-green-600 lg:border lg:border-transparent lg:hover:border-green-200
                         `}
-                      >
-                        <Icon className="mr-4 lg:mr-4 h-6 w-6 lg:h-6 lg:w-6 flex-shrink-0 text-gray-500 group-hover:text-green-500" />
-                        <span className="font-medium lg:font-medium text-base lg:text-base text-gray-900">
-                          {item.name}
-                        </span>
-                      </Link>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          item.action();
-                          onClose();
-                        }}
-                        className={`
+                    >
+                      <Icon className="mr-4 lg:mr-4 h-6 w-6 lg:h-6 lg:w-6 flex-shrink-0 text-gray-500 group-hover:text-green-500" />
+                      <span className="font-medium lg:font-medium text-base lg:text-base text-gray-900 truncate">
+                        {item.name}
+                      </span>
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        item.action();
+                        onClose();
+                      }}
+                      className={`
                           group flex items-center w-full px-5 py-4 lg:px-4 lg:py-3.5 text-base lg:text-base font-medium lg:rounded-xl 
                           transition-all duration-200 active:bg-gray-200 lg:active:scale-[0.98] lg:hover:scale-[1.02] 
                           min-h-[52px] lg:min-h-[44px] border-b border-gray-200 lg:border-0
                           text-gray-700 bg-white hover:bg-blue-50 lg:hover:bg-blue-50 hover:text-blue-600 lg:border lg:border-transparent lg:hover:border-blue-200
                         `}
-                      >
-                        <Icon className="mr-4 lg:mr-4 h-6 w-6 lg:h-6 lg:w-6 flex-shrink-0 text-gray-500 group-hover:text-blue-500" />
-                        <span className="font-medium lg:font-medium text-base lg:text-base text-gray-900">
-                          {item.name}
-                        </span>
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+                    >
+                      <Icon className="mr-4 lg:mr-4 h-6 w-6 lg:h-6 lg:w-6 flex-shrink-0 text-gray-500 group-hover:text-blue-500" />
+                      <span className="font-medium lg:font-medium text-base lg:text-base text-gray-900 truncate">
+                        {item.name}
+                      </span>
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
 
-          {/* Help & Support */}
-          <div className="mt-0 lg:mt-auto lg:pt-8">
-            <button
-              onClick={() => {
-                setShowHelpModal(true);
-                onClose();
-              }}
-              className={`
+        {/* Help & Support */}
+        <div className="mt-0 lg:mt-auto lg:pt-8 overflow-hidden">
+          <button
+            onClick={() => {
+              setShowHelpModal(true);
+              onClose();
+            }}
+            className={`
                 group flex items-center w-full px-5 py-4 lg:px-4 lg:py-3.5 text-base lg:text-base font-medium lg:rounded-xl 
                 transition-all duration-200 active:bg-gray-200 lg:active:scale-[0.98] lg:hover:scale-[1.02] 
                 min-h-[52px] lg:min-h-[44px] border-b border-gray-200 lg:border-0
                 text-gray-700 bg-white hover:bg-blue-50 lg:hover:bg-blue-50 hover:text-blue-600 lg:border lg:border-transparent lg:hover:border-blue-200
               `}
-            >
-              <QuestionMarkCircleIcon className="mr-4 lg:mr-4 h-6 w-6 lg:h-6 lg:w-6 flex-shrink-0 text-gray-500 group-hover:text-blue-500" />
-              <span className="font-medium lg:font-medium text-base lg:text-base text-gray-900">
-                {t("employer.sidebar.helpSupport", "Help & Support")}
-              </span>
-            </button>
-          </div>
+          >
+            <QuestionMarkCircleIcon className="mr-4 lg:mr-4 h-6 w-6 lg:h-6 lg:w-6 flex-shrink-0 text-gray-500 group-hover:text-blue-500" />
+            <span className="font-medium lg:font-medium text-base lg:text-base text-gray-900 truncate">
+              {t("employer.sidebar.helpSupport", "Help & Support")}
+            </span>
+          </button>
+        </div>
 
-          {/* Mobile-specific bottom safe area */}
-          <div className="h-8 lg:h-0 bg-gray-50 lg:bg-white border-t border-gray-200 lg:border-0"></div>
+        {/* Mobile-specific bottom safe area */}
+        <div className="h-8 lg:h-0 bg-gray-50 lg:bg-white border-t border-gray-200 lg:border-0"></div>
       </div>
 
       {/* Help & Support Modal */}

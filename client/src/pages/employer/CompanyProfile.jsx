@@ -96,6 +96,20 @@ const CompanyProfile = () => {
     }
   };
 
+  const handleSetAsDefault = async (companyId) => {
+    try {
+      const result = await updateCompany(companyId, { isDefault: true });
+      if (result.success) {
+        toast.success("Company set as default successfully");
+        loadCompanies();
+      } else {
+        toast.error(result.error);
+      }
+    } catch (error) {
+      toast.error("Failed to set company as default");
+    }
+  };
+
   const handleEditClick = (company) => {
     setEditingCompany(company);
     setShowForm(true);
@@ -128,10 +142,8 @@ const CompanyProfile = () => {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Companies</h1>
-            <p className="text-gray-600 mt-1 text-xs">
-              Manage your company information
-            </p>
+            <h1 className="text-xl font-bold text-gray-900">Companies</h1>
+            <p className="text-gray-600 mt-1 text-xs">Manage your companies</p>
           </div>
           <Button onClick={() => setShowForm(true)}>
             <PlusIcon className="h-4 w-4 mr-2" />
@@ -220,7 +232,17 @@ const CompanyProfile = () => {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex justify-end">
+                  <div className="flex justify-end space-x-2">
+                    {!company.isDefault && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSetAsDefault(company.id)}
+                        className="text-blue-600 hover:text-blue-800 border-blue-300 hover:border-blue-400"
+                      >
+                        Set as Default
+                      </Button>
+                    )}
                     <Button
                       variant="secondary"
                       size="sm"

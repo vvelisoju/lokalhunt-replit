@@ -22,6 +22,7 @@ import {
   BookmarkIcon, // Added for bookmarked count
   UserIcon, // Added for gender preference
   CheckIcon, // Imported CheckIcon
+  PhoneIcon, // Added for call button
 } from "@heroicons/react/24/outline";
 import {
   BookmarkIcon as BookmarkSolidIcon,
@@ -72,10 +73,14 @@ const JobCard = ({
     reject: false,
     close: false,
     reopen: false,
+    delete: false,
   });
 
   // State for reopen confirmation modal
   const [showReopenModal, setShowReopenModal] = useState(false);
+
+  // State for delete confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Internal approve handler - show confirmation modal
   const handleInternalApprove = async (jobId) => {
@@ -181,6 +186,37 @@ const JobCard = ({
   // Handle reopen modal close
   const handleReopenCancel = () => {
     setShowReopenModal(false);
+  };
+
+  // Internal delete handler with confirmation modal
+  const handleInternalDelete = async (jobId) => {
+    setShowDeleteModal(true);
+  };
+
+  // Handle delete confirmation
+  const handleDeleteConfirm = async () => {
+    setIsLoading((prev) => ({ ...prev, delete: true }));
+    try {
+      // Call the external onArchive handler if provided (for delete functionality)
+      if (onArchive) {
+        await onArchive(job.id);
+        // Call the onRefresh callback if provided to refresh the component
+        if (onRefresh) {
+          onRefresh();
+        }
+      }
+    } catch (error) {
+      console.error("Error deleting job:", error);
+      toast.error("Failed to delete job");
+    } finally {
+      setIsLoading((prev) => ({ ...prev, delete: false }));
+      setShowDeleteModal(false);
+    }
+  };
+
+  // Handle delete modal close
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
   };
 
   // Helper function to get correct job route based on status
@@ -291,6 +327,29 @@ const JobCard = ({
             </Button>,
           );
         }
+
+        // Add call button for candidates who have applied to this job
+        if (
+          user?.role === "CANDIDATE" &&
+          job.hasApplied &&
+          job.employer?.user?.phone
+        ) {
+          actions.push(
+            <Button
+              key="call"
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(`tel:${job.employer.user.phone}`, "_self");
+              }}
+              className="flex items-center touch-manipulation text-green-600 hover:text-green-700 border-green-200 hover:border-green-300"
+            >
+              <PhoneIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+              <span className="text-xs sm:text-sm">Call</span>
+            </Button>,
+          );
+        }
         break;
 
       case "bookmark":
@@ -307,7 +366,7 @@ const JobCard = ({
             className="flex items-center touch-manipulation"
           >
             <EyeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
-            <span className="text-xs sm:text-sm">View</span>
+            <span className="text-xs sm:text-sm">View Job</span>
           </Button>,
         );
         if (!job.hasApplied) {
@@ -324,7 +383,7 @@ const JobCard = ({
             >
               <BriefcaseIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
               <span className="text-xs sm:text-sm">
-                {loading.apply ? "Applying..." : "Apply"}
+                {loading.apply ? "Applying..." : "Apply Now"}
               </span>
             </Button>,
           );
@@ -339,6 +398,29 @@ const JobCard = ({
             >
               <CheckBadgeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
               <span className="text-xs sm:text-sm">Applied</span>
+            </Button>,
+          );
+        }
+
+        // Add call button for candidates who have applied to this job
+        if (
+          user?.role === "CANDIDATE" &&
+          job.hasApplied &&
+          job.employer?.user?.phone
+        ) {
+          actions.push(
+            <Button
+              key="call"
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(`tel:${job.employer.user.phone}`, "_self");
+              }}
+              className="flex items-center touch-manipulation text-green-600 hover:text-green-700 border-green-200 hover:border-green-300"
+            >
+              <PhoneIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+              <span className="text-xs sm:text-sm">Call</span>
             </Button>,
           );
         }
@@ -417,7 +499,7 @@ const JobCard = ({
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/jobs/${job.id}/preview?from=employer-ads`);
+                navigate(`/employer/jobs/${job.id}`);
               }}
               className="text-blue-600 hover:text-blue-700 flex items-center touch-manipulation"
             >
@@ -433,12 +515,12 @@ const JobCard = ({
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/jobs/${job.id}?from=employer-ads`);
+                navigate(`/employer/jobs/${job.id}`);
               }}
               className="text-blue-600 hover:text-blue-700 flex items-center touch-manipulation"
             >
               <EyeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
-              <span className="text-xs sm:text-sm">View</span>
+              <span className="text-xs sm:text-sm">View Job</span>
             </Button>,
           );
         }
@@ -471,13 +553,7 @@ const JobCard = ({
               size="sm"
               onClick={async (e) => {
                 e.stopPropagation();
-                if (onArchive) {
-                  await onArchive(job.id);
-                  // Refresh the component after successful close action
-                  if (onRefresh) {
-                    onRefresh();
-                  }
-                }
+                await handleInternalDelete(job.id);
               }}
               disabled={loading.archive || loading.close}
               className="bg-red-600 hover:bg-red-700 text-white flex items-center touch-manipulation"
@@ -658,6 +734,29 @@ const JobCard = ({
           }
         }
 
+        // Add call button for candidates who have applied to this job
+        if (
+          user?.role === "CANDIDATE" &&
+          job.hasApplied &&
+          job.employer?.user?.phone
+        ) {
+          actions.push(
+            <Button
+              key="call"
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(`tel:${job.employer.user.phone}`, "_self");
+              }}
+              className="flex items-center touch-manipulation text-green-600 hover:text-green-700 border-green-200 hover:border-green-300"
+            >
+              <PhoneIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+              <span className="text-xs sm:text-sm">Call</span>
+            </Button>,
+          );
+        }
+
         // Love/Bookmark functionality is now handled in the top-right area for default variant
         break;
     }
@@ -775,6 +874,43 @@ const JobCard = ({
               className="bg-green-600 hover:bg-green-700 text-white"
             >
               {isLoading.reopen ? "Reopening..." : "Reopen Job"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        title="Delete Job Advertisement"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Are you sure you want to delete this job? This action cannot be
+            undone and will permanently remove the job advertisement.
+          </p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <h4 className="font-medium text-red-900 mb-2">{job.title}</h4>
+            <p className="text-red-700 text-sm">
+              {job.company?.name || job.companyName || "Company Name"}
+            </p>
+          </div>
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={handleDeleteCancel}
+              disabled={isLoading.delete}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeleteConfirm}
+              disabled={isLoading.delete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isLoading.delete ? "Deleting..." : "Delete Job"}
             </Button>
           </div>
         </div>

@@ -194,6 +194,22 @@ export const hireCandidate = async (candidateId, adId, hiringData) => {
   }
 };
 
+// Get candidate profile for employers
+export const getCandidateProfile = async (candidateId) => {
+  try {
+    const response = await makeRoleAwareRequest(
+      api,
+      `/employers/candidates/${candidateId}/profile`,
+    );
+    return { success: true, data: response.data || response };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to fetch candidate profile",
+    };
+  }
+};
+
 export const getCandidateAnalytics = async (params = {}) => {
   try {
     const response = await makeRoleAwareRequest(
@@ -211,10 +227,61 @@ export const getCandidateAnalytics = async (params = {}) => {
   }
 };
 
+// Bookmark management functions
+export const bookmarkCandidate = async (candidateId, notes = "") => {
+  try {
+    const response = await makeRoleAwareRequest(
+      api,
+      `/employers/candidates/${candidateId}/bookmark`,
+      { method: "POST", data: { notes } },
+    );
+    return { success: true, data: response.data || response };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to bookmark candidate",
+    };
+  }
+};
+
+export const removeBookmark = async (candidateId) => {
+  try {
+    const response = await makeRoleAwareRequest(
+      api,
+      `/employers/candidates/${candidateId}/bookmark`,
+      { method: "DELETE" },
+    );
+    return { success: true, data: response.data || response };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to remove bookmark",
+    };
+  }
+};
+
+export const getBookmarkedCandidates = async (params = {}) => {
+  try {
+    const response = await makeRoleAwareRequest(
+      api,
+      "/employers/candidates/bookmarks",
+      { params },
+    );
+    return { success: true, data: response.data || response };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error.response?.data?.message || "Failed to fetch bookmarked candidates",
+    };
+  }
+};
+
 // Keep the object export for backward compatibility
 export const employerCandidatesService = {
   getCandidates,
   getCandidateById,
+  getCandidateProfile,
   getAdCandidates,
   updateApplicationStatus,
   updateCandidateStatus,
@@ -224,4 +291,7 @@ export const employerCandidatesService = {
   scheduleInterview,
   hireCandidate,
   getCandidateAnalytics,
+  bookmarkCandidate,
+  removeBookmark,
+  getBookmarkedCandidates,
 };

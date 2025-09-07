@@ -1,14 +1,14 @@
-
 import React, { useState } from 'react';
 import { CalendarIcon, LanguageIcon, DocumentIcon, CheckCircleIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline';
 import Button from '../../ui/Button';
 import { candidateApi } from '../../../services/candidateApi';
-import { toast } from 'react-hot-toast';
+import { useToast } from "../../ui/Toast"; // Assuming useToast is in this path
 
 const FinalSetupStep = ({ data, updateData, onNext, onBack, onSkip, isSubmitting, stepTitle }) => {
   const [isCompleted, setIsCompleted] = useState(false);
   const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const { toast } = useToast();
 
   // Availability options from database enum
   const availabilityOptions = [
@@ -51,7 +51,7 @@ const FinalSetupStep = ({ data, updateData, onNext, onBack, onSkip, isSubmitting
     const allowedTypes = ['application/pdf', '.pdf', 'application/msword', '.doc', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.docx'];
     const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
     const isValidType = allowedTypes.includes(file.type) || allowedTypes.includes(fileExtension);
-    
+
     if (!isValidType) {
       toast.error('Please select a valid file type: PDF, DOC, or DOCX');
       return;
@@ -82,7 +82,7 @@ const FinalSetupStep = ({ data, updateData, onNext, onBack, onSkip, isSubmitting
 
       // Upload resume using the candidate API
       const uploadedResume = await candidateApi.uploadResume(file);
-      
+
       clearInterval(progressInterval);
       setUploadProgress(100);
 
@@ -107,7 +107,7 @@ const FinalSetupStep = ({ data, updateData, onNext, onBack, onSkip, isSubmitting
       console.error('Resume upload failed:', error);
       setUploadProgress(0);
       setIsUploadingResume(false);
-      
+
       const errorMessage = error.response?.data?.message || error.message || 'Failed to upload resume';
       toast.error(`Upload failed: ${errorMessage}`);
     }
@@ -194,7 +194,7 @@ const FinalSetupStep = ({ data, updateData, onNext, onBack, onSkip, isSubmitting
             <DocumentIcon className="w-4 h-4 inline mr-1" />
             Upload Resume (Optional)
           </label>
-          
+
           {isUploadingResume ? (
             <div className="border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg p-6 text-center">
               <CloudArrowUpIcon className="w-8 h-8 text-blue-500 mx-auto mb-2" />
@@ -216,14 +216,14 @@ const FinalSetupStep = ({ data, updateData, onNext, onBack, onSkip, isSubmitting
               ) : (
                 <DocumentIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
               )}
-              
+
               <p className="text-sm text-gray-600 mb-3">
                 {data.resume?.uploaded 
                   ? `✅ ${data.resume.fileName} uploaded successfully`
                   : 'Upload your resume to get better job matches'
                 }
               </p>
-              
+
               <input
                 type="file"
                 accept=".pdf,.doc,.docx"
@@ -232,7 +232,7 @@ const FinalSetupStep = ({ data, updateData, onNext, onBack, onSkip, isSubmitting
                 id="resume-upload"
                 disabled={isUploadingResume}
               />
-              
+
               <label
                 htmlFor="resume-upload"
                 className={`inline-flex items-center px-4 py-2 border rounded-md text-sm font-medium cursor-pointer transition-colors ${
@@ -243,11 +243,11 @@ const FinalSetupStep = ({ data, updateData, onNext, onBack, onSkip, isSubmitting
               >
                 {data.resume?.uploaded ? 'Change Resume' : 'Choose File'}
               </label>
-              
+
               <p className="text-xs text-gray-500 mt-2">
                 Supported formats: PDF, DOC, DOCX (Max 5MB)
               </p>
-              
+
               {data.resume?.uploaded && (
                 <p className="text-xs text-green-600 mt-1">
                   File size: {((data.resume.fileSize || 0) / 1024).toFixed(1)} KB

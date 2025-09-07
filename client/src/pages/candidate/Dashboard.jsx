@@ -222,7 +222,12 @@ const Dashboard = () => {
       bgColor: "bg-purple-50",
       iconColor: "text-purple-600",
       href: "/candidate/profile",
-      trend: stats.profileViews > 5 ? "up" : stats.profileViews > 0 ? "stable" : "none",
+      trend:
+        stats.profileViews > 5
+          ? "up"
+          : stats.profileViews > 0
+            ? "stable"
+            : "none",
     },
   ];
 
@@ -335,19 +340,23 @@ const Dashboard = () => {
                       {getTrendIcon(stat.trend)}
                     </div>
                   )}
-                  
+
                   {/* Enhanced Icon with Background */}
-                  <div className={`${stat.bgColor} rounded-2xl p-3 sm:p-4 mb-2 sm:mb-3 shadow-sm`}>
-                    <Icon className={`h-5 w-5 sm:h-7 sm:w-7 ${stat.iconColor}`} />
+                  <div
+                    className={`${stat.bgColor} rounded-2xl p-3 sm:p-4 mb-2 sm:mb-3 shadow-sm`}
+                  >
+                    <Icon
+                      className={`h-5 w-5 sm:h-7 sm:w-7 ${stat.iconColor}`}
+                    />
                   </div>
-                  
+
                   {/* Stats Content */}
                   <div className="space-y-1">
                     {/* Value - More Prominent */}
                     <p className="text-xl sm:text-3xl font-bold text-gray-900 leading-none tracking-tight">
                       {stat.value}
                     </p>
-                    
+
                     {/* Label - Refined Typography */}
                     <p className="text-xs sm:text-sm font-semibold text-gray-600 leading-tight px-1">
                       {stat.name}
@@ -355,13 +364,19 @@ const Dashboard = () => {
                   </div>
 
                   {/* Subtle Bottom Accent */}
-                  <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${
-                    stat.color === "blue" ? "bg-blue-200" : 
-                    stat.color === "green" ? "bg-green-200" : 
-                    stat.color === "emerald" ? "bg-emerald-200" : 
-                    stat.color === "purple" ? "bg-purple-200" : 
-                    "bg-gray-200"
-                  }`}></div>
+                  <div
+                    className={`absolute bottom-0 left-0 right-0 h-0.5 ${
+                      stat.color === "blue"
+                        ? "bg-blue-200"
+                        : stat.color === "green"
+                          ? "bg-green-200"
+                          : stat.color === "emerald"
+                            ? "bg-emerald-200"
+                            : stat.color === "purple"
+                              ? "bg-purple-200"
+                              : "bg-gray-200"
+                    }`}
+                  ></div>
                 </div>
               </Card>
             </Link>
@@ -430,6 +445,7 @@ const Dashboard = () => {
                       application.job?.title ||
                       application.adTitle ||
                       "Job Title",
+                    employer: application?.ad.employer,
                     description:
                       application.description ||
                       application.ad?.description ||

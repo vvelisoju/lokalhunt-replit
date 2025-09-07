@@ -248,6 +248,7 @@ const Bookmarks = () => {
               title: bookmark.ad?.title || "No Title",
               companyName: bookmark.ad?.company?.name || "Unknown Company",
               company: bookmark.ad?.company,
+              employer: bookmark.ad?.employer,
               location:
                 bookmark.ad?.location?.name && bookmark.ad?.location?.state
                   ? `${bookmark.ad.location.name}, ${bookmark.ad.location.state}`

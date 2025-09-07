@@ -12,6 +12,13 @@ router.use(authenticateToken);
 router.use(requireRoleOrAdminAccess("EMPLOYER"));
 
 // =======================
+// DASHBOARD STATS
+// =======================
+
+// Get dashboard statistics
+router.get("/dashboard/stats", employerController.getDashboardStats);
+
+// =======================
 // PROFILE MANAGEMENT
 // =======================
 
@@ -44,11 +51,11 @@ router.put("/companies/:companyId", employerController.updateCompany);
 // AD MANAGEMENT
 // =======================
 
-// Get all ads (EXISTING)
+// Get all ads for employer
 router.get("/ads", employerController.getAds);
 
-// Get specific ad details (NEW)
-router.get("/ads/:adId", employerController.getAd);
+// Get single ad by ID
+router.get("/ads/:adId", employerController.getAdById);
 
 // Create ad (EXISTING)
 router.post("/ads", employerController.createAd);
@@ -99,6 +106,10 @@ router.delete(
 
 // Get bookmarked candidates
 router.get("/candidates/bookmarks", employerController.getBookmarkedCandidates);
+
+// Get candidate profile
+// router.get("/candidates/:candidateId/profile", employerController.getCandidateProfile);
+//Using the candidate public view route instead
 
 // =======================
 // ALLOCATION MANAGEMENT

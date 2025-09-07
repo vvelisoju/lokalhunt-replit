@@ -6,6 +6,8 @@ import {
   ExclamationTriangleIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
+  ChevronLeftIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import MDEditor, { commands } from "@uiw/react-md-editor";
 import "@uiw/react-md-editor/markdown-editor.css";
@@ -28,13 +30,14 @@ import aiService from "../../services/aiService";
 import { getCities } from "../../services/common/cities";
 import { publicApi } from "../../services/publicApi";
 import { useAuth } from "../../context/AuthContext";
-import { toast } from "react-hot-toast";
+import { useToast } from "../../components/ui/Toast";
 
 const AdForm = () => {
-  const { adId, employerId } = useParams(); // employerId will be present in Branch Admin routes
+  const { adId, employerId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { success: showSuccess, error: showError } = useToast();
 
   // Extract 'from' parameter from URL to determine redirect destination
   const searchParams = new URLSearchParams(location.search);
@@ -51,7 +54,6 @@ const AdForm = () => {
     description: "",
     categoryName: "Jobs",
     categoryId: "",
-    city: "",
     employmentType: "",
     experienceLevel: "",
     salaryMin: "",
@@ -108,9 +110,6 @@ const AdForm = () => {
     if (!formData.companyId) {
       newErrors.companyId = "Company is required";
     }
-    if (!formData.city) {
-      newErrors.city = "City is required";
-    }
     if (!formData.validUntil) {
       newErrors.validUntil = "Application deadline is required";
     } else {
@@ -159,7 +158,7 @@ const AdForm = () => {
   const getStepCompleteness = (step) => {
     switch (step) {
       case 1:
-        const step1Fields = ["title", "companyId", "city", "validUntil"];
+        const step1Fields = ["title", "companyId", "validUntil"];
         const step1Completed = step1Fields.filter(
           (field) => formData[field]?.trim?.() || formData[field],
         ).length;
@@ -219,62 +218,43 @@ const AdForm = () => {
       const companiesResult = await getCompanies();
       let defaultCompanyId = "";
       let companiesOptions = [];
+      let companiesData = [];
 
       if (companiesResult.success) {
         console.log("Companies loaded for dropdown:", companiesResult.data);
-        const companiesList = companiesResult.data || [];
-        companiesOptions = companiesList.map((company) => ({
+        companiesData = companiesResult.data || [];
+        companiesOptions = companiesData.map((company) => ({
           value: company.id,
-          label: company.name,
+          label: `${company.name} - ${company.city.name || "Location not specified"}`,
+          cityId: company.city.id,
         }));
         setCompanies(companiesOptions);
 
-        // Set first company as default for new ads
+        // Set default company (not first) for new ads - try to find a default or use first as fallback
         if (!isEditing && companiesOptions.length > 0) {
-          defaultCompanyId = companiesOptions[0].value;
+          // Look for a company marked as default, or use the first one
+          const defaultCompany =
+            companiesData.find((company) => company.isDefault) ||
+            companiesData[0];
+          defaultCompanyId = defaultCompany.id;
         }
       } else {
         console.error("Failed to load companies:", companiesResult.error);
-        toast.error("Failed to load companies");
+        showError("Failed to load companies");
       }
 
-      // Load cities, categories, and education qualifications in parallel
-      setLoadingCities(true);
+      // Load categories and education qualifications in parallel
       setLoadingCategories(true);
       setLoadingEducation(true);
 
-      const [citiesResult, categoriesResult, educationResult] =
-        await Promise.all([
-          getCities().catch((err) => ({ success: false, error: err.message })),
-          publicApi
-            .getCategories()
-            .catch((err) => ({ success: false, error: err.message })),
-          publicApi
-            .getEducationQualifications()
-            .catch((err) => ({ success: false, error: err.message })),
-        ]);
-
-      // Process cities
-      let defaultCityId = "";
-      let citiesOptions = [];
-
-      if (citiesResult.success) {
-        console.log("Cities loaded successfully:", citiesResult.data);
-        citiesOptions = citiesResult.data.map((city) => ({
-          value: city.id,
-          label: `${city.name}, ${city.state}`,
-        }));
-        setCities(citiesOptions);
-
-        // Set first city as default for new ads
-        if (!isEditing && citiesOptions.length > 0) {
-          defaultCityId = citiesOptions[0].value;
-        }
-      } else {
-        console.error("Failed to load cities:", citiesResult.error);
-        toast.error("Failed to load cities");
-      }
-      setLoadingCities(false);
+      const [categoriesResult, educationResult] = await Promise.all([
+        publicApi
+          .getCategories()
+          .catch((err) => ({ success: false, error: err.message })),
+        publicApi
+          .getEducationQualifications()
+          .catch((err) => ({ success: false, error: err.message })),
+      ]);
 
       // Process categories
       if (categoriesResult.status === "success") {
@@ -290,7 +270,7 @@ const AdForm = () => {
           "Failed to load categories:",
           categoriesResult.error || "Unknown error",
         );
-        toast.error("Failed to load categories");
+        showError("Failed to load categories");
       }
       setLoadingCategories(false);
 
@@ -311,7 +291,7 @@ const AdForm = () => {
           "Failed to load education qualifications:",
           educationResult.error || "Unknown error",
         );
-        toast.error("Failed to load education qualifications");
+        showError("Failed to load education qualifications");
       }
       setLoadingEducation(false);
 
@@ -326,7 +306,6 @@ const AdForm = () => {
         setFormData((prev) => ({
           ...prev,
           companyId: defaultCompanyId,
-          city: defaultCityId,
           validUntil: defaultDate.toISOString().split("T")[0],
           employmentType: "FULL_TIME",
           experienceLevel: "ENTRY_LEVEL",
@@ -335,7 +314,7 @@ const AdForm = () => {
       }
     } catch (error) {
       console.error("Error in loadInitialData:", error);
-      toast.error("Failed to load form data");
+      showError("Failed to load form data");
     } finally {
       setIsPageLoading(false);
     }
@@ -420,7 +399,6 @@ const AdForm = () => {
           description: ad.description || "",
           categoryName: ad.categoryName || "Jobs",
           categoryId: ad.categoryId || "",
-          city: ad.locationId || ad.location?.id || "",
           employmentType: employmentType,
           experienceLevel: experienceLevel,
           salaryMin: salaryMin,
@@ -433,12 +411,12 @@ const AdForm = () => {
         });
       } else {
         console.error("Failed to load ad data:", response.error);
-        toast.error("Failed to load ad data");
+        showError("Failed to load ad data");
         navigate("/employer/ads");
       }
     } catch (error) {
       console.error("Error loading ad data:", error);
-      toast.error("Failed to load ad data");
+      showError("Failed to load ad data");
       navigate("/employer/ads");
     }
   };
@@ -460,6 +438,7 @@ const AdForm = () => {
     }
 
     setFormData((prev) => ({ ...prev, [name]: value }));
+
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
@@ -475,7 +454,7 @@ const AdForm = () => {
   const handleGenerateDescription = async () => {
     // Check if we have minimum required data
     if (!formData.title) {
-      toast.error("Please enter a job title first");
+      showError("Please enter a job title first");
       return;
     }
 
@@ -506,21 +485,21 @@ const AdForm = () => {
           ...prev,
           description: response.data.description,
         }));
-        toast.success("Job description generated successfully!");
+        showSuccess("Job description generated successfully!");
       } else {
         console.error("AI Generation Failed:", response.error);
-        toast.error(response.error || "Failed to generate job description");
+        showError(response.error || "Failed to generate job description");
       }
     } catch (error) {
       console.error("AI Generation Error:", error);
       if (error.response?.status === 404) {
-        toast.error("AI service not available. Please contact support.");
+        showError("AI service not available. Please contact support.");
       } else if (error.response?.status === 500) {
-        toast.error(
+        showError(
           "AI service configuration error. Please contact administrator.",
         );
       } else {
-        toast.error("Failed to generate job description. Please try again.");
+        showError("Failed to generate job description. Please try again.");
       }
     } finally {
       setIsGeneratingDescription(false);
@@ -529,7 +508,7 @@ const AdForm = () => {
 
   const handleApprove = async () => {
     if (!user || user.role !== "BRANCH_ADMIN") {
-      toast.error("Only Branch Admins can approve ads");
+      showError("Only Branch Admins can approve ads");
       return;
     }
 
@@ -546,13 +525,13 @@ const AdForm = () => {
       const result = await response.json();
 
       if (result.success) {
-        toast.success("Ad approved successfully");
+        showSuccess("Ad approved successfully");
         navigate("/branch-admin/ads-approvals");
       } else {
-        toast.error(result.error || "Failed to approve ad");
+        showError(result.error || "Failed to approve ad");
       }
     } catch (error) {
-      toast.error("Failed to approve ad");
+      showError("Failed to approve ad");
     } finally {
       setIsLoading(false);
     }
@@ -561,7 +540,7 @@ const AdForm = () => {
   const handleSubmit = async (action = "save") => {
     // Validate all steps before submitting
     if (!validateStep1() || !validateStep2() || !validateStep3()) {
-      toast.error("Please complete all required fields");
+      showError("Please complete all required fields");
       return;
     }
 
@@ -574,7 +553,6 @@ const AdForm = () => {
       categoryId: formData.categoryId,
       title: formData.title,
       description: formData.description,
-      locationId: formData.city, // Now using actual city ID from cities API
       gender: formData.gender,
       educationQualificationId: formData.educationQualificationId,
       validUntil: formData.validUntil,
@@ -643,7 +621,7 @@ const AdForm = () => {
       }
 
       if (response.success) {
-        toast.success(
+        showSuccess(
           isEditing ? "Ad updated successfully" : "Ad created successfully",
         );
 
@@ -667,13 +645,13 @@ const AdForm = () => {
           navigate("/employer/ads");
         }
       } else {
-        toast.error(
+        showError(
           response.error ||
             (isEditing ? "Failed to update ad" : "Failed to create ad"),
         );
       }
     } catch (error) {
-      toast.error(isEditing ? "Failed to update ad" : "Failed to create ad");
+      showError(isEditing ? "Failed to update ad" : "Failed to create ad");
     } finally {
       setIsLoading(false);
     }
@@ -703,7 +681,7 @@ const AdForm = () => {
 
   if (isPageLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="flex justify-center items-center h-screen">
         <Loader />
       </div>
     );
@@ -713,28 +691,17 @@ const AdForm = () => {
     switch (currentStep) {
       case 1:
         return (
-          <div className="space-y-6">
-            <div className="flex items-start space-x-3">
-              <InformationCircleIcon className="w-5 h-5 md:w-6 md:h-6 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <h2 className="text-base md:text-lg font-semibold text-gray-900">
-                  Basic Information
-                </h2>
-                <p className="hidden md:block text-sm text-gray-500 mt-1">
-                  Start with the essential details about your job posting
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:gap-6">
+          <div className="space-y-6 px-4">
+            <div className="space-y-6">
               <FormInput
                 label="Job Title"
                 name="title"
                 value={formData.title}
                 onChange={handleChange}
-                placeholder="e.g., Senior Software Engineer, Marketing Manager"
+                placeholder="e.g., Sales Executive, Nurse, Teacher"
                 required
                 error={errors.title}
+                className="text-base"
               />
 
               <div>
@@ -749,30 +716,12 @@ const AdForm = () => {
                   placeholder="Select your company"
                   required
                   error={errors.companyId}
+                  className="text-base"
                 />
                 {errors.companyId && (
                   <p className="text-sm text-red-600 mt-1">
                     {errors.companyId}
                   </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Location <span className="text-red-500">*</span>
-                </label>
-                <Select
-                  name="city"
-                  value={formData.city}
-                  onChange={(value) => handleChange(value, "city")}
-                  options={cities}
-                  placeholder="Select job location"
-                  required
-                  disabled={loadingCities}
-                  error={errors.city}
-                />
-                {errors.city && (
-                  <p className="text-sm text-red-600 mt-1">{errors.city}</p>
                 )}
               </div>
 
@@ -784,6 +733,7 @@ const AdForm = () => {
                 onChange={handleChange}
                 required
                 error={errors.validUntil}
+                className="text-base"
               />
             </div>
           </div>
@@ -791,20 +741,8 @@ const AdForm = () => {
 
       case 2:
         return (
-          <div className="space-y-6">
-            <div className="flex items-start space-x-3">
-              <InformationCircleIcon className="w-5 h-5 md:w-6 md:h-6 text-green-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <h2 className="text-base md:text-lg font-semibold text-gray-900">
-                  Job Requirements
-                </h2>
-                <p className="hidden md:block text-sm text-gray-500 mt-1">
-                  Define the role specifics and requirements
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:gap-6">
+          <div className="space-y-6 px-4">
+            <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Employment Type <span className="text-red-500">*</span>
@@ -817,6 +755,7 @@ const AdForm = () => {
                   placeholder="Select employment type"
                   required
                   error={errors.employmentType}
+                  className="text-base"
                 />
                 {errors.employmentType && (
                   <p className="text-sm text-red-600 mt-1">
@@ -837,6 +776,7 @@ const AdForm = () => {
                   placeholder="Select required experience"
                   required
                   error={errors.experienceLevel}
+                  className="text-base"
                 />
                 {errors.experienceLevel && (
                   <p className="text-sm text-red-600 mt-1">
@@ -849,18 +789,21 @@ const AdForm = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Gender Preference
                 </label>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {genderOptions.map((option) => (
-                    <label key={option.value} className="flex items-center">
+                    <label
+                      key={option.value}
+                      className="flex items-center p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 active:bg-gray-100"
+                    >
                       <input
                         type="radio"
                         name="gender"
                         value={option.value}
                         checked={formData.gender === option.value}
                         onChange={handleChange}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300"
                       />
-                      <span className="ml-2 text-sm text-gray-700">
+                      <span className="ml-3 text-base text-gray-700">
                         {option.label}
                       </span>
                     </label>
@@ -884,10 +827,11 @@ const AdForm = () => {
                 loading={loadingCategories}
                 placeholder="Search and select job category..."
                 error={errors.categoryId}
+                className="text-base"
               />
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Education Qualification
                 </label>
                 <Select
@@ -900,10 +844,11 @@ const AdForm = () => {
                   placeholder="Select education requirement"
                   disabled={loadingEducation}
                   error={errors.educationQualificationId}
+                  className="text-base"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <FormInput
                   label="Minimum Salary (₹)"
                   name="salaryMin"
@@ -912,6 +857,7 @@ const AdForm = () => {
                   onChange={handleChange}
                   placeholder="e.g., 50000"
                   error={errors.salaryMin}
+                  className="text-base"
                 />
 
                 <FormInput
@@ -922,6 +868,7 @@ const AdForm = () => {
                   onChange={handleChange}
                   placeholder="e.g., 80000"
                   error={errors.salaryMax}
+                  className="text-base"
                 />
               </div>
 
@@ -931,8 +878,9 @@ const AdForm = () => {
                   name="skills"
                   value={formData.skills}
                   onChange={handleChange}
-                  placeholder="e.g., JavaScript, React, Node.js (comma separated)"
+                  placeholder="e.g., JavaScript, React, Node.js"
                   error={errors.skills}
+                  className="text-base"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Separate multiple skills with commas
@@ -944,22 +892,10 @@ const AdForm = () => {
 
       case 3:
         return (
-          <div className="space-y-6">
-            <div className="flex items-start space-x-3">
-              <InformationCircleIcon className="w-5 h-5 md:w-6 md:h-6 text-purple-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <h2 className="text-base md:text-lg font-semibold text-gray-900">
-                  Job Description
-                </h2>
-                <p className="hidden md:block text-sm text-gray-500 mt-1">
-                  Provide a detailed description of the job role
-                </p>
-              </div>
-            </div>
-
+          <div className="space-y-6 px-4">
             {/* Job Description */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-4">
                 <label className="block text-sm font-medium text-gray-700">
                   Job Description <span className="text-red-500">*</span>
                 </label>
@@ -969,7 +905,7 @@ const AdForm = () => {
                   size="sm"
                   onClick={handleGenerateDescription}
                   disabled={isGeneratingDescription || !formData.title}
-                  className="flex items-center bg-gradient-to-r from-purple-500 to-blue-500 text-white border-0 hover:from-purple-600 hover:to-blue-600"
+                  className="flex items-center bg-gradient-to-r from-purple-500 to-blue-500 text-white border-0 hover:from-purple-600 hover:to-blue-600 text-xs px-3 py-2"
                 >
                   {isGeneratingDescription ? (
                     <>
@@ -996,12 +932,12 @@ const AdForm = () => {
                       Generating...
                     </>
                   ) : (
-                    <>✨ Generate with AI</>
+                    <>✨ AI Generate</>
                   )}
                 </Button>
               </div>
 
-              <div className="border border-gray-300 rounded-md overflow-hidden">
+              <div className="border border-gray-300 rounded-lg overflow-hidden">
                 <MDEditor
                   value={formData.description}
                   onChange={handleDescriptionChange}
@@ -1024,13 +960,13 @@ const AdForm = () => {
                     placeholder:
                       "Describe the role, responsibilities, requirements, and benefits. Use basic formatting like **bold**, *italic*, lists, and headings...",
                     style: {
-                      fontSize: 14,
+                      fontSize: 16,
                       lineHeight: 1.6,
                       fontFamily: "inherit",
                       minHeight: "200px",
                     },
                   }}
-                  height={250}
+                  height={300}
                   data-color-mode="light"
                 />
               </div>
@@ -1043,10 +979,10 @@ const AdForm = () => {
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
                 <div className="flex items-start space-x-3">
-                  <InformationCircleIcon className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <InformationCircleIcon className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                   <div className="text-sm text-blue-800">
                     <p className="font-medium mb-1">💡 Formatting Tips:</p>
-                    <ul className="list-disc list-inside space-y-1">
+                    <ul className="list-disc list-inside space-y-1 text-xs">
                       <li>
                         Use **bold** for key points and *italic* for emphasis
                       </li>
@@ -1057,10 +993,6 @@ const AdForm = () => {
                       <li>
                         Use headings for sections (## Responsibilities, ###
                         Benefits)
-                      </li>
-                      <li>
-                        Keep it simple and readable for better candidate
-                        experience
                       </li>
                     </ul>
                   </div>
@@ -1077,223 +1009,251 @@ const AdForm = () => {
 
   const steps = [
     { number: 1, title: "Basic Info", completeness: getStepCompleteness(1) },
-    { number: 2, title: "Job Info", completeness: getStepCompleteness(2) },
+    { number: 2, title: "Job Details", completeness: getStepCompleteness(2) },
     { number: 3, title: "Description", completeness: getStepCompleteness(3) },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-3 sm:p-6 bg-white rounded-lg shadow-sm">
-        <div className="mb-4 md:mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex-1">
-              <h1 className="text-xl md:text-2xl font-bold text-gray-900">
-                {isEditing ? "Edit Job Posting" : "Create Job Posting"}
+    <div className="min-h-screen bg-gray-50 sm:bg-white">
+      {/* Mobile-native Header - Non-sticky */}
+      <div className="bg-white border-b border-gray-200 shadow-sm sm:hidden">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center">
+            <button
+              onClick={handleCancel}
+              className="p-2 -ml-2 text-gray-500 hover:text-gray-700 active:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ChevronLeftIcon className="w-6 h-6" />
+            </button>
+            <div className="ml-3">
+              <h1 className="text-lg font-semibold text-gray-900">
+                {isEditing ? "Edit Job" : "Create Job"}
               </h1>
-              <p className="hidden md:block text-gray-600 mt-1">
-                {isEditing
-                  ? "Update your job posting details"
-                  : "Create a compelling job posting to attract the best candidates"}
+              <p className="text-sm text-gray-500 mt-0.5">
+                Step {currentStep} of 3
               </p>
             </div>
-            {/* Mobile step indicator */}
-            <div className="sm:hidden flex items-center space-x-2">
-              <span className="text-sm font-medium text-gray-500">Step</span>
-              <span className="text-lg font-bold text-blue-600">
-                {currentStep}
-              </span>
-              <span className="text-sm font-medium text-gray-500">
-                of {steps.length}
-              </span>
-            </div>
           </div>
 
-          {/* Progress Steps - Hidden on mobile */}
-          <div className="hidden md:flex items-center justify-between mb-6">
-            {steps.map((step, index) => (
-              <React.Fragment key={step.number}>
-                <div className="flex flex-col items-center flex-1">
-                  <div
-                    className={`w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-xs lg:text-sm font-medium mb-2 ${
-                      currentStep === step.number
-                        ? "bg-blue-600 text-white"
-                        : currentStep > step.number
-                          ? "bg-green-600 text-white"
-                          : "bg-gray-200 text-gray-500"
-                    }`}
-                  >
-                    {currentStep > step.number ? (
-                      <CheckCircleIcon className="w-4 h-4 lg:w-6 lg:h-6" />
-                    ) : (
-                      step.number
-                    )}
-                  </div>
-                  <span className="text-xs lg:text-sm font-medium text-gray-700 text-center">
-                    {step.title}
-                  </span>
-                  <div className="w-full bg-gray-200 rounded-full h-1 lg:h-1.5 mt-1 lg:mt-2">
-                    <div
-                      className="bg-blue-600 h-1 lg:h-1.5 rounded-full transition-all duration-300"
-                      style={{ width: `${step.completeness}%` }}
-                    ></div>
-                  </div>
-                </div>
-                {index < steps.length - 1 && (
-                  <div
-                    className={`flex-1 h-0.5 mx-2 lg:mx-4 ${
-                      currentStep > step.number ? "bg-green-600" : "bg-gray-200"
-                    }`}
-                  ></div>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
+          <button
+            onClick={handleCancel}
+            className="p-2 text-gray-400 hover:text-gray-600 active:bg-gray-100 rounded-lg transition-colors"
+          >
+            <XMarkIcon className="w-6 h-6" />
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-y-auto pb-24">
+        <div className="py-6">
+          {renderStepContent()}
+        </div>
+      </div>
+
+      {/* Mobile-native Bottom Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-4 z-40">
+        <div className="flex space-x-3">
+          {currentStep > 1 && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handlePrevStep}
+              disabled={isLoading}
+              className="flex-1 py-3 text-base font-medium"
+            >
+              Previous
+            </Button>
+          )}
+
+          {currentStep < 3 ? (
+            <Button
+              type="button"
+              onClick={handleNextStep}
+              disabled={isLoading}
+              className="flex-1 py-3 text-base font-medium bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Next Step
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleSubmit("save")}
+                disabled={isLoading}
+                className="flex-1 py-3 text-sm font-medium"
+              >
+                Save Draft
+              </Button>
+              {(!isEditing ||
+                (isEditing && currentJobStatus === "DRAFT")) && (
+                <Button
+                  type="button"
+                  onClick={() => handleSubmit("submit")}
+                  disabled={isLoading}
+                  className="flex-1 py-3 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Submit
+                </Button>
+              )}
+            </>
+          )}
         </div>
 
-        {/* Main Form */}
-        <div className="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden">
-          <div className="p-2 md:p-6">{renderStepContent()}</div>
+        {/* Status Info for Editing */}
+        {isEditing && currentJobStatus && currentJobStatus !== "DRAFT" && (
+          <p className="text-xs text-gray-500 text-center mt-2">
+            {currentJobStatus === "PENDING_APPROVAL" &&
+              "This job is pending approval"}
+            {currentJobStatus === "APPROVED" &&
+              "This job has been approved"}
+            {currentJobStatus === "ARCHIVED" &&
+              "This job is archived"}
+          </p>
+        )}
+      </div>
 
-          {/* Navigation Buttons */}
-          <div className="pt-6 border-t">
-            {/* Mobile Layout - 2 buttons per row */}
-            <div className="sm:hidden px-2 pb-4">
-              {currentStep < 3 ? (
-                <div className="grid grid-cols-2 gap-3">
+      {/* Desktop View (Hidden on Mobile) */}
+      <div className="hidden sm:block">
+        <div className="min-h-screen bg-gray-50">
+          <div className="bg-white shadow-sm">
+            <div className="mb-4 md:mb-8 p-3 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex-1">
+                  <h1 className="text-xl md:text-2xl font-bold text-gray-900">
+                    {isEditing ? "Edit Job Posting" : "Create Job Posting"}
+                  </h1>
+                  <p className="hidden md:block text-gray-600 mt-1">
+                    {isEditing
+                      ? "Update your job posting details"
+                      : "Create a compelling job posting to attract the best candidates"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Desktop Progress Steps */}
+              <div className="flex items-center justify-between mb-6">
+                {steps.map((step, index) => (
+                  <React.Fragment key={step.number}>
+                    <div className="flex flex-col items-center flex-1">
+                      <div
+                        className={`w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-xs lg:text-sm font-medium mb-2 ${
+                          currentStep === step.number
+                            ? "bg-blue-600 text-white"
+                            : currentStep > step.number
+                              ? "bg-green-600 text-white"
+                              : "bg-gray-200 text-gray-500"
+                        }`}
+                      >
+                        {currentStep > step.number ? (
+                          <CheckCircleIcon className="w-4 h-4 lg:w-6 lg:h-6" />
+                        ) : (
+                          step.number
+                        )}
+                      </div>
+                      <span className="text-xs lg:text-sm font-medium text-gray-700 text-center">
+                        {step.title}
+                      </span>
+                      <div className="w-full bg-gray-200 rounded-full h-1 lg:h-1.5 mt-1 lg:mt-2">
+                        <div
+                          className="bg-blue-600 h-1 lg:h-1.5 rounded-full transition-all duration-300"
+                          style={{ width: `${step.completeness}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div
+                        className={`flex-1 h-0.5 mx-2 lg:mx-4 ${
+                          currentStep > step.number ? "bg-green-600" : "bg-gray-200"
+                        }`}
+                      ></div>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+
+            {/* Desktop Main Form */}
+            <div className="bg-white shadow-sm border-t border-gray-200 overflow-hidden">
+              <div className="p-3 md:p-6">{renderStepContent()}</div>
+
+              {/* Desktop Navigation Buttons */}
+              <div className="pt-6 border-t">
+                <div className="flex justify-between px-6 pb-4">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={handleCancel}
                     disabled={isLoading}
-                    className="w-full"
+                    className="sm:w-auto"
                   >
                     Cancel
                   </Button>
-                  <Button
-                    type="button"
-                    onClick={handleNextStep}
-                    disabled={isLoading}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center"
-                  >
-                    Next
-                    <ArrowRightIcon className="w-4 h-4 ml-2" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {/* First row - Cancel and Save as Draft */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleCancel}
-                      disabled={isLoading}
-                      className="w-full"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleSubmit("save")}
-                      disabled={isLoading}
-                      className="w-full"
-                    >
-                      Save as Draft
-                    </Button>
-                  </div>
-
-                  {/* Second row - Submit for Approval (full width if available) */}
-                  {(!isEditing ||
-                    (isEditing && currentJobStatus === "DRAFT")) && (
-                    <Button
-                      type="button"
-                      onClick={() => handleSubmit("submit")}
-                      disabled={isLoading}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      Submit for Approval
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Desktop Layout - Original layout */}
-            <div className="hidden sm:flex justify-between px-6 pb-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancel}
-                disabled={isLoading}
-                className="sm:w-auto"
-              >
-                Cancel
-              </Button>
-              <div className="flex space-x-3">
-                {currentStep > 1 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handlePrevStep}
-                    disabled={isLoading}
-                    className="sm:w-auto flex items-center"
-                  >
-                    <ArrowLeftIcon className="w-4 h-4 mr-2" />
-                    Back
-                  </Button>
-                )}
-                {currentStep < 3 ? (
-                  <Button
-                    type="button"
-                    onClick={handleNextStep}
-                    disabled={isLoading}
-                    className="sm:w-auto bg-blue-600 hover:bg-blue-700 text-white flex items-center"
-                  >
-                    Next
-                    <ArrowRightIcon className="w-4 h-4 ml-2" />
-                  </Button>
-                ) : (
-                  <>
-                    {/* Save as Draft button */}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleSubmit("save")}
-                      disabled={isLoading}
-                      className="sm:w-auto"
-                    >
-                      Save as Draft
-                    </Button>
-                    {/* Submit for Approval button for new jobs or draft jobs */}
-                    {(!isEditing ||
-                      (isEditing && currentJobStatus === "DRAFT")) && (
+                  <div className="flex space-x-3">
+                    {currentStep > 1 && (
                       <Button
                         type="button"
-                        onClick={() => handleSubmit("submit")}
+                        variant="outline"
+                        onClick={handlePrevStep}
                         disabled={isLoading}
-                        className="sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+                        className="sm:w-auto flex items-center"
                       >
-                        Submit for Approval
+                        <ArrowLeftIcon className="w-4 h-4 mr-2" />
+                        Back
                       </Button>
                     )}
-                  </>
+                    {currentStep < 3 ? (
+                      <Button
+                        type="button"
+                        onClick={handleNextStep}
+                        disabled={isLoading}
+                        className="sm:w-auto bg-blue-600 hover:bg-blue-700 text-white flex items-center"
+                      >
+                        Next
+                        <ArrowRightIcon className="w-4 h-4 ml-2" />
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleSubmit("save")}
+                          disabled={isLoading}
+                          className="sm:w-auto"
+                        >
+                          {isEditing ? "Update Job" : "Save as Draft"}
+                        </Button>
+                        {(!isEditing ||
+                          (isEditing && currentJobStatus === "DRAFT")) && (
+                          <Button
+                            type="button"
+                            onClick={() => handleSubmit("submit")}
+                            disabled={isLoading}
+                            className="sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Submit for Approval
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {isEditing && currentJobStatus && currentJobStatus !== "DRAFT" && (
+                  <p className="text-sm text-gray-600 mt-2 text-center sm:text-right px-3 sm:px-6 pb-4">
+                    {currentJobStatus === "PENDING_APPROVAL" &&
+                      "This job is pending approval and cannot be submitted again."}
+                    {currentJobStatus === "APPROVED" &&
+                      "This job has been approved and cannot be modified."}
+                    {currentJobStatus === "ARCHIVED" &&
+                      "This job is archived and cannot be modified."}
+                  </p>
                 )}
               </div>
             </div>
           </div>
         </div>
-        {/* Show info for non-draft jobs when editing */}
-        {isEditing && currentJobStatus && currentJobStatus !== "DRAFT" && (
-          <p className="text-sm text-gray-600 mt-2 text-center sm:text-right px-6">
-            {currentJobStatus === "PENDING_APPROVAL" &&
-              "This job is pending approval and cannot be submitted again."}
-            {currentJobStatus === "APPROVED" &&
-              "This job has been approved and cannot be modified."}
-            {currentJobStatus === "ARCHIVED" &&
-              "This job is archived and cannot be modified."}
-          </p>
-        )}
       </div>
     </div>
   );

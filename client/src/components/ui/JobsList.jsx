@@ -383,6 +383,7 @@ const JobsList = ({
               id: job.id,
               title: job.title || "No Title",
               company: job.company,
+              employer: job.employer,
               companyName: job.company?.name || "Unknown Company",
               location:
                 typeof job.location === "string"

@@ -42,6 +42,69 @@ class EmployerController {
     return employer;
   }
   // =======================
+  // DASHBOARD STATS
+  // =======================
+
+  // Get dashboard statistics (NEW)
+  async getDashboardStats(req, res, next) {
+    try {
+      const employer = await this.getEmployer(req);
+
+      if (!employer) {
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
+      }
+
+      // Get all ads for this employer
+      const allAds = await req.prisma.ad.findMany({
+        where: { employerId: employer.id },
+        include: {
+          _count: {
+            select: {
+              allocations: true,
+            },
+          },
+        },
+      });
+
+      // Get job views count for all employer's ads
+      const jobViews = await req.prisma.jobView.count({
+        where: {
+          ad: {
+            employerId: employer.id,
+          },
+        },
+      });
+
+      // Get bookmarked candidates count
+      const bookmarkedCandidates = await req.prisma.employerBookmark.count({
+        where: { employerId: employer.id },
+      });
+
+      // Calculate stats
+      const stats = {
+        totalAds: allAds.length,
+        draft: allAds.filter((ad) => ad.status === "DRAFT").length,
+        pendingApproval: allAds.filter((ad) => ad.status === "PENDING_APPROVAL")
+          .length,
+        approved: allAds.filter((ad) => ad.status === "APPROVED").length,
+        archived: allAds.filter((ad) => ad.status === "CLOSED").length,
+        jobViews: jobViews,
+        allocatedCandidates: allAds.reduce(
+          (sum, ad) => sum + (ad._count?.allocations || 0),
+          0,
+        ),
+        bookmarkedCandidates: bookmarkedCandidates,
+      };
+
+      res.json(createResponse("Dashboard stats retrieved successfully", stats));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // =======================
   // PROFILE MANAGEMENT
   // =======================
 
@@ -439,7 +502,6 @@ class EmployerController {
         categoryId,
         title,
         description,
-        locationId,
         gender,
         educationQualificationId,
         skills,
@@ -452,18 +514,12 @@ class EmployerController {
         status = "DRAFT",
       } = req.body;
 
-      if (
-        !companyId ||
-        !categoryName ||
-        !title ||
-        !description ||
-        !locationId
-      ) {
+      if (!companyId || !categoryName || !title || !description) {
         return res
           .status(400)
           .json(
             createErrorResponse(
-              "Company, category, title, description and location are required",
+              "Company, category, title, and description are required",
               400,
             ),
           );
@@ -483,11 +539,14 @@ class EmployerController {
         include: { user: true },
       });
 
-      // Verify company ownership
+      // Verify company ownership and get location
       const company = await req.prisma.company.findFirst({
         where: {
           id: companyId,
           employerId: employer.id,
+        },
+        include: {
+          city: true,
         },
       });
 
@@ -496,6 +555,9 @@ class EmployerController {
           .status(404)
           .json(createErrorResponse("Company not found", 404));
       }
+
+      // Get locationId from company
+      const locationId = company.cityId;
 
       // Check if employer has active MOU (allow creation but warn)
       const activeMOU = await req.prisma.mOU.findFirst({
@@ -571,21 +633,21 @@ class EmployerController {
     try {
       const { adId } = req.params;
       const {
-        employerId, // For Branch Admin usage
+        companyId,
+        categoryName,
+        categoryId,
         title,
         description,
-        categoryName = "Jobs",
-        categoryId,
-        companyId,
-        city,
-        employmentType,
-        experienceLevel,
-        salaryMin,
-        salaryMax,
-        skills,
-        validUntil,
         gender,
         educationQualificationId,
+        skills,
+        salaryMin,
+        salaryMax,
+        experienceLevel,
+        employmentType,
+        contactInfo,
+        validUntil,
+        status,
       } = req.body;
 
       // Validate required fields
@@ -626,16 +688,25 @@ class EmployerController {
         include: { user: true },
       });
 
-      // Get location ID if city is provided
-      let locationId = null;
-      if (city) {
-        const location = await req.prisma.city.findUnique({
-          where: { id: city },
-        });
-        if (location) {
-          locationId = location.id;
-        }
+      // Verify company ownership and get location
+      const company = await req.prisma.company.findFirst({
+        where: {
+          id: companyId,
+          employerId: employer.id,
+        },
+        include: {
+          city: true,
+        },
+      });
+
+      if (!company) {
+        return res
+          .status(404)
+          .json(createErrorResponse("Company not found", 404));
       }
+
+      // Get locationId from company
+      const locationId = company.cityId;
 
       // Update the ad
       const updatedAd = await req.prisma.ad.update({
@@ -663,11 +734,9 @@ class EmployerController {
               connect: { id: companyId },
             },
           }),
-          ...(locationId && {
-            location: {
-              connect: { id: locationId },
-            },
-          }),
+          location: {
+            connect: { id: locationId },
+          },
           ...(categoryId && {
             category: {
               connect: { id: categoryId },
@@ -807,6 +876,92 @@ class EmployerController {
       };
 
       res.json(createResponse("Ads retrieved successfully", ads, pagination));
+    } catch (error) {
+      console.error("Error in getAds:", error);
+      return res
+        .status(500)
+        .json(
+          createResponse(false, "Failed to fetch ads", null, "INTERNAL_ERROR"),
+        );
+    }
+  }
+
+  // Get single ad by ID (NEW)
+  async getAdById(req, res, next) {
+    try {
+      const { adId } = req.params;
+
+      const employer = await this.getEmployer(req);
+
+      if (!employer) {
+        return res
+          .status(404)
+          .json(createErrorResponse("Employer profile not found", 404));
+      }
+
+      const ad = await req.prisma.ad.findFirst({
+        where: {
+          id: adId,
+          employerId: employer.id,
+        },
+        include: {
+          company: {
+            select: {
+              id: true,
+              name: true,
+              logo: true,
+              description: true,
+              industry: true,
+              size: true,
+              website: true,
+            },
+          },
+          location: {
+            select: {
+              id: true,
+              name: true,
+              state: true,
+            },
+          },
+          category: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+            },
+          },
+          educationQualification: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+            },
+          },
+          employer: {
+            select: {
+              id: true,
+              user: {
+                select: {
+                  id: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+          _count: {
+            select: {
+              allocations: true,
+              bookmarks: true,
+            },
+          },
+        },
+      });
+
+      if (!ad) {
+        return res.status(404).json(createErrorResponse("Ad not found", 404));
+      }
+
+      res.json(createResponse("Ad retrieved successfully", ad));
     } catch (error) {
       next(error);
     }
@@ -1760,7 +1915,7 @@ class EmployerController {
         ];
       }
 
-      const [candidates, total] = await Promise.all([
+      const [allCandidates, total] = await Promise.all([
         req.prisma.candidate.findMany({
           where,
           skip,
@@ -1800,14 +1955,7 @@ class EmployerController {
             },
             _count: {
               select: {
-                allocations: {
-                  where: {
-                    employerId: employer.id,
-                    ad: {
-                      status: "APPROVED",
-                    },
-                  },
-                },
+                allocations: true,
               },
             },
           },
@@ -1815,6 +1963,46 @@ class EmployerController {
         }),
         req.prisma.candidate.count({ where }),
       ]);
+
+      // Get employer bookmarks
+      const bookmarks = await req.prisma.employerBookmark.findMany({
+        where: { employerId: employer.id },
+        select: { candidateId: true },
+      });
+      const bookmarkedCandidateIds = new Set(
+        bookmarks.map((b) => b.candidateId),
+      );
+
+      // Ensure each candidate has required properties and proper structure
+      const processedCandidates = allCandidates.map((candidate) => ({
+        ...candidate,
+        id:
+          candidate.id ||
+          candidate.candidateId ||
+          Math.random().toString(36).substr(2, 9),
+        user: candidate.user || {},
+        name: candidate.name || candidate.user?.name || "Unknown",
+        email: candidate.email || candidate.user?.email || "",
+        skills: Array.isArray(candidate.skills)
+          ? candidate.skills
+          : typeof candidate.skills === "string"
+            ? candidate.skills.split(",").map((s) => s.trim())
+            : [],
+        allocations: Array.isArray(candidate.allocations)
+          ? candidate.allocations
+          : [],
+        experience:
+          candidate.experience ||
+          candidate.experienceYears ||
+          candidate.totalExperience ||
+          0,
+        currentLocation: candidate.currentLocation || candidate.location || "",
+        expectedSalary: candidate.expectedSalary || "",
+        currentJobTitle: candidate.currentJobTitle || candidate.jobTitle || "",
+        profile_data: candidate.profile_data || {},
+        isPremium: Boolean(candidate.isPremium),
+        isBookmarked: bookmarkedCandidateIds.has(candidate.id),
+      }));
 
       const pagination = {
         page: parseInt(page),
@@ -1828,7 +2016,7 @@ class EmployerController {
       res.json(
         createResponse(
           "Applied candidates retrieved successfully",
-          { candidates },
+          { candidates: processedCandidates },
           pagination,
         ),
       );
@@ -2128,6 +2316,127 @@ class EmployerController {
         ),
       );
     } catch (error) {
+      next(error);
+    }
+  }
+
+  // =======================
+  // CANDIDATE PROFILE ACCESS
+  // =======================
+
+  // Get candidate profile for employers
+  async getCandidateProfile(req, res, next) {
+    try {
+      const { candidateId } = req.params;
+
+      if (!candidateId) {
+        return res
+          .status(400)
+          .json(createErrorResponse("Candidate ID is required", 400));
+      }
+
+      // Find the candidate with complete profile data
+      const candidate = await req.prisma.candidate.findUnique({
+        where: { id: candidateId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              cityId: true,
+              isActive: true,
+              createdAt: true,
+              city: {
+                select: {
+                  id: true,
+                  name: true,
+                  state: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!candidate) {
+        return res
+          .status(404)
+          .json(createErrorResponse("Candidate not found", 404));
+      }
+
+      // Build comprehensive profile data for employer view
+      const profileData = candidate.profileData || {};
+
+      // Include job preferences from dedicated candidate columns
+      const jobPreferences = {
+        jobTitles: candidate.preferredJobTitles || [],
+        preferredRoles: candidate.preferredJobTitles || [],
+        industry: candidate.preferredIndustries || [],
+        locations: candidate.preferredLocations || [],
+        preferredLocations: candidate.preferredLocations || [],
+        jobTypes: candidate.preferredJobTypes || [],
+        languages: candidate.preferredLanguages || [],
+        salaryRange: {
+          min: candidate.preferredSalaryMin,
+          max: candidate.preferredSalaryMax,
+        },
+        workType: candidate.remoteWorkPreference,
+        shiftPreference: candidate.shiftPreference,
+        experienceLevel: candidate.experienceLevel,
+        noticePeriod: candidate.noticePeriod,
+        travelWillingness: candidate.travelWillingness,
+        currentEmploymentStatus: candidate.currentEmploymentStatus,
+      };
+
+      // Format response data
+      const candidateProfile = {
+        id: candidate.id,
+        firstName: candidate.firstName,
+        lastName: candidate.lastName,
+        user: candidate.user,
+        profileData: {
+          ...profileData,
+          jobPreferences,
+        },
+        // Individual fields for compatibility
+        preferredJobTitles: candidate.preferredJobTitles,
+        preferredIndustries: candidate.preferredIndustries,
+        preferredLocations: candidate.preferredLocations,
+        preferredJobTypes: candidate.preferredJobTypes,
+        preferredLanguages: candidate.preferredLanguages,
+        preferredSalaryMin: candidate.preferredSalaryMin,
+        preferredSalaryMax: candidate.preferredSalaryMax,
+        remoteWorkPreference: candidate.remoteWorkPreference,
+        shiftPreference: candidate.shiftPreference,
+        experienceLevel: candidate.experienceLevel,
+        noticePeriod: candidate.noticePeriod,
+        travelWillingness: candidate.travelWillingness,
+        currentEmploymentStatus: candidate.currentEmploymentStatus,
+        availabilityStatus: candidate.availabilityStatus,
+        skillsWithExperience: candidate.skillsWithExperience,
+        resumeUrl: candidate.resumeUrl,
+        resumeFileName: candidate.resumeFileName,
+        profilePhoto: candidate.profilePhoto,
+        coverPhoto: candidate.coverPhoto,
+        // Include experience and education from profileData
+        experience: profileData.experience || [],
+        education: profileData.education || [],
+        skills: profileData.skills || [],
+        jobPreferences: jobPreferences,
+      };
+
+      res.json(
+        createResponse(
+          "Candidate profile retrieved successfully",
+          candidateProfile,
+        ),
+      );
+    } catch (error) {
+      console.error("Error fetching candidate profile:", error);
       next(error);
     }
   }

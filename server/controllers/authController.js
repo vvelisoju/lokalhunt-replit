@@ -91,33 +91,113 @@ class AuthController {
       // Use cityId from request, fallback to city if provided as UUID
       const userCityId = cityId || city;
 
-      // Create user without password (will be set during OTP verification)
-      const user = await prisma.user.create({
-        data: {
-          name: fullName,
-          firstName,
-          lastName,
-          email,
-          phone,
-          passwordHash: "", // Temporary empty password
-          role,
-          cityId: userCityId,
-          isVerified: false,
-          otp,
-          otpExpiresAt,
-        },
-        select: {
-          id: true,
-          name: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-          role: true,
-          cityId: true,
-          isVerified: true,
-          createdAt: true,
-        },
+      // Create user and role-specific profiles in a transaction
+      const result = await prisma.$transaction(async (transactionPrisma) => {
+        // Create user without password (will be set during OTP verification)
+        const user = await transactionPrisma.user.create({
+          data: {
+            name: fullName,
+            firstName,
+            lastName,
+            email,
+            phone,
+            passwordHash: "", // Temporary empty password
+            role,
+            cityId: userCityId,
+            isVerified: false,
+            otp,
+            otpExpiresAt,
+          },
+          select: {
+            id: true,
+            name: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            role: true,
+            cityId: true,
+            isVerified: true,
+            createdAt: true,
+          },
+        });
+
+        let profileData = null;
+
+        // Create role-specific profiles during registration
+        if (role === "CANDIDATE") {
+          profileData = await transactionPrisma.candidate.create({
+            data: {
+              userId: user.id,
+            },
+          });
+        } else if (role === "EMPLOYER") {
+          // Create employer profile
+          const employer = await transactionPrisma.employer.create({
+            data: {
+              userId: user.id,
+              contactDetails: {},
+              isVerified: false,
+            },
+          });
+
+          console.log("Created employer profile during registration:", employer.id);
+
+          // Create default company for employer if company data is provided
+          if (companyName && userCityId) {
+            console.log("Creating default company during registration:", {
+              companyName,
+              cityId: userCityId,
+            });
+
+            const defaultCompany = await transactionPrisma.company.create({
+              data: {
+                employerId: employer.id,
+                name: companyName,
+                cityId: userCityId,
+                isDefault: true,
+                isActive: true,
+              },
+            });
+
+            console.log("Created default company during registration:", defaultCompany);
+          } else {
+            console.log(
+              "No company data available during registration - company name:",
+              companyName,
+              "cityId:",
+              userCityId,
+            );
+          }
+
+          // Assign basic subscription
+          const basicPlan = await transactionPrisma.plan.findFirst({
+            where: { name: "Self-Service" },
+          });
+
+          if (basicPlan) {
+            await transactionPrisma.subscription.create({
+              data: {
+                employerId: employer.id,
+                planId: basicPlan.id,
+                status: "ACTIVE",
+                startDate: new Date(),
+              },
+            });
+            console.log("Assigned basic subscription to employer during registration");
+          }
+
+          profileData = employer;
+        } else if (role === "BRANCH_ADMIN") {
+          profileData = await transactionPrisma.branchAdmin.create({
+            data: {
+              userId: user.id,
+              assignedCityId: userCityId,
+            },
+          });
+        }
+
+        return { user, profileData };
       });
 
       // Send OTP via email if email is provided
@@ -150,9 +230,60 @@ class AuthController {
         }
       }
 
+      // Send notifications to branch admins for new registrations
+      try {
+        if (role === "EMPLOYER") {
+          // Find branch admin for the employer's city
+          const branchAdmins = await prisma.branchAdmin.findMany({
+            // where: { assignedCityId: result.user.cityId },
+            include: { user: true },
+          });
+
+          if (branchAdmins) {
+            for (const branchAdmin of branchAdmins) {
+              await notificationController.sendNotificationWithStorage(
+                branchAdmin.userId,
+                "NEW_EMPLOYER_REGISTERED",
+                {
+                  employerName: result.user.name,
+                  employerEmail: result.user.email || "N/A",
+                  companyName: companyName || "Not specified",
+                },
+              );
+            }
+          }
+        } else if (role === "CANDIDATE") {
+          // Find branch admin for the candidate's city
+          const branchAdmins = await prisma.branchAdmin.findMany({
+            // where: { assignedCityId: result.user.cityId },
+            include: { user: true },
+          });
+
+          if (branchAdmins) {
+            for (const branchAdmin of branchAdmins) {
+              await notificationController.sendNotificationWithStorage(
+                branchAdmin.userId,
+                "NEW_CANDIDATE_REGISTERED",
+                {
+                  candidateName: result.user.name,
+                  candidateEmail: result.user.email || "N/A",
+                },
+              );
+            }
+          }
+        }
+      } catch (notificationError) {
+        console.error(
+          "Failed to send branch admin registration notification:",
+          notificationError,
+        );
+        // Don't fail registration if notification fails
+      }
+
       res.status(201).json(
         createResponse("OTP sent. Please verify to complete registration.", {
-          user,
+          user: result.user,
+          profile: result.profileData,
           requiresVerification: true,
         }),
       );
@@ -350,180 +481,57 @@ class AuthController {
           );
       }
 
-      // Extract company data from multiple sources
-      const finalCompanyData = {
-        companyName: companyName || registrationData?.companyName,
-        cityId: cityId || registrationData?.cityId || userData.cityId,
+      // Update user data - only handle verification and password setting
+      const updateData = {
+        isVerified: true,
+        otp: null,
+        otpExpiresAt: null,
       };
 
-      console.log("Final company data for employer:", finalCompanyData);
+      // Set password for registration flow
+      if (!userData.isVerified && password) {
+        const passwordHash = await bcrypt.hash(password, 12);
+        updateData.passwordHash = passwordHash;
+        updateData.isActive = true;
+      }
 
-      // Start transaction for registration completion
-      const result = await prisma.$transaction(async (transactionPrisma) => {
-        // Update user data
-        const updateData = {
+      const updatedUser = await prisma.user.update({
+        where: { id: userData.id },
+        data: updateData,
+        select: {
+          id: true,
+          name: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          role: true,
+          cityId: true,
           isVerified: true,
-          otp: null,
-          otpExpiresAt: null,
-        };
-
-        // Set password for registration flow
-        if (!userData.isVerified && password) {
-          const passwordHash = await bcrypt.hash(password, 12);
-          updateData.passwordHash = passwordHash;
-          updateData.isActive = true;
-        }
-
-        const updatedUser = await transactionPrisma.user.update({
-          where: { id: userData.id },
-          data: updateData,
-          select: {
-            id: true,
-            name: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            phone: true,
-            role: true,
-            cityId: true,
-            isVerified: true,
-            isActive: true,
-            createdAt: true,
-          },
-        });
-
-        let profileData = null;
-
-        // Create role-specific profiles for new registrations
-        if (!userData.isVerified) {
-          if (userData.role === "CANDIDATE") {
-            profileData = await transactionPrisma.candidate.create({
-              data: {
-                userId: userData.id,
-              },
-            });
-          } else if (userData.role === "EMPLOYER") {
-            // Create employer profile
-            const employer = await transactionPrisma.employer.create({
-              data: {
-                userId: userData.id,
-                contactDetails: {},
-                isVerified: false,
-              },
-            });
-
-            console.log("Created employer profile:", employer.id);
-
-            // Create default company for employer
-            if (finalCompanyData.companyName && finalCompanyData.cityId) {
-              console.log(
-                "Creating default company with data:",
-                finalCompanyData,
-              );
-
-              const defaultCompany = await transactionPrisma.company.create({
-                data: {
-                  employerId: employer.id,
-                  name: finalCompanyData.companyName,
-                  cityId: finalCompanyData.cityId,
-                  isDefault: true,
-                  isActive: true,
-                },
-              });
-
-              console.log("Created default company:", defaultCompany);
-            } else {
-              console.log(
-                "No company data available - company name:",
-                finalCompanyData.companyName,
-                "cityId:",
-                finalCompanyData.cityId,
-              );
-            }
-
-            // Assign basic subscription
-            const basicPlan = await transactionPrisma.plan.findFirst({
-              where: { name: "Self-Service" },
-            });
-
-            if (basicPlan) {
-              await transactionPrisma.subscription.create({
-                data: {
-                  employerId: employer.id,
-                  planId: basicPlan.id,
-                  status: "ACTIVE",
-                  startDate: new Date(),
-                },
-              });
-              console.log("Assigned basic subscription to employer");
-            }
-
-            profileData = employer;
-          } else if (userData.role === "BRANCH_ADMIN") {
-            profileData = await transactionPrisma.branchAdmin.create({
-              data: {
-                userId: userData.id,
-                assignedCityId: userData.cityId,
-              },
-            });
-          }
-        }
-
-        return { user: updatedUser, profileData };
+          isActive: true,
+          createdAt: true,
+        },
       });
 
-      // Send notifications to branch admins for new registrations
-      if (!userData.isVerified) {
-        try {
-          if (userData.role === "EMPLOYER") {
-            // Find branch admin for the employer's city
-            const branchAdmins = await prisma.branchAdmin.findMany({
-              // where: { assignedCityId: result.user.cityId },
-              include: { user: true },
-            });
-
-            if (branchAdmins) {
-              for (const branchAdmin of branchAdmins) {
-                await notificationController.sendNotificationWithStorage(
-                  branchAdmin.userId,
-                  "NEW_EMPLOYER_REGISTERED",
-                  {
-                    employerName: result.user.name,
-                    employerEmail: result.user.email || "N/A",
-                    companyName:
-                      finalCompanyData.companyName || "Not specified",
-                  },
-                );
-              }
-            }
-          } else if (userData.role === "CANDIDATE") {
-            // Find branch admin for the candidate's city
-            const branchAdmins = await prisma.branchAdmin.findMany({
-              // where: { assignedCityId: result.user.cityId },
-              include: { user: true },
-            });
-
-            if (branchAdmins) {
-              for (const branchAdmin of branchAdmins) {
-                await notificationController.sendNotificationWithStorage(
-                  branchAdmin.userId,
-                  "NEW_CANDIDATE_REGISTERED",
-                  {
-                    candidateName: result.user.name,
-                    candidateEmail: result.user.email || "N/A",
-                  },
-                );
-              }
-            }
-          }
-        } catch (notificationError) {
-          console.error(
-            "Failed to send branch admin registration notification:",
-            notificationError,
-          );
-          // Don't fail registration if notification fails
-        }
+      // Get existing profile data that was created during registration
+      let profileData = null;
+      if (userData.role === "CANDIDATE") {
+        profileData = await prisma.candidate.findUnique({
+          where: { userId: userData.id },
+        });
+      } else if (userData.role === "EMPLOYER") {
+        profileData = await prisma.employer.findUnique({
+          where: { userId: userData.id },
+        });
+      } else if (userData.role === "BRANCH_ADMIN") {
+        profileData = await prisma.branchAdmin.findUnique({
+          where: { userId: userData.id },
+        });
       }
+
+      const result = { user: updatedUser, profileData };
+
+      
 
       // Generate JWT token for successful registration
       let token = null;
@@ -555,14 +563,6 @@ class AuthController {
             // Don't fail registration if notification fails
           }
         }
-      }
-
-      // Clean up temporary storage
-      if (userData.role === "EMPLOYER") {
-        // This would be handled by frontend, but we can log it
-        console.log(
-          "Registration completed - temporary company data should be cleared from frontend",
-        );
       }
 
       // Determine response message and status
@@ -841,44 +841,61 @@ class AuthController {
         },
       });
 
-      // If user was not verified before, create role-specific profiles
+      // If user was not verified before, ensure role-specific profiles exist (they should have been created during registration)
       if (!user.isVerified) {
         if (user.role === "CANDIDATE") {
-          await prisma.candidate.create({
-            data: { userId: user.id },
+          // Check if candidate profile exists, create if not
+          const existingCandidate = await prisma.candidate.findUnique({
+            where: { userId: user.id },
           });
+          if (!existingCandidate) {
+            await prisma.candidate.create({
+              data: { userId: user.id },
+            });
+          }
         } else if (user.role === "EMPLOYER") {
-          // Create employer profile
-          const employer = await prisma.employer.create({
-            data: {
-              userId: user.id,
-              contactDetails: null,
-              isVerified: false,
-            },
+          // Check if employer profile exists, create if not
+          const existingEmployer = await prisma.employer.findUnique({
+            where: { userId: user.id },
           });
-
-          // Assign basic subscription
-          const basicPlan = await prisma.plan.findFirst({
-            where: { name: "Self-Service" },
-          });
-
-          if (basicPlan) {
-            await prisma.subscription.create({
+          if (!existingEmployer) {
+            const employer = await prisma.employer.create({
               data: {
-                employerId: employer.id,
-                planId: basicPlan.id,
-                status: "ACTIVE",
-                startDate: new Date(),
+                userId: user.id,
+                contactDetails: {},
+                isVerified: false,
+              },
+            });
+
+            // Assign basic subscription
+            const basicPlan = await prisma.plan.findFirst({
+              where: { name: "Self-Service" },
+            });
+
+            if (basicPlan) {
+              await prisma.subscription.create({
+                data: {
+                  employerId: employer.id,
+                  planId: basicPlan.id,
+                  status: "ACTIVE",
+                  startDate: new Date(),
+                },
+              });
+            }
+          }
+        } else if (user.role === "BRANCH_ADMIN") {
+          // Check if branch admin profile exists, create if not
+          const existingBranchAdmin = await prisma.branchAdmin.findUnique({
+            where: { userId: user.id },
+          });
+          if (!existingBranchAdmin) {
+            await prisma.branchAdmin.create({
+              data: {
+                userId: user.id,
+                assignedCityId: user.cityId,
               },
             });
           }
-        } else if (user.role === "BRANCH_ADMIN") {
-          await prisma.branchAdmin.create({
-            data: {
-              userId: user.id,
-              assignedCityId: user.cityId,
-            },
-          });
         }
       }
 
@@ -984,44 +1001,61 @@ class AuthController {
         },
       });
 
-      // If user was not verified before, create role-specific profiles
+      // If user was not verified before, ensure role-specific profiles exist (they should have been created during registration)
       if (!user.isVerified) {
         if (user.role === "CANDIDATE") {
-          await prisma.candidate.create({
-            data: { userId: user.id },
+          // Check if candidate profile exists, create if not
+          const existingCandidate = await prisma.candidate.findUnique({
+            where: { userId: user.id },
           });
+          if (!existingCandidate) {
+            await prisma.candidate.create({
+              data: { userId: user.id },
+            });
+          }
         } else if (user.role === "EMPLOYER") {
-          // Create employer profile
-          const employer = await prisma.employer.create({
-            data: {
-              userId: user.id,
-              contactDetails: null,
-              isVerified: false,
-            },
+          // Check if employer profile exists, create if not
+          const existingEmployer = await prisma.employer.findUnique({
+            where: { userId: user.id },
           });
-
-          // Assign basic subscription
-          const basicPlan = await prisma.plan.findFirst({
-            where: { name: "Self-Service" },
-          });
-
-          if (basicPlan) {
-            await prisma.subscription.create({
+          if (!existingEmployer) {
+            const employer = await prisma.employer.create({
               data: {
-                employerId: employer.id,
-                planId: basicPlan.id,
-                status: "ACTIVE",
-                startDate: new Date(),
+                userId: user.id,
+                contactDetails: {},
+                isVerified: false,
+              },
+            });
+
+            // Assign basic subscription
+            const basicPlan = await prisma.plan.findFirst({
+              where: { name: "Self-Service" },
+            });
+
+            if (basicPlan) {
+              await prisma.subscription.create({
+                data: {
+                  employerId: employer.id,
+                  planId: basicPlan.id,
+                  status: "ACTIVE",
+                  startDate: new Date(),
+                },
+              });
+            }
+          }
+        } else if (user.role === "BRANCH_ADMIN") {
+          // Check if branch admin profile exists, create if not
+          const existingBranchAdmin = await prisma.branchAdmin.findUnique({
+            where: { userId: user.id },
+          });
+          if (!existingBranchAdmin) {
+            await prisma.branchAdmin.create({
+              data: {
+                userId: user.id,
+                assignedCityId: user.cityId,
               },
             });
           }
-        } else if (user.role === "BRANCH_ADMIN") {
-          await prisma.branchAdmin.create({
-            data: {
-              userId: user.id,
-              assignedCityId: user.cityId,
-            },
-          });
         }
       }
 

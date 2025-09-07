@@ -4,12 +4,13 @@ import { DocumentIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } fro
 import Button from '../../components/ui/Button'
 import Loader from '../../components/ui/Loader'
 import { getMous } from '../../services/employer/mou'
-import { toast } from 'react-hot-toast'
+import { useToast } from '../../components/ui/Toast'
 
 const Mou = () => {
   const [mous, setMous] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeMou, setActiveMou] = useState(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     loadMous()

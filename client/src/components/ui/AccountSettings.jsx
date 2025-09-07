@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { toast } from "react-hot-toast";
 import Profile from "./Profile";
 import { useAuth } from "../../context/AuthContext";
 import { authService } from "../../services/authService";

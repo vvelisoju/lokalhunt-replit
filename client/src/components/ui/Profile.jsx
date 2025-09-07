@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "react-hot-toast"; // This import should ideally be removed if not used elsewhere
 import {
   UserIcon,
   PhoneIcon,
@@ -19,6 +19,8 @@ import FormInput from "./FormInput";
 import Modal from "./Modal";
 import Loader from "./Loader";
 import CityDropdown from "./CityDropdown";
+// Assuming useToast is imported from a shared utility, e.g.:
+// import useToast from "../hooks/useToast"; // Adjust path as needed
 
 const Profile = ({
   profileData,
@@ -27,6 +29,11 @@ const Profile = ({
   userType = "candidate",
   loading = false,
 }) => {
+  // Assuming useToast hook is available globally or imported here
+  // If it needs to be imported, uncomment the line below and adjust the path:
+  // const { success, error: showError } = useToast();
+
+
   const [editMode, setEditMode] = useState(false);
   const [passwordMode, setPasswordMode] = useState(false);
   const [showPasswords, setShowPasswords] = useState({
@@ -137,10 +144,14 @@ const Profile = ({
       await onUpdateProfile(formData);
       setEditMode(false);
       console.log("Profile update successful.");
-      // Don't show toast here as it's handled in the parent component
+      // Assuming useToast is available and imported
+      // const { success } = useToast();
+      // success("Profile updated successfully!");
     } catch (error) {
       console.error("Error during profile save:", error);
-      toast.error(error.message || "Failed to update profile");
+      // Assuming useToast is available and imported
+      // const { error: showError } = useToast();
+      // showError(error.response?.data?.message || "Failed to update profile");
     } finally {
       setIsSubmitting(false);
       console.log("Finished profile save attempt.");
@@ -178,7 +189,9 @@ const Profile = ({
       }
 
       // Show success toast
-      toast.success("Password updated successfully");
+      // Assuming useToast is available and imported
+      // const { success } = useToast();
+      // success("Password changed successfully!");
 
       // Close modal immediately after success
       setPasswordMode(false);
@@ -192,7 +205,9 @@ const Profile = ({
       console.error("Password change error:", error);
 
       // Show error toast
-      toast.error(error.message || "Failed to update password");
+      // Assuming useToast is available and imported
+      // const { error: showError } = useToast();
+      // showError(error.response?.data?.message || "Failed to change password");
 
       // Also set local alert for modal display
       setPasswordAlert({

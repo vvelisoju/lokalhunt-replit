@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { Toaster } from "react-hot-toast";
 import { LockClosedIcon } from "@heroicons/react/24/outline";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
@@ -9,7 +8,7 @@ import Button from "../ui/Button";
 import { useRole } from "../../context/RoleContext";
 import { useAuth } from "../../context/AuthContext";
 import { useSubscription } from "../../context/SubscriptionContext";
-import { toast } from "react-hot-toast";
+import { useToast } from "../ui/Toast";
 
 const EmployerLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -18,6 +17,7 @@ const EmployerLayout = () => {
   const { isAdminView } = useRole();
   const { hasHRAssistPlan } = useSubscription();
   const navigate = useNavigate();
+  const { error: showError } = useToast(); // Destructure showError from useToast
 
   useEffect(() => {
     const handleResize = () => {
@@ -32,29 +32,34 @@ const EmployerLayout = () => {
     };
 
     window.addEventListener("resize", handleResize);
-    window.addEventListener('showPremiumUpgrade', handleShowPremiumUpgrade);
+    window.addEventListener("showPremiumUpgrade", handleShowPremiumUpgrade);
 
     return () => {
       window.removeEventListener("resize", handleResize);
-      window.removeEventListener('showPremiumUpgrade', handleShowPremiumUpgrade);
+      window.removeEventListener(
+        "showPremiumUpgrade",
+        handleShowPremiumUpgrade,
+      );
     };
   }, []);
 
   const handleUpgradeToHRAssist = () => {
     // Redirect to upgrade page or open subscription management
-    toast.success("Redirecting to subscription management...");
+    showError("Redirecting to subscription management..."); // Use showError
     setShowPremiumModal(false);
     // Navigate to subscription page using React Router
-    navigate('/employer/subscription');
+    navigate("/employer/subscription");
   };
-
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile-friendly layout with responsive design */}
       <div className="flex h-screen overflow-hidden">
         {/* Sidebar Component */}
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+        />
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -62,7 +67,7 @@ const EmployerLayout = () => {
           <Header onMenuClick={() => setIsSidebarOpen(true)} />
 
           {/* Page Content */}
-          <main className="flex-1 overflow-y-auto bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
+          <main className="flex-1 overflow-y-auto bg-gray-50 px-4 py-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
               <Outlet />
             </div>
@@ -87,8 +92,8 @@ const EmployerLayout = () => {
             What are Premium Candidates?
           </h3>
           <p className="text-sm text-gray-600 mb-4">
-            Premium Candidates are pre-screened top talent, saving you time
-            and ensuring higher quality hires.
+            Premium Candidates are pre-screened top talent, saving you time and
+            ensuring higher quality hires.
           </p>
 
           <h3 className="text-lg font-semibold text-gray-800 mb-3">
@@ -120,16 +125,8 @@ const EmployerLayout = () => {
         </div>
       </Modal>
 
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: "#363636",
-            color: "#fff",
-          },
-        }}
-      />
+      {/* Toast Component */}
+      {/* The Toaster component is now managed globally or by the Toast component itself */}
     </div>
   );
 };

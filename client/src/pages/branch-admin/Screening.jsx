@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { toast } from 'react-hot-toast'; // This import will be removed and replaced by the custom toast hook usage
 import CandidateScreeningTable from '../../components/branch-admin/CandidateScreeningTable';
 import FormInput from '../../components/ui/FormInput';
 import Select from '../../components/ui/Select';
@@ -11,11 +11,13 @@ import {
   updateScreeningStatus, 
   rateCandidate 
 } from '../../services/branch-admin/screening';
+import { useToast } from '../../components/ui/Toast'; // Import the custom toast hook
 
 const Screening = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  
+  const { toast } = useToast(); // Use the custom toast hook
+
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
@@ -93,7 +95,7 @@ const Screening = () => {
       };
 
       const response = await getCandidatesToScreen(params);
-      
+
       if (response.success) {
         setCandidates(response.data.candidates || []);
         setPagination(prev => ({
@@ -102,10 +104,10 @@ const Screening = () => {
           pages: response.data.pages || 0
         }));
       } else {
-        toast.error(response.error);
+        toast.error(response.error); // Use custom toast
       }
     } catch (error) {
-      toast.error('Failed to load candidates');
+      toast.error('Failed to load candidates'); // Use custom toast
       console.error('Load candidates error:', error);
     } finally {
       setLoading(false);
@@ -136,13 +138,13 @@ const Screening = () => {
     try {
       const response = await updateScreeningStatus(allocationId, status, notes);
       if (response.success) {
-        toast.success('Screening status updated successfully');
+        toast.success('Screening status updated successfully'); // Use custom toast
         loadCandidates();
       } else {
-        toast.error(response.error);
+        toast.error(response.error); // Use custom toast
       }
     } catch (error) {
-      toast.error('Failed to update screening status');
+      toast.error('Failed to update screening status'); // Use custom toast
     }
   };
 
@@ -150,13 +152,13 @@ const Screening = () => {
     try {
       const response = await rateCandidate(candidateId, rating, notes);
       if (response.success) {
-        toast.success('Candidate rated successfully');
+        toast.success('Candidate rated successfully'); // Use custom toast
         loadCandidates();
       } else {
-        toast.error(response.error);
+        toast.error(response.error); // Use custom toast
       }
     } catch (error) {
-      toast.error('Failed to rate candidate');
+      toast.error('Failed to rate candidate'); // Use custom toast
     }
   };
 
@@ -196,28 +198,28 @@ const Screening = () => {
               onChange={(e) => updateFilters({ search: e.target.value })}
             />
           </div>
-          
+
           <Select
             value={filters.screeningStatus}
             onChange={(value) => updateFilters({ screeningStatus: value })}
             options={screeningStatusOptions}
             placeholder="Screening status"
           />
-          
+
           <Select
             value={filters.allocationStatus}
             onChange={(value) => updateFilters({ allocationStatus: value })}
             options={allocationStatusOptions}
             placeholder="Application status"
           />
-          
+
           <Select
             value={filters.categoryName}
             onChange={(value) => updateFilters({ categoryName: value })}
             options={categoryOptions}
             placeholder="Job category"
           />
-          
+
           <Select
             value={filters.sortBy}
             onChange={(value) => updateFilters({ sortBy: value })}
@@ -229,7 +231,7 @@ const Screening = () => {
           <p className="text-sm text-gray-600">
             {pagination.total} candidates found
           </p>
-          
+
           {Object.values(filters).some(value => value && value !== 'createdAt' && value !== 'desc') && (
             <Button
               variant="outline"
@@ -252,7 +254,7 @@ const Screening = () => {
             <p className="text-sm text-gray-600 mt-1">Pending Screening</p>
           </div>
         </div>
-        
+
         <div className="bg-white p-6 rounded-lg shadow-sm border">
           <div className="text-center">
             <p className="text-2xl font-semibold text-yellow-600">
@@ -261,7 +263,7 @@ const Screening = () => {
             <p className="text-sm text-gray-600 mt-1">In Progress</p>
           </div>
         </div>
-        
+
         <div className="bg-white p-6 rounded-lg shadow-sm border">
           <div className="text-center">
             <p className="text-2xl font-semibold text-green-600">
@@ -270,7 +272,7 @@ const Screening = () => {
             <p className="text-sm text-gray-600 mt-1">Screened</p>
           </div>
         </div>
-        
+
         <div className="bg-white p-6 rounded-lg shadow-sm border">
           <div className="text-center">
             <p className="text-2xl font-semibold text-purple-600">

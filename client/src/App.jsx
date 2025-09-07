@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { Toaster } from "react-hot-toast";
 
 // Landing Page
 import Landing from "./pages/Landing";
@@ -41,6 +40,8 @@ import EmployerSubscription from "./pages/employer/Subscription";
 import EmployerMou from "./pages/employer/Mou";
 // Import new PremiumCandidates page
 import PremiumCandidates from "./pages/employer/PremiumCandidates";
+// Import EmployerJobView component
+import EmployerJobView from "./pages/employer/JobView";
 
 // Branch Admin Pages
 import BranchAdminDashboard from "./pages/branch-admin/Dashboard";
@@ -85,7 +86,7 @@ import ContactUs from "./pages/ContactUs";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import RefundPolicy from "./pages/RefundPolicy";
-import DeleteAccount from './pages/DeleteAccount';
+import DeleteAccount from "./pages/DeleteAccount";
 
 function App() {
   const [pushToken, setPushToken] = useState(null);
@@ -144,7 +145,7 @@ function App() {
 
       // Register for push notifications
       await PushNotifications.register({
-        showWhenInForeground: false
+        showWhenInForeground: false,
       });
 
       // Add listeners
@@ -162,7 +163,7 @@ function App() {
       setPushToken(token.value);
 
       // Store token locally for later use
-      localStorage.setItem('push_device_token', token.value);
+      localStorage.setItem("push_device_token", token.value);
 
       // Token will be sent to backend by authService after login
       await sendTokenToBackend(token.value);
@@ -198,8 +199,8 @@ function App() {
 
   // Send device token to backend (only stores locally for later use)
   const sendTokenToBackend = async (deviceToken) => {
-    console.log('📱 Device token received, storing locally for login:', {
-      token: `${deviceToken.slice(0, 20)}...`
+    console.log("📱 Device token received, storing locally for login:", {
+      token: `${deviceToken.slice(0, 20)}...`,
     });
     // Token will be sent to backend by authService after login
   };
@@ -248,7 +249,11 @@ function App() {
                   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50">
                     <div className="text-center">
                       <div className="flex items-center justify-center mb-6">
-                        <img src="/images/logo.png" alt="LokalHunt Logo" className="h-14" />
+                        <img
+                          src="/images/logo.png"
+                          alt="LokalHunt Logo"
+                          className="h-14"
+                        />
                       </div>
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
                       <p className="mt-4 text-sm text-gray-600">Loading...</p>
@@ -373,6 +378,10 @@ function App() {
                 path="account-settings"
                 element={<EmployerAccountSettings />}
               />
+              <Route
+                path="/employer/jobs/:adId"
+                element={<EmployerJobView />}
+              />
             </Route>
 
             {/* Protected Branch Admin Routes (With Layout) */}
@@ -466,6 +475,11 @@ function App() {
               <Route
                 path="employers/:employerId/premium-candidates"
                 element={<PremiumCandidates />}
+              />
+              {/* Add branch admin employer job view route */}
+              <Route
+                path="employers/:employerId/ads/:adId"
+                element={<EmployerJobView />}
               />
             </Route>
           </Routes>

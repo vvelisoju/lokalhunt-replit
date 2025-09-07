@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
+
 import Profile from '../../components/ui/Profile';
 import { getProfile, updateProfile, updatePassword } from '../../services/branch-admin/auth';
+import { useToast } from "../../components/ui/Toast";
 
 const AdminProfile = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadProfile();

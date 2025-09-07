@@ -24,12 +24,19 @@ import {
   getCandidates,
   updateCandidateStatus,
 } from "../../services/employer/candidates";
+import {
+  bookmarkCandidate,
+  removeBookmark,
+  getBookmarkedCandidates,
+} from "../../services/employer/candidates";
 import { getAds } from "../../services/employer/ads";
 import { useRole } from "../../context/RoleContext";
-import { toast } from "react-hot-toast";
+import { useToast } from "../../components/ui/Toast";
 
 const Candidates = () => {
   const [searchParams] = useSearchParams();
+
+  const { success: showSuccess, error: showError } = useToast();
 
   // Role context for Branch Admin functionality
   const roleContext = useRole();
@@ -47,8 +54,15 @@ const Candidates = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [showCandidateModal, setShowCandidateModal] = useState(false);
-  
+
   const [viewMode, setViewMode] = useState("ALL"); // "ALL" or "PREMIUM"
+  const [showBookmarkedOnly, setShowBookmarkedOnly] = useState(false);
+  const [activeTab, setActiveTab] = useState('all'); // State to manage active tab
+
+  // State for all candidates (both regular and bookmarked)
+  const [allCandidates, setAllCandidates] = useState([]);
+  const [allBookmarkedCandidates, setAllBookmarkedCandidates] = useState([]);
+
 
   // Get ad filter from URL params
   const adIdFilter = searchParams.get("adId");
@@ -89,72 +103,130 @@ const Candidates = () => {
 
   // Load initial data
   useEffect(() => {
-    loadCandidates();
+    // Check if we're filtering for bookmarked candidates from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const bookmarkedParam = urlParams.get('bookmarked');
+
+    if (bookmarkedParam === 'true') {
+      setActiveTab('bookmarked');
+      setShowBookmarkedOnly(true);
+    }
+
+    loadAllCandidates();
     loadApprovedAds();
     loadEducationQualifications();
   }, []);
 
-  const loadCandidates = async () => {
+  const loadAllCandidates = async () => {
     setIsLoading(true);
     try {
-      const result = await getCandidates();
+      // Load both regular candidates and bookmarked candidates
+      const [regularResult, bookmarkedResult] = await Promise.all([
+        getCandidates(),
+        getBookmarkedCandidates()
+      ]);
 
-      if (result.success) {
-        let allCandidates = [];
-        if (
-          result.data &&
-          result.data &&
-          Array.isArray(result.data.candidates)
-        ) {
-          allCandidates = result.data.candidates;
-        } else if (result.data && Array.isArray(result.data.candidates)) {
-          allCandidates = result.data.candidates;
-        } else if (result.data && Array.isArray(result.data)) {
-          allCandidates = result.data;
-        } else if (result.data && Array.isArray(result.data)) {
-          allCandidates = result.data;
+      // Process regular candidates
+      let processedRegularCandidates = [];
+      if (regularResult.success) {
+        let regularCandidates = [];
+        if (regularResult.data?.candidates && Array.isArray(regularResult.data.candidates)) {
+          regularCandidates = regularResult.data.candidates;
+        } else if (regularResult.data && Array.isArray(regularResult.data)) {
+          regularCandidates = regularResult.data;
+        } else if (regularResult.candidates && Array.isArray(regularResult.candidates)) {
+          regularCandidates = regularResult.candidates;
         }
 
-        console.log("Loaded candidates:", allCandidates);
-
-        // Filter candidates based on the selected ad
-        let filteredCandidates = allCandidates;
-        if (selectedAd) {
-          filteredCandidates = allCandidates.filter((candidate) => {
-            return (
-              candidate.allocations &&
-              candidate.allocations.some(
-                (allocation) => allocation.adId === selectedAd,
-              )
-            );
-          });
-        }
-
-        // Separate premium candidates if employer has HR-Assist plan
-        if (employerPlan === "HR_ASSIST") {
-          const premium = filteredCandidates.filter(candidate => candidate.isPremium);
-          const regular = filteredCandidates.filter(candidate => !candidate.isPremium);
-          setCandidates(regular);
-          setPremiumCandidates(premium);
-        } else {
-          setCandidates(filteredCandidates);
-          setPremiumCandidates([]); // Clear premium candidates if not HR-Assist
-        }
-
-      } else {
-        toast.error(result.error || "Failed to load candidates");
-        setCandidates([]);
-        setPremiumCandidates([]);
+        processedRegularCandidates = regularCandidates.map((candidate) => ({
+          ...candidate,
+          id: candidate.id || candidate.candidateId || Math.random().toString(36).substr(2, 9),
+          user: candidate.user || {},
+          name: candidate.name || candidate.user?.name || "Unknown",
+          email: candidate.email || candidate.user?.email || "",
+          skills: Array.isArray(candidate.skills)
+            ? candidate.skills
+            : typeof candidate.skills === "string"
+              ? candidate.skills.split(",").map((s) => s.trim())
+              : [],
+          allocations: Array.isArray(candidate.allocations) ? candidate.allocations : [],
+          experience: candidate.experience || candidate.experienceYears || candidate.totalExperience || 0,
+          currentLocation: candidate.currentLocation || candidate.location || "",
+          expectedSalary: candidate.expectedSalary || "",
+          currentJobTitle: candidate.currentJobTitle || candidate.jobTitle || "",
+          profile_data: candidate.profile_data || {},
+          isPremium: Boolean(candidate.isPremium),
+          isBookmarked: candidate.isBookmarked || false,
+        }));
       }
+
+      // Process bookmarked candidates
+      let processedBookmarkedCandidates = [];
+      if (bookmarkedResult.success) {
+        if (bookmarkedResult.data && Array.isArray(bookmarkedResult.data)) {
+          processedBookmarkedCandidates = bookmarkedResult.data.map(bookmark => ({
+            ...bookmark.candidate,
+            id: bookmark.candidate.id || bookmark.candidate.candidateId || Math.random().toString(36).substr(2, 9),
+            user: bookmark.candidate.user || {},
+            name: bookmark.candidate.name || bookmark.candidate.user?.name || "Unknown",
+            email: bookmark.candidate.email || bookmark.candidate.user?.email || "",
+            skills: Array.isArray(bookmark.candidate.skills)
+              ? bookmark.candidate.skills
+              : typeof bookmark.candidate.skills === "string"
+                ? bookmark.candidate.skills.split(",").map((s) => s.trim())
+                : [],
+            allocations: Array.isArray(bookmark.candidate.allocations) ? bookmark.candidate.allocations : [],
+            experience: bookmark.candidate.experience || bookmark.candidate.experienceYears || bookmark.candidate.totalExperience || 0,
+            currentLocation: bookmark.candidate.currentLocation || bookmark.candidate.location || "",
+            expectedSalary: bookmark.candidate.expectedSalary || "",
+            currentJobTitle: bookmark.candidate.currentJobTitle || bookmark.candidate.jobTitle || "",
+            profile_data: bookmark.candidate.profile_data || {},
+            isPremium: Boolean(bookmark.candidate.isPremium),
+            isBookmarked: true, // Ensure bookmarked status is set
+          }));
+        }
+      }
+
+      setAllCandidates(processedRegularCandidates);
+      setAllBookmarkedCandidates(processedBookmarkedCandidates);
+
+      // Set the current view based on active tab
+      updateCandidateView(processedRegularCandidates, processedBookmarkedCandidates, activeTab);
+
     } catch (error) {
       console.error("Error loading candidates:", error);
-      toast.error(
-        "Failed to load candidates - " + (error.message || "Unknown error"),
-      );
+      showError("Failed to load candidates - " + (error.message || "Unknown error"));
       setCandidates([]);
       setPremiumCandidates([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const updateCandidateView = (regularCandidates, bookmarkedCandidates, tab) => {
+    let candidatesToShow = tab === 'bookmarked' ? bookmarkedCandidates : regularCandidates;
+
+    // Filter candidates based on the selected ad
+    if (selectedAd) {
+      candidatesToShow = candidatesToShow.filter((candidate) => {
+        return (
+          candidate.allocations &&
+          candidate.allocations.some(
+            (allocation) => allocation.adId === selectedAd,
+          )
+        );
+      });
+    }
+
+    // Separate premium candidates if employer has HR-Assist plan
+    if (employerPlan === "HR_ASSIST") {
+      const premium = candidatesToShow.filter((candidate) => candidate.isPremium);
+      const regular = candidatesToShow.filter((candidate) => !candidate.isPremium);
+      setCandidates(regular);
+      setPremiumCandidates(premium);
+    } else {
+      setCandidates(candidatesToShow);
+      setPremiumCandidates([]);
     }
   };
 
@@ -237,7 +309,7 @@ const Candidates = () => {
       ];
 
       if (!validStatuses.includes(status)) {
-        toast.error(`Invalid status: ${status}. Please select a valid status.`);
+        showError(`Invalid status: ${status}. Please select a valid status.`);
         return;
       }
 
@@ -249,14 +321,14 @@ const Candidates = () => {
 
       const result = await updateCandidateStatus(allocationId, status, notes);
       if (result.success) {
-        toast.success("Candidate status updated successfully");
+        showSuccess("Candidate status updated successfully");
         await loadCandidates();
       } else {
-        toast.error(result.error || "Failed to update candidate status");
+        showError(result.error || "Failed to update candidate status");
       }
     } catch (error) {
       console.error("Error updating candidate status:", error);
-      toast.error(
+      showError(
         "Failed to update candidate status: " +
           (error.message || "Unknown error"),
       );
@@ -350,6 +422,9 @@ const Candidates = () => {
         !appliedOnlyFilter ||
         (candidate.allocations && candidate.allocations.length > 0);
 
+      const matchesBookmark =
+        !showBookmarkedOnly || candidate.isBookmarked === true;
+
       return (
         matchesSearch &&
         matchesStatus &&
@@ -358,19 +433,24 @@ const Candidates = () => {
         matchesGender &&
         matchesEducation &&
         matchesExperience &&
-        matchesAppliedOnly
+        matchesAppliedOnly &&
+        matchesBookmark
       );
     });
   };
 
-  const displayedCandidates = viewMode === "PREMIUM" ?
-    applyFilters(premiumCandidates) :
-    applyFilters(candidates);
+  const displayedCandidates =
+    viewMode === "PREMIUM"
+      ? applyFilters(premiumCandidates)
+      : applyFilters(candidates);
 
-  // Update candidates when ad filter changes
+  // Update candidates when ad filter changes or active tab changes
   useEffect(() => {
-    loadCandidates();
-  }, [selectedAd]);
+    // This effect should now call updateCandidateView to re-render based on filters
+    // and the active tab, using the already loaded allCandidates and allBookmarkedCandidates
+    updateCandidateView(allCandidates, allBookmarkedCandidates, activeTab);
+  }, [selectedAd, activeTab, allCandidates, allBookmarkedCandidates, employerPlan]); // Depend on all relevant states
+
 
   const resetAllFilters = () => {
     setSearchTerm("");
@@ -381,7 +461,17 @@ const Candidates = () => {
     setEducationFilter("");
     setSelectedAd("");
     setAppliedOnlyFilter(false);
+    setShowBookmarkedOnly(false); // This should be handled by tab click
     setShowMoreFilters(false);
+    setActiveTab('all'); // Reset to all tab
+
+    // Update URL to remove bookmarked parameter
+    const url = new URL(window.location);
+    url.searchParams.delete('bookmarked');
+    window.history.replaceState({}, '', url);
+
+    // Reload all candidates to reflect the reset state
+    loadAllCandidates();
   };
 
   const handleViewCandidate = (candidate) => {
@@ -389,7 +479,56 @@ const Candidates = () => {
     setShowCandidateModal(true);
   };
 
-  
+  const handleBookmarkToggle = async (candidateId, shouldBookmark) => {
+    try {
+      let result;
+      if (shouldBookmark) {
+        result = await bookmarkCandidate(candidateId);
+      } else {
+        result = await removeBookmark(candidateId);
+      }
+
+      if (result.success) {
+        // Update the relevant candidate list (allCandidates or allBookmarkedCandidates)
+        const updateCandidateList = (list) =>
+          list.map((candidate) =>
+            candidate.id === candidateId
+              ? { ...candidate, isBookmarked: shouldBookmark }
+              : candidate,
+          );
+
+        setAllCandidates(updateCandidateList(allCandidates));
+        setAllBookmarkedCandidates(updateCandidateList(allBookmarkedCandidates));
+
+        // After updating the source lists, re-apply filters and update the displayed view
+        updateCandidateView(
+          updateCandidateList(allCandidates),
+          updateCandidateList(allBookmarkedCandidates),
+          activeTab
+        );
+        
+        // If the bookmarked filter is active and a candidate is un-bookmarked,
+        // it should be removed from the currently displayed bookmarked list
+        if (!shouldBookmark && activeTab === 'bookmarked') {
+          setAllBookmarkedCandidates(allBookmarkedCandidates.filter(c => c.id !== candidateId));
+          // Re-render the view after removal
+          updateCandidateView(
+            allCandidates,
+            allBookmarkedCandidates.filter(c => c.id !== candidateId),
+            activeTab
+          );
+        }
+        return true;
+      } else {
+        showError(result.error || "Failed to update bookmark status");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error toggling bookmark:", error);
+      showError("Failed to update bookmark status: " + (error.message || "Unknown error"));
+      return false;
+    }
+  };
 
   if (isLoading) {
     return (
@@ -424,6 +563,40 @@ const Candidates = () => {
           </div>
         </div>
 
+        {/* Tabs for All/Bookmarked */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+            <button
+              onClick={() => { 
+                setActiveTab('all'); 
+                // setShowBookmarkedOnly(false); // This is now implicitly handled by setActiveTab
+                // Update URL to remove bookmarked parameter
+                const url = new URL(window.location);
+                url.searchParams.delete('bookmarked');
+                window.history.replaceState({}, '', url);
+                updateCandidateView(allCandidates, allBookmarkedCandidates, 'all');
+              }}
+              className={`text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'all' ? 'text-blue-600 border-blue-600' : 'border-transparent'}`}
+            >
+              All Candidates
+            </button>
+            <button
+              onClick={() => { 
+                setActiveTab('bookmarked'); 
+                // setShowBookmarkedOnly(true); // This is now implicitly handled by setActiveTab
+                // Update URL to add bookmarked parameter
+                const url = new URL(window.location);
+                url.searchParams.set('bookmarked', 'true');
+                window.history.replaceState({}, '', url);
+                updateCandidateView(allCandidates, allBookmarkedCandidates, 'bookmarked');
+              }}
+              className={`text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'bookmarked' ? 'text-blue-600 border-blue-600' : 'border-transparent'}`}
+            >
+              Bookmarked Candidates
+            </button>
+          </nav>
+        </div>
+
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
           {/* Primary Filters Row */}
@@ -441,7 +614,10 @@ const Candidates = () => {
               </label>
               <select
                 value={selectedAd}
-                onChange={(e) => setSelectedAd(e.target.value)}
+                onChange={(e) => {
+                  setSelectedAd(e.target.value);
+                  updateCandidateView(allCandidates, allBookmarkedCandidates, activeTab);
+                }}
                 className="w-full py-2.5 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               >
                 <option value="">All Job Ads</option>
@@ -458,7 +634,10 @@ const Candidates = () => {
               </label>
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  updateCandidateView(allCandidates, allBookmarkedCandidates, activeTab);
+                }}
                 className="w-full py-2.5 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               >
                 <option value="">All Statuses</option>
@@ -481,6 +660,38 @@ const Candidates = () => {
             </div>
           </div>
 
+          {/* Bookmarked Filter Switch - REMOVED as per requirements */}
+          {/* <div className="flex items-center justify-between mb-6">
+            <label className="flex items-center space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showBookmarkedOnly || activeTab === 'bookmarked'}
+                onChange={(e) => {
+                  const isChecked = e.target.checked;
+                  setShowBookmarkedOnly(isChecked);
+
+                  if (isChecked) {
+                    setActiveTab('bookmarked');
+                    // Update URL to add bookmarked parameter
+                    const url = new URL(window.location);
+                    url.searchParams.set('bookmarked', 'true');
+                    window.history.replaceState({}, '', url);
+                  } else {
+                    setActiveTab('all');
+                    // Update URL to remove bookmarked parameter
+                    const url = new URL(window.location);
+                    url.searchParams.delete('bookmarked');
+                    window.history.replaceState({}, '', url);
+                  }
+                }}
+                className="w-4 h-4 text-pink-600 bg-gray-100 border-gray-300 rounded focus:ring-pink-500 focus:ring-2"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Show bookmarks only
+              </span>
+            </label>
+          </div> */}
+
           {/* Advanced Filters Toggle */}
           <div className="border-t border-gray-200 pt-4">
             <div className="flex items-center justify-between mb-4">
@@ -495,18 +706,51 @@ const Candidates = () => {
                     showMoreFilters ? "rotate-180" : ""
                   }`}
                 />
-                {(genderFilter || educationFilter || skillFilter || experienceFilter || appliedOnlyFilter) && (
+                {(genderFilter ||
+                  educationFilter ||
+                  skillFilter ||
+                  experienceFilter ||
+                  appliedOnlyFilter) && (
                   <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                    {[genderFilter, educationFilter, skillFilter, experienceFilter, appliedOnlyFilter].filter(Boolean).length} active
+                    {
+                      [
+                        genderFilter,
+                        educationFilter,
+                        skillFilter,
+                        experienceFilter,
+                        appliedOnlyFilter,
+                      ].filter(Boolean).length
+                    }{" "}
+                    active
                   </span>
                 )}
               </button>
 
               <div className="flex items-center space-x-3">
                 {/* Active Filters Count */}
-                {(searchTerm || selectedAd || statusFilter || genderFilter || educationFilter || skillFilter || experienceFilter || appliedOnlyFilter) && (
+                {(searchTerm ||
+                  selectedAd ||
+                  statusFilter ||
+                  genderFilter ||
+                  educationFilter ||
+                  skillFilter ||
+                  experienceFilter ||
+                  appliedOnlyFilter ||
+                  showBookmarkedOnly) && ( // showBookmarkedOnly is now implicitly handled by activeTab
                   <span className="text-sm text-gray-500">
-                    {[searchTerm, selectedAd, statusFilter, genderFilter, educationFilter, skillFilter, experienceFilter, appliedOnlyFilter].filter(Boolean).length} filters active
+                    {
+                      [
+                        searchTerm,
+                        selectedAd,
+                        statusFilter,
+                        genderFilter,
+                        educationFilter,
+                        skillFilter,
+                        experienceFilter,
+                        appliedOnlyFilter,
+                      ].filter(Boolean).length
+                    }{" "}
+                    filters active
                   </span>
                 )}
 
@@ -522,7 +766,19 @@ const Candidates = () => {
                     setSkillFilter("");
                     setExperienceFilter("");
                     setAppliedOnlyFilter(false);
+                    setShowBookmarkedOnly(false); // Ensure this is reset if it were still used
                     setShowMoreFilters(false); // Also close advanced filters
+                    loadApprovedAds(); // Reload ads to reset dropdown
+                    loadEducationQualifications(); // Reload education to reset dropdown
+                    setActiveTab('all'); // Reset to all tab
+                    
+                    // Update URL to remove bookmarked parameter
+                    const url = new URL(window.location);
+                    url.searchParams.delete('bookmarked');
+                    window.history.replaceState({}, '', url);
+
+                    // Reload all candidates to reflect the reset state
+                    loadAllCandidates();
                   }}
                   className="text-gray-600 hover:text-gray-900 border-gray-300 hover:border-gray-400"
                 >
@@ -543,7 +799,10 @@ const Candidates = () => {
                     </label>
                     <select
                       value={genderFilter}
-                      onChange={(e) => setGenderFilter(e.target.value)}
+                      onChange={(e) => {
+                        setGenderFilter(e.target.value);
+                        updateCandidateView(allCandidates, allBookmarkedCandidates, activeTab);
+                      }}
                       className="w-full py-2 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                     >
                       <option value="">All Genders</option>
@@ -560,7 +819,10 @@ const Candidates = () => {
                     </label>
                     <select
                       value={educationFilter}
-                      onChange={(e) => setEducationFilter(e.target.value)}
+                      onChange={(e) => {
+                        setEducationFilter(e.target.value);
+                        updateCandidateView(allCandidates, allBookmarkedCandidates, activeTab);
+                      }}
                       className="w-full py-2 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                     >
                       <option value="">All Education Levels</option>
@@ -580,7 +842,10 @@ const Candidates = () => {
                     <input
                       type="text"
                       value={skillFilter}
-                      onChange={(e) => setSkillFilter(e.target.value)}
+                      onChange={(e) => {
+                        setSkillFilter(e.target.value);
+                        updateCandidateView(allCandidates, allBookmarkedCandidates, activeTab);
+                      }}
                       placeholder="e.g., JavaScript, React, Python"
                       className="w-full py-2 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                     />
@@ -593,7 +858,10 @@ const Candidates = () => {
                     </label>
                     <select
                       value={experienceFilter}
-                      onChange={(e) => setExperienceFilter(e.target.value)}
+                      onChange={(e) => {
+                        setExperienceFilter(e.target.value);
+                        updateCandidateView(allCandidates, allBookmarkedCandidates, activeTab);
+                      }}
                       className="w-full py-2 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                     >
                       <option value="">All Experience Levels</option>
@@ -612,7 +880,10 @@ const Candidates = () => {
                     <input
                       type="checkbox"
                       checked={appliedOnlyFilter}
-                      onChange={(e) => setAppliedOnlyFilter(e.target.checked)}
+                      onChange={(e) => {
+                        setAppliedOnlyFilter(e.target.checked);
+                        updateCandidateView(allCandidates, allBookmarkedCandidates, activeTab);
+                      }}
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                     />
                     <span className="text-sm font-medium text-gray-700">
@@ -624,7 +895,8 @@ const Candidates = () => {
                 {/* Advanced Filter Actions */}
                 <div className="flex justify-between items-center pt-3 border-t border-gray-200">
                   <span className="text-xs text-gray-500">
-                    Use these filters to narrow down candidates based on specific criteria
+                    Use these filters to narrow down candidates based on
+                    specific criteria
                   </span>
                   <Button
                     variant="secondary"
@@ -635,6 +907,8 @@ const Candidates = () => {
                       setSkillFilter("");
                       setExperienceFilter("");
                       setAppliedOnlyFilter(false);
+                      // Re-apply filters after clearing advanced ones
+                      updateCandidateView(allCandidates, allBookmarkedCandidates, activeTab);
                     }}
                     className="text-gray-600 hover:text-gray-900 border-gray-300 hover:border-gray-400"
                   >
@@ -646,6 +920,46 @@ const Candidates = () => {
           </div>
         </div>
 
+        {/* View Mode Toggle for HR-Assist plan */}
+        {employerPlan === "HR_ASSIST" &&
+          (premiumCandidates.length > 0 || candidates.length > 0) && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+              <div className="flex items-center space-x-4">
+                <label className="text-sm font-medium text-gray-700">
+                  View:
+                </label>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => {
+                      setViewMode("ALL");
+                      updateCandidateView(allCandidates, allBookmarkedCandidates, activeTab);
+                    }}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      viewMode === "ALL"
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    All Candidates ({candidates.length})
+                  </button>
+                  <button
+                    onClick={() => {
+                      setViewMode("PREMIUM");
+                      updateCandidateView(allCandidates, allBookmarkedCandidates, activeTab);
+                    }}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      viewMode === "PREMIUM"
+                        ? "bg-gold-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    Premium Candidates ({premiumCandidates.length})
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
         {/* Candidates Grid */}
         {displayedCandidates.length > 0 ? (
           <div className="space-y-2 lg:space-y-4">
@@ -655,6 +969,7 @@ const Candidates = () => {
                 candidate={candidate}
                 onStatusUpdate={handleStatusUpdate}
                 onViewProfile={handleViewCandidate}
+                onBookmarkToggle={handleBookmarkToggle}
                 loading={{}}
                 className="shadow-sm hover:shadow-md transition-shadow duration-200"
               />
@@ -676,7 +991,8 @@ const Candidates = () => {
               educationFilter ||
               skillFilter ||
               experienceFilter ||
-              appliedOnlyFilter) && (
+              appliedOnlyFilter ||
+              showBookmarkedOnly) && ( // showBookmarkedOnly is now implicitly handled by activeTab
               <Button
                 variant="outline"
                 size="sm"
@@ -799,8 +1115,6 @@ const Candidates = () => {
             </div>
           </Modal>
         )}
-
-        
       </div>
     </div>
   );

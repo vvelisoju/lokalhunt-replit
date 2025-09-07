@@ -12,10 +12,11 @@ import KpiCards from "../../components/employer/KpiCards";
 import Button from "../../components/ui/Button";
 import Loader from "../../components/ui/Loader";
 import JobCard from "../../components/ui/JobCard";
-import { getAds } from "../../services/employer/ads";
+import { getAds, closeAd, getDashboardStats } from "../../services/employer/ads";
 import { getMous } from "../../services/employer/mou";
 import { useRole } from "../../context/RoleContext";
 import { useAuth } from "../../context/AuthContext";
+import { toast } from "react-hot-toast";
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -24,7 +25,9 @@ const Dashboard = () => {
     pendingApproval: 0,
     approved: 0,
     archived: 0,
+    jobViews: 0,
     allocatedCandidates: 0,
+    bookmarkedCandidates: 0,
   });
   const [recentAds, setRecentAds] = useState([]);
   const [activeMou, setActiveMou] = useState(null);
@@ -59,36 +62,32 @@ const Dashboard = () => {
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
-      // Load ads for stats and recent ads
-      const adsResult = await getAds({ limit: 5 });
-      if (adsResult.success) {
-        const ads = adsResult.data || [];
-        setRecentAds(ads);
+      // Load dashboard stats and recent ads in parallel
+      const [statsResult, recentAdsResult] = await Promise.all([
+        getDashboardStats(),
+        getAds({ limit: 5 })
+      ]);
 
-        // Calculate stats
-        const stats = {
-          totalAds: ads.length,
-          draft: ads.filter((ad) => ad.status === "DRAFT").length,
-          pendingApproval: ads.filter((ad) => ad.status === "PENDING_APPROVAL")
-            .length,
-          approved: ads.filter((ad) => ad.status === "APPROVED").length,
-          archived: ads.filter((ad) => ad.status === "ARCHIVED").length,
-          allocatedCandidates: ads.reduce(
-            (sum, ad) => sum + (ad._count?.allocations || 0),
-            0,
-          ),
-        };
-        setStats(stats);
+      // Set stats from dedicated API
+      if (statsResult.success) {
+        setStats(statsResult.data);
       } else {
-        // Even if ads load fails, set empty stats to show dashboard
         setStats({
           totalAds: 0,
           draft: 0,
           pendingApproval: 0,
           approved: 0,
           archived: 0,
+          jobViews: 0,
           allocatedCandidates: 0,
+          bookmarkedCandidates: 0,
         });
+      }
+
+      // Set recent ads for display
+      if (recentAdsResult.success) {
+        setRecentAds(recentAdsResult.data || []);
+      } else {
         setRecentAds([]);
       }
     } catch (error) {
@@ -100,12 +99,36 @@ const Dashboard = () => {
         pendingApproval: 0,
         approved: 0,
         archived: 0,
+        jobViews: 0,
         allocatedCandidates: 0,
+        bookmarkedCandidates: 0,
       });
       setRecentAds([]);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Handle archive/close job functionality
+  const handleArchive = async (jobId) => {
+    try {
+      const result = await closeAd(jobId);
+      if (result.success) {
+        toast.success("Job closed successfully");
+        // Refresh dashboard data after successful close
+        loadDashboardData();
+      } else {
+        toast.error(result.error || "Failed to close job");
+      }
+    } catch (error) {
+      console.error("Error closing job:", error);
+      toast.error("Failed to close job");
+    }
+  };
+
+  // Refresh function to reload dashboard data
+  const handleRefresh = () => {
+    loadDashboardData();
   };
 
   // Show loading only while authenticating or loading dashboard data (with timeout protection)
@@ -114,9 +137,9 @@ const Dashboard = () => {
       <div className="min-h-screen bg-gray-50 flex justify-center items-center">
         <div className="text-center">
           <Loader />
-          <p className="mt-4 text-sm text-gray-600">
+          {/* <p className="mt-4 text-sm text-gray-600">
             {authLoading ? "Authenticating..." : "Loading dashboard..."}
-          </p>
+          </p> */}
         </div>
       </div>
     );
@@ -137,40 +160,45 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile-Optimized Header */}
-      <div className="px-2 py-0 sm:px-4 sm:py-2">
-        <div className="flex items-start justify-between sm:px-2">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
+      <div className="px-4 py-2 sm:px-4 sm:py-2">
+        <div className="flex items-center justify-between">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold text-gray-900 ">
               {isBranchAdminView ? "Employer Dashboard" : "Dashboard"}
             </h1>
-            <p className="text-gray-600 text-xs ">
+            <p className="text-gray-600 mt-1 text-xs">
               {isBranchAdminView
-                ? "Employer dashboard - Admin view"
-                : "Manage your job postings and candidates"}
+                ? "Employer jobs and candidates - Admin view"
+                : "Manage your jobs and candidates"}
             </p>
           </div>
 
           {/* New Ad Button - Top right aligned with Dashboard heading */}
           {can("manage-own-ads") && (
-            <Link
-              to={
-                isBranchAdminView
-                  ? `/branch-admin/employers/${getCurrentEmployerId()}/ads/new`
-                  : "/employer/ads/new"
-              }
-              className="inline-block"
-            >
-              <Button className="justify-center">
-                <PlusIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-                <span className="text-sm font-medium">New</span>
-              </Button>
-            </Link>
+            <div className="flex-shrink-0 ml-4">
+              <Link
+                to={
+                  isBranchAdminView
+                    ? `/branch-admin/employers/${getCurrentEmployerId()}/ads/new`
+                    : "/employer/ads/new"
+                }
+                className="inline-block"
+              >
+                <Button className="justify-center whitespace-nowrap">
+                  <PlusIcon className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                  <span className="text-sm font-medium hidden sm:inline">
+                    Create Job
+                  </span>
+                  <span className="text-sm font-medium sm:hidden">Create</span>
+                </Button>
+              </Link>
+            </div>
           )}
         </div>
       </div>
 
       {/* Mobile-Optimized KPI Cards */}
-      <div className="px-0 py-2 sm:px-1 sm:py-4 mt-2">
+      <div className="px-4 py-2 sm:px-4 sm:py-4 mt-2">
         <KpiCards stats={stats} />
       </div>
 
@@ -239,6 +267,8 @@ const Dashboard = () => {
                       variant="employer"
                       applicationStatus={ad.status}
                       loading={{}}
+                      onArchive={handleArchive}
+                      onRefresh={handleRefresh}
                     />
                   </div>
                 ))}

@@ -93,14 +93,32 @@ export const submitForApproval = async (adId) => {
 // Close an ad
 export const closeAd = async (adId) => {
   try {
-    const response = await api.patch(`/employers/ads/${adId}/archive`, {
-      status: "CLOSED",
-    });
-    return { success: true, data: response.data };
+    const response = await makeRoleAwareRequest(
+      api,
+      `/employers/ads/${adId}/archive`,
+      {},
+      { method: "PATCH" }
+    );
+    return { success: true, data: response.data || response };
   } catch (error) {
     return {
       success: false,
       error: error.response?.data?.message || "Failed to close ad",
+    };
+  }
+};
+
+export const getDashboardStats = async () => {
+  try {
+    const response = await makeRoleAwareRequest(
+      api,
+      "/employers/dashboard/stats"
+    );
+    return { success: true, data: response.data || response };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to fetch dashboard stats",
     };
   }
 };

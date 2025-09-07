@@ -438,6 +438,7 @@ const Applications = () => {
             const jobData = {
               id: application.ad?.id,
               title: application.ad?.title,
+              employer: application.ad?.employer,
               company: {
                 name: application.ad?.company?.name,
                 industry: application.ad?.company?.industry,
