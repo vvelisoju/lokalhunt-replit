@@ -319,7 +319,7 @@ const ProfileDropdown = ({ logout, onLanguageChange }) => {
 
         {/* Desktop Dropdown Menu */}
         {!isMobile && showUserMenu && (
-          <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+          <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg py-2 z-50">
             <MenuContent />
           </div>
         )}
@@ -332,6 +332,7 @@ const ProfileDropdown = ({ logout, onLanguageChange }) => {
           {showUserMenu && (
             <div
               className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-all duration-300"
+              style={{ right: "-12px" }}
               onClick={() => setShowUserMenu(false)}
             />
           )}
@@ -342,7 +343,8 @@ const ProfileDropdown = ({ logout, onLanguageChange }) => {
               showUserMenu ? "translate-y-0" : "translate-y-full"
             }`}
             style={{
-              paddingBottom: 'var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 48px))'
+              paddingBottom:
+                "var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 48px))",
             }}
           >
             <div className="bg-white rounded-t-2xl shadow-2xl max-h-[80vh] overflow-y-auto safe-bottom">

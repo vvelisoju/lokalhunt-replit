@@ -24,17 +24,27 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={{ addToast, removeToast }}>
       {children}
       {toasts.length > 0 && (
-        <div className="fixed top-4 right-4 z-50 space-y-2">
+        <div className="fixed z-[9999] space-y-2" style={{ 
+          top: 'calc(1rem + var(--safe-area-inset-top))', 
+          right: '1rem',
+          left: '1rem',
+          maxWidth: '20rem',
+          marginLeft: 'auto'
+        }}>
           {toasts.map(toast => (
             <div
               key={toast.id}
-              className={`px-4 py-3 rounded-lg shadow-lg max-w-sm ${
+              className={`px-4 py-3 rounded-lg shadow-2xl border-2 w-full max-w-sm ${
                 toast.type === 'error' 
-                  ? 'bg-red-500 text-white'
+                  ? 'bg-red-500 text-white border-red-600'
                   : toast.type === 'success'
-                  ? 'bg-green-500 text-white'
-                  : 'bg-blue-500 text-white'
+                  ? 'bg-green-500 text-white border-green-600'
+                  : 'bg-blue-500 text-white border-blue-600'
               }`}
+              style={{ 
+                transform: 'translateZ(0)',
+                backfaceVisibility: 'hidden'
+              }}
             >
               <div className="flex justify-between items-center">
                 <span>{toast.message}</span>

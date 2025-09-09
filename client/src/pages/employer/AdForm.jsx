@@ -943,7 +943,6 @@ const AdForm = () => {
                   onChange={handleDescriptionChange}
                   preview="edit"
                   hideToolbar={false}
-                  visibleDragBar={false}
                   commands={[
                     // Keep only essential formatting options
                     commands.bold,
@@ -1046,13 +1045,14 @@ const AdForm = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto pb-24">
-        <div className="py-6">
-          {renderStepContent()}
-        </div>
+        <div className="py-6">{renderStepContent()}</div>
       </div>
 
       {/* Mobile-native Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-4 z-40">
+      <div
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-4 z-40 fixed-footer"
+        style={{ paddingBottom: "calc(1rem + var(--safe-area-inset-bottom))" }}
+      >
         <div className="flex space-x-3">
           {currentStep > 1 && (
             <Button
@@ -1086,8 +1086,7 @@ const AdForm = () => {
               >
                 Save Draft
               </Button>
-              {(!isEditing ||
-                (isEditing && currentJobStatus === "DRAFT")) && (
+              {(!isEditing || (isEditing && currentJobStatus === "DRAFT")) && (
                 <Button
                   type="button"
                   onClick={() => handleSubmit("submit")}
@@ -1106,10 +1105,8 @@ const AdForm = () => {
           <p className="text-xs text-gray-500 text-center mt-2">
             {currentJobStatus === "PENDING_APPROVAL" &&
               "This job is pending approval"}
-            {currentJobStatus === "APPROVED" &&
-              "This job has been approved"}
-            {currentJobStatus === "ARCHIVED" &&
-              "This job is archived"}
+            {currentJobStatus === "APPROVED" && "This job has been approved"}
+            {currentJobStatus === "ARCHIVED" && "This job is archived"}
           </p>
         )}
       </div>
@@ -1165,7 +1162,9 @@ const AdForm = () => {
                     {index < steps.length - 1 && (
                       <div
                         className={`flex-1 h-0.5 mx-2 lg:mx-4 ${
-                          currentStep > step.number ? "bg-green-600" : "bg-gray-200"
+                          currentStep > step.number
+                            ? "bg-green-600"
+                            : "bg-gray-200"
                         }`}
                       ></div>
                     )}
@@ -1240,16 +1239,18 @@ const AdForm = () => {
                   </div>
                 </div>
 
-                {isEditing && currentJobStatus && currentJobStatus !== "DRAFT" && (
-                  <p className="text-sm text-gray-600 mt-2 text-center sm:text-right px-3 sm:px-6 pb-4">
-                    {currentJobStatus === "PENDING_APPROVAL" &&
-                      "This job is pending approval and cannot be submitted again."}
-                    {currentJobStatus === "APPROVED" &&
-                      "This job has been approved and cannot be modified."}
-                    {currentJobStatus === "ARCHIVED" &&
-                      "This job is archived and cannot be modified."}
-                  </p>
-                )}
+                {isEditing &&
+                  currentJobStatus &&
+                  currentJobStatus !== "DRAFT" && (
+                    <p className="text-sm text-gray-600 mt-2 text-center sm:text-right px-3 sm:px-6 pb-4">
+                      {currentJobStatus === "PENDING_APPROVAL" &&
+                        "This job is pending approval and cannot be submitted again."}
+                      {currentJobStatus === "APPROVED" &&
+                        "This job has been approved and cannot be modified."}
+                      {currentJobStatus === "ARCHIVED" &&
+                        "This job is archived and cannot be modified."}
+                    </p>
+                  )}
               </div>
             </div>
           </div>

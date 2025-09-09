@@ -184,12 +184,22 @@ body {
   top: var(--safe-area-inset-top);
   left: 0;
   right: 0;
-  z-index: 9999;
+  z-index: 1000;
   /* Apply safe area insets as padding to keep content within safe areas */
   padding-top: var(--safe-area-inset-top);
   padding-left: var(--safe-area-inset-left);
   padding-right: var(--safe-area-inset-right);
 
+}
+
+.fixed-footer {
+  position: fixed;
+  bottom: var(--safe-area-inset-bottom);
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  /* Apply safe area insets as padding to keep content within safe areas */
+  padding-bottom: var(--safe-area-inset-bottom);
 }
 
 /* Push main content below fixed header */

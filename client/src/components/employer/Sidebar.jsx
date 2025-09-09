@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import {
   HomeIcon,
@@ -36,7 +36,22 @@ const Sidebar = ({ isOpen, onClose }) => {
     isLoading: isLoadingSubscription,
   } = useSubscription();
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
+  useEffect(() => {
+    // Check if we're running in Capacitor (mobile app)
+    const checkMobileEnvironment = async () => {
+      try {
+        if (typeof window !== "undefined" && window.Capacitor) {
+          const { Capacitor } = await import("@capacitor/core");
+          setIsMobile(Capacitor.isNativePlatform());
+        }
+      } catch (error) {
+        setIsMobile(false);
+      }
+    };
+    checkMobileEnvironment();
+  }, []);
   // Get the correct employer ID for routing
   const currentEmployerId = getCurrentEmployerId() || employerId;
 
@@ -116,32 +131,32 @@ const Sidebar = ({ isOpen, onClose }) => {
         transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
         lg:shadow-none shadow-2xl overflow-x-hidden
-      `}
+       ${isMobile && window.Capacitor ? "safe-top main-content-with-fixed-header" : ""}
+        `}
       >
         {/* Mobile Header with Close Button - Native iOS/Android style */}
-        <div className="relative flex items-center justify-between h-16 px-5 border-b border-gray-100 bg-white lg:bg-gradient-to-r lg:from-green-50 lg:to-blue-50 lg:border-neutral-200 lg:h-20 lg:justify-center">
-          {/* Logo - Left aligned on mobile, centered on desktop */}
-          <Link
-            to={`${routeBase}/dashboard`}
-            onClick={onClose}
-            className="flex items-center lg:hover:scale-105 transition-transform duration-200"
-          >
-            <img
-              src={logoImage}
-              alt="LokalHunt"
-              className="h-10 lg:h-16 w-auto object-contain"
-            />
-          </Link>
-
-          {/* Close button - Mobile native style */}
-          <button
-            onClick={onClose}
-            className="lg:hidden p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-all duration-200 active:scale-95"
-            aria-label="Close menu"
-          >
-            <XMarkIcon className="h-5 w-5 text-gray-600" />
-          </button>
-        </div>
+        {!isMobile && (
+          <div className="relative flex items-center justify-between h-16 px-5 border-b border-gray-100 bg-white lg:bg-gradient-to-r lg:from-green-50 lg:to-blue-50 lg:border-neutral-200 lg:h-20 lg:justify-center">
+            <Link
+              to={`${routeBase}/dashboard`}
+              onClick={onClose}
+              className="flex items-center lg:hover:scale-105 transition-transform duration-200"
+            >
+              <img
+                src={logoImage}
+                alt="LokalHunt"
+                className="h-10 lg:h-16 w-auto object-contain"
+              />
+            </Link>
+            <button
+              onClick={onClose}
+              className="lg:hidden p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-all duration-200 active:scale-95"
+              aria-label="Close menu"
+            >
+              <XMarkIcon className="h-5 w-5 text-gray-600" />
+            </button>
+          </div>
+        )}
 
         {/* Navigation - Mobile native list style */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50 lg:bg-white">

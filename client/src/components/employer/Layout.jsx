@@ -18,6 +18,21 @@ const EmployerLayout = () => {
   const { hasHRAssistPlan } = useSubscription();
   const navigate = useNavigate();
   const { error: showError } = useToast(); // Destructure showError from useToast
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    // Check if we're running in Capacitor (mobile app)
+    const checkMobileEnvironment = async () => {
+      try {
+        if (typeof window !== "undefined" && window.Capacitor) {
+          const { Capacitor } = await import("@capacitor/core");
+          setIsMobile(Capacitor.isNativePlatform());
+        }
+      } catch (error) {
+        setIsMobile(false);
+      }
+    };
+    checkMobileEnvironment();
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -52,7 +67,9 @@ const EmployerLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 safe-area-full">
+    <div
+      className={`min-h-screen bg-gray-50 ${isMobile ? "main-content-with-fixed-header" : ""}`}
+    >
       {/* Mobile-friendly layout with responsive design */}
       <div className="flex h-screen overflow-hidden">
         {/* Sidebar Component */}
@@ -64,10 +81,16 @@ const EmployerLayout = () => {
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Header with mobile hamburger menu */}
-          <Header onMenuClick={() => setIsSidebarOpen(true)} />
+          <Header
+            onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            isMenuOpen={isSidebarOpen}
+          />
 
           {/* Page Content */}
-          <main className="flex-1 overflow-y-auto bg-gray-50 px-4 py-4 sm:px-6 lg:px-8">
+          <main
+            className="flex-1 overflow-y-auto bg-gray-50 px-4 py-4 sm:px-6 lg:px-8"
+            data-scroll-container
+          >
             <div className="max-w-7xl mx-auto">
               <Outlet />
             </div>
