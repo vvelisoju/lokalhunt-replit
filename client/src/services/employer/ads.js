@@ -96,8 +96,9 @@ export const closeAd = async (adId) => {
     const response = await makeRoleAwareRequest(
       api,
       `/employers/ads/${adId}/archive`,
-      {},
-      { method: "PATCH" }
+      {
+        method: "PATCH",
+      }
     );
     return { success: true, data: response.data || response };
   } catch (error) {
@@ -140,7 +141,21 @@ export const reopenAd = async (adId) => {
 
 // Archive an ad (legacy - now redirects to close)
 export const archiveAd = async (adId) => {
-  return await closeAd(adId);
+  try {
+    const response = await makeRoleAwareRequest(
+      api,
+      `/employers/ads/${adId}/archive`,
+      {
+        method: "PATCH",
+      }
+    );
+    return { success: true, data: response.data || response };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to archive ad",
+    };
+  }
 };
 
 // Add alias for backward compatibility

@@ -1749,6 +1749,11 @@ class CandidateController {
         where: { candidateId: candidate.id },
       });
 
+      // Get profile views count
+      const profileViewsCount = await prisma.profileView.count({
+        where: { candidateId: candidate.id },
+      });
+
       // Calculate profile completeness
       const profileFields = [
         candidate.profileData,
@@ -1775,7 +1780,7 @@ class CandidateController {
         interviewScheduled: applications.filter(
           (a) => a.status === "SHORTLISTED",
         ).length,
-        profileViews: 0, // Placeholder - would require tracking
+        profileViews: profileViewsCount,
         profileCompletion,
         bookmarks: bookmarksCount,
         hasResume: !!candidate.resumeUrl,

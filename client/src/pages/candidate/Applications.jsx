@@ -454,6 +454,7 @@ const Applications = () => {
               postedAt: application.ad?.createdAt,
               hasApplied: true,
               candidatesCount: application.ad?.candidatesCount || 0,
+              gender: application.ad?.gender,
             };
 
             return (

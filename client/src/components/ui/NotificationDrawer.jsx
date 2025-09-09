@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from "react";
-import Drawer from 'react-modern-drawer';
-import 'react-modern-drawer/dist/index.css';
+import Drawer from "react-modern-drawer";
+import "react-modern-drawer/dist/index.css";
 import {
   XMarkIcon,
   BellIcon,
@@ -43,16 +42,16 @@ const NotificationDrawer = ({
   // Debug logging and refresh on open
   React.useEffect(() => {
     if (isOpen) {
-      console.log('🔔 NotificationDrawer opened with:', {
+      console.log("🔔 NotificationDrawer opened with:", {
         notifications: notifications,
         notificationsLength: notifications.length,
         unreadCount: unreadCount,
-        loading: loading
+        loading: loading,
       });
-      
+
       // Refresh notifications when drawer opens (only once when drawer opens)
       if (onRefresh) {
-        console.log('🔄 Refreshing notifications...');
+        console.log("🔄 Refreshing notifications...");
         onRefresh();
       }
     }
@@ -141,7 +140,9 @@ const NotificationDrawer = ({
     >
       <div className="h-full bg-white flex flex-col">
         {/* Header */}
-        <div className={`flex items-center justify-between p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-white ${isMobile ? "safe-top fixed-header" : ""}`}>
+        <div
+          className={`flex items-center justify-between p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-white ${isMobile ? "safe-top fixed-header" : ""}`}
+        >
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-100 rounded-full">
               <BellIcon className="h-5 w-5 text-blue-600" />
@@ -178,7 +179,9 @@ const NotificationDrawer = ({
         )}
 
         {/* Content */}
-        <div className={`flex-1 overflow-y-auto ${isMobile ? 'main-content-with-fixed-header' : ''}`}>
+        <div
+          className={`flex-1 overflow-y-auto ${isMobile ? "main-content-with-fixed-header" : ""}`}
+        >
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="flex flex-col items-center space-y-4">
@@ -296,7 +299,9 @@ const NotificationDrawer = ({
         </div>
 
         {/* Footer for mobile */}
-        <div className={`sm:hidden p-4 border-t bg-gray-50 ${isMobile ? "safe-bottom fixed-footer" : ""}`}>
+        <div
+          className={`sm:hidden p-4 border-t bg-gray-50 ${isMobile ? "safe-bottom fixed-footer" : ""}`}
+        >
           <button
             onClick={onClose}
             className="w-full py-3 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors duration-200"

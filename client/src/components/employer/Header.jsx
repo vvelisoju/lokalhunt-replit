@@ -50,7 +50,7 @@ const Header = ({ onMenuClick, isMenuOpen }) => {
 
   return (
     <header
-      className={`bg-white shadow-sm border-b border-gray-200 mobile-header ${isMobile ? "safe-top mobile-header fixed-header" : ""}`}
+      className={`bg-white border-b border-neutral-200 px-4 py-2 sm:px-6 lg:px-8 ${isMobile ? "safe-top mobile-header fixed-header" : ""}`}
     >
       {/* Role Indicator for Branch Admin */}
       {isAdminView() && (

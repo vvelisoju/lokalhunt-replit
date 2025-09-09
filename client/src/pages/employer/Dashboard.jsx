@@ -12,7 +12,11 @@ import KpiCards from "../../components/employer/KpiCards";
 import Button from "../../components/ui/Button";
 import Loader from "../../components/ui/Loader";
 import JobCard from "../../components/ui/JobCard";
-import { getAds, closeAd, getDashboardStats } from "../../services/employer/ads";
+import {
+  getAds,
+  archiveAd,
+  getDashboardStats,
+} from "../../services/employer/ads";
 import { getMous } from "../../services/employer/mou";
 import { useRole } from "../../context/RoleContext";
 import { useAuth } from "../../context/AuthContext";
@@ -65,7 +69,7 @@ const Dashboard = () => {
       // Load dashboard stats and recent ads in parallel
       const [statsResult, recentAdsResult] = await Promise.all([
         getDashboardStats(),
-        getAds({ limit: 5 })
+        getAds({ limit: 5 }),
       ]);
 
       // Set stats from dedicated API
@@ -110,19 +114,34 @@ const Dashboard = () => {
   };
 
   // Handle archive/close job functionality
-  const handleArchive = async (jobId) => {
+  // const handleArchive = async (jobId) => {
+  //   try {
+  //     const result = await closeAd(jobId);
+  //     if (result.success) {
+  //       toast.success("Job closed successfully");
+  //       // Refresh dashboard data after successful close
+  //       loadDashboardData();
+  //     } else {
+  //       toast.error(result.error || "Failed to close job");
+  //     }
+  //   } catch (error) {
+  //     console.error("Error closing job:", error);
+  //     toast.error("Failed to close job");
+  //   }
+  // };
+
+  const handleArchiveAd = async (adId) => {
     try {
-      const result = await closeAd(jobId);
+      console.log("..............");
+      const result = await archiveAd(adId);
       if (result.success) {
-        toast.success("Job closed successfully");
-        // Refresh dashboard data after successful close
-        loadDashboardData();
+        toast.success("Ad archived successfully");
+        getAds({ limit: 5 });
       } else {
-        toast.error(result.error || "Failed to close job");
+        toast.error(result.error);
       }
     } catch (error) {
-      console.error("Error closing job:", error);
-      toast.error("Failed to close job");
+      toast.error("Failed to archive ad");
     }
   };
 
@@ -263,11 +282,12 @@ const Dashboard = () => {
                         applicationCount: ad._count?.allocations || 0,
                         status: ad.status,
                         rejectionReason: ad.rejectionReason || "",
+                        gender: ad.gender,
                       }}
                       variant="employer"
                       applicationStatus={ad.status}
                       loading={{}}
-                      onArchive={handleArchive}
+                      onArchive={() => handleArchiveAd(ad.id)}
                       onRefresh={handleRefresh}
                     />
                   </div>

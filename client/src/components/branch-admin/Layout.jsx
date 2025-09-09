@@ -53,7 +53,7 @@ const BranchAdminLayout = () => {
           <Header onMenuClick={() => setSidebarOpen(true)} />
 
           {/* Page Content */}
-          <main className="flex-1 overflow-y-auto bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
+          <main className="flex-1 overflow-y-auto bg-gray-50 px-4 py-6 sm:px-6 lg:px-8" data-scroll-container>
             <div className="max-w-7xl mx-auto">
               <Outlet />
             </div>

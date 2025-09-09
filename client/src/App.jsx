@@ -71,6 +71,7 @@ import { ToastProvider } from "./components/ui/Toast";
 import { CandidateProvider } from "./context/CandidateContext";
 import { RoleProvider } from "./context/RoleContext";
 import RoleAwareRoute from "./routes/RoleAwareRoute";
+import ScrollToTop from "./components/ScrollToTop";
 
 // Shared Pages
 import CandidateProfileView from "./pages/candidate/CandidateProfileView";
@@ -238,6 +239,7 @@ function App() {
     <ToastProvider>
       <CandidateProvider>
         <div className={`min-h-screen flex flex-col ${isNativePlatform ? 'safe-area-full capacitor-mobile capacitor-android' : ''}`}>
+          <ScrollToTop />
           {/* Push notification registration button - hidden to prevent UI overlap */}
           {false && isNativePlatform && (
             <div className="fixed top-4 right-4 z-50">

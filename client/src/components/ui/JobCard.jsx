@@ -1123,14 +1123,25 @@ const JobCard = ({
                 </span>
               </div>
             )}
-            {job.gender && (
-              <div className="flex items-center">
-                <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 mr-2 flex-shrink-0" />
-                <span className="text-gray-700 font-medium text-xs sm:text-sm capitalize">
-                  {job.gender} preferred
-                </span>
-              </div>
-            )}
+            <div className="flex items-center">
+              <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 mr-2 flex-shrink-0" />
+              <span 
+                className={`px-2 py-1 rounded-full text-xs sm:text-sm font-medium capitalize ${
+                  job.gender?.toLowerCase() === 'male' 
+                    ? 'bg-blue-100 text-blue-800'
+                    : job.gender?.toLowerCase() === 'female'
+                    ? 'bg-pink-100 text-pink-800'
+                    : job.gender?.toLowerCase() === 'both'
+                    ? 'bg-purple-100 text-purple-800'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {job.gender?.toLowerCase() === 'both' 
+                  ? 'Male & Female' 
+                  : job.gender || 'Any gender'
+                }
+              </span>
+            </div>
           </div>
 
           {/* Description - Mobile Optimized */}

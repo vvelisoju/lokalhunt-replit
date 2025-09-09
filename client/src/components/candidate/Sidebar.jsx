@@ -98,28 +98,28 @@ const Sidebar = ({ isOpen, onClose }) => {
       `}
       >
         {/* Mobile Header with Close Button - Native iOS/Android style */}
-        {!isMobile &&
-        <div className="relative flex items-center justify-between h-16 px-5 border-b border-gray-100 bg-white lg:bg-gradient-to-r lg:from-primary-50 lg:to-secondary-50 lg:border-neutral-200 lg:h-20 lg:justify-center">
-          <Link
-            to="/candidate/dashboard"
-            onClick={onClose}
-            className="flex items-center lg:hover:scale-105 transition-transform duration-200"
-          >
-            <img
-              src={logoImage}
-              alt="LokalHunt"
-              className="h-10 lg:h-16 w-auto object-contain"
-            />
-          </Link>
-          <button
-            onClick={onClose}
-            className="lg:hidden p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-all duration-200 active:scale-95"
-            aria-label="Close menu"
-          >
-            <XMarkIcon className="h-5 w-5 text-gray-600" />
-          </button>
-        </div>
-}
+        {!isMobile && (
+          <div className="relative flex items-center justify-between h-16 px-5 border-b border-gray-100 bg-white lg:bg-gradient-to-r lg:from-primary-50 lg:to-secondary-50 lg:border-neutral-200 lg:h-20 lg:justify-center">
+            <Link
+              to="/candidate/dashboard"
+              onClick={onClose}
+              className="flex items-center lg:hover:scale-105 transition-transform duration-200"
+            >
+              <img
+                src={logoImage}
+                alt="LokalHunt"
+                className="h-10 lg:h-16 w-auto object-contain"
+              />
+            </Link>
+            <button
+              onClick={onClose}
+              className="lg:hidden p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-all duration-200 active:scale-95"
+              aria-label="Close menu"
+            >
+              <XMarkIcon className="h-5 w-5 text-gray-600" />
+            </button>
+          </div>
+        )}
 
         {/* Navigation - Mobile native list style */}
         <div className="flex-1 overflow-y-auto bg-gray-50 lg:bg-white">

@@ -179,7 +179,7 @@ const AdForm = () => {
     }
   };
 
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     let isValid = false;
 
     switch (currentStep) {
@@ -198,6 +198,11 @@ const AdForm = () => {
 
     if (isValid && currentStep < 3) {
       setCurrentStep(currentStep + 1);
+
+      // Auto-generate description when moving from step 2 to step 3
+      if (currentStep === 2 && formData.title && !formData.description) {
+        await handleGenerateDescription();
+      }
     }
   };
 
@@ -454,7 +459,6 @@ const AdForm = () => {
   const handleGenerateDescription = async () => {
     // Check if we have minimum required data
     if (!formData.title) {
-      showError("Please enter a job title first");
       return;
     }
 
@@ -485,22 +489,11 @@ const AdForm = () => {
           ...prev,
           description: response.data.description,
         }));
-        showSuccess("Job description generated successfully!");
       } else {
         console.error("AI Generation Failed:", response.error);
-        showError(response.error || "Failed to generate job description");
       }
     } catch (error) {
       console.error("AI Generation Error:", error);
-      if (error.response?.status === 404) {
-        showError("AI service not available. Please contact support.");
-      } else if (error.response?.status === 500) {
-        showError(
-          "AI service configuration error. Please contact administrator.",
-        );
-      } else {
-        showError("Failed to generate job description. Please try again.");
-      }
     } finally {
       setIsGeneratingDescription(false);
     }
@@ -726,7 +719,7 @@ const AdForm = () => {
               </div>
 
               <FormInput
-                label="Application Deadline"
+                label="Job Closing Date"
                 name="validUntil"
                 type="date"
                 value={formData.validUntil}
@@ -735,6 +728,43 @@ const AdForm = () => {
                 error={errors.validUntil}
                 className="text-base"
               />
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Gender Preference
+                </label>
+                <div className="space-y-3">
+                  {genderOptions.map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${
+                        formData.gender === option.value
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:bg-gray-50 active:bg-gray-100"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="gender"
+                        value={option.value}
+                        checked={formData.gender === option.value}
+                        onChange={handleChange}
+                        className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <span className={`ml-3 text-base ${
+                        formData.gender === option.value
+                          ? "text-blue-700 font-medium"
+                          : "text-gray-700"
+                      }`}>
+                        {option.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                {errors.gender && (
+                  <p className="text-sm text-red-600 mt-1">{errors.gender}</p>
+                )}
+              </div>
             </div>
           </div>
         );
@@ -743,6 +773,66 @@ const AdForm = () => {
         return (
           <div className="space-y-6 px-4">
             <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Experience Level <span className="text-red-500">*</span>
+                </label>
+                <Select
+                  name="experienceLevel"
+                  value={formData.experienceLevel}
+                  onChange={(value) => handleChange(value, "experienceLevel")}
+                  options={experienceLevels}
+                  placeholder="Select required experience"
+                  required
+                  error={errors.experienceLevel}
+                  className="text-base"
+                />
+                {errors.experienceLevel && (
+                  <p className="text-sm text-red-600 mt-1">
+                    {errors.experienceLevel}
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                <FormInput
+                  label="Minimum Salary (₹)"
+                  name="salaryMin"
+                  type="number"
+                  value={formData.salaryMin}
+                  onChange={handleChange}
+                  placeholder="e.g., 50000"
+                  error={errors.salaryMin}
+                  className="text-base"
+                />
+
+                <FormInput
+                  label="Maximum Salary (₹)"
+                  name="salaryMax"
+                  type="number"
+                  value={formData.salaryMax}
+                  onChange={handleChange}
+                  placeholder="e.g., 80000"
+                  error={errors.salaryMax}
+                  className="text-base"
+                />
+              </div>
+
+              <CategorySearchSelect
+                label="Job Category"
+                value={formData.categoryId}
+                onChange={(value) => {
+                  setFormData((prev) => ({ ...prev, categoryId: value }));
+                  if (errors.categoryId) {
+                    setErrors((prev) => ({ ...prev, categoryId: "" }));
+                  }
+                }}
+                options={categories}
+                loading={loadingCategories}
+                placeholder="Search and select job category..."
+                error={errors.categoryId}
+                className="text-base"
+              />
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Employment Type <span className="text-red-500">*</span>
@@ -766,72 +856,6 @@ const AdForm = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Experience Level <span className="text-red-500">*</span>
-                </label>
-                <Select
-                  name="experienceLevel"
-                  value={formData.experienceLevel}
-                  onChange={(value) => handleChange(value, "experienceLevel")}
-                  options={experienceLevels}
-                  placeholder="Select required experience"
-                  required
-                  error={errors.experienceLevel}
-                  className="text-base"
-                />
-                {errors.experienceLevel && (
-                  <p className="text-sm text-red-600 mt-1">
-                    {errors.experienceLevel}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Gender Preference
-                </label>
-                <div className="space-y-3">
-                  {genderOptions.map((option) => (
-                    <label
-                      key={option.value}
-                      className="flex items-center p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 active:bg-gray-100"
-                    >
-                      <input
-                        type="radio"
-                        name="gender"
-                        value={option.value}
-                        checked={formData.gender === option.value}
-                        onChange={handleChange}
-                        className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <span className="ml-3 text-base text-gray-700">
-                        {option.label}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                {errors.gender && (
-                  <p className="text-sm text-red-600 mt-1">{errors.gender}</p>
-                )}
-              </div>
-
-              <CategorySearchSelect
-                label="Job Category"
-                value={formData.categoryId}
-                onChange={(value) => {
-                  setFormData((prev) => ({ ...prev, categoryId: value }));
-                  if (errors.categoryId) {
-                    setErrors((prev) => ({ ...prev, categoryId: "" }));
-                  }
-                }}
-                options={categories}
-                loading={loadingCategories}
-                placeholder="Search and select job category..."
-                error={errors.categoryId}
-                className="text-base"
-              />
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Education Qualification
                 </label>
                 <Select
@@ -844,30 +868,6 @@ const AdForm = () => {
                   placeholder="Select education requirement"
                   disabled={loadingEducation}
                   error={errors.educationQualificationId}
-                  className="text-base"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                <FormInput
-                  label="Minimum Salary (₹)"
-                  name="salaryMin"
-                  type="number"
-                  value={formData.salaryMin}
-                  onChange={handleChange}
-                  placeholder="e.g., 50000"
-                  error={errors.salaryMin}
-                  className="text-base"
-                />
-
-                <FormInput
-                  label="Maximum Salary (₹)"
-                  name="salaryMax"
-                  type="number"
-                  value={formData.salaryMax}
-                  onChange={handleChange}
-                  placeholder="e.g., 80000"
-                  error={errors.salaryMax}
                   className="text-base"
                 />
               </div>
@@ -975,28 +975,6 @@ const AdForm = () => {
                   {errors.description}
                 </p>
               )}
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-                <div className="flex items-start space-x-3">
-                  <InformationCircleIcon className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-blue-800">
-                    <p className="font-medium mb-1">💡 Formatting Tips:</p>
-                    <ul className="list-disc list-inside space-y-1 text-xs">
-                      <li>
-                        Use **bold** for key points and *italic* for emphasis
-                      </li>
-                      <li>
-                        Create bullet lists for responsibilities and
-                        requirements
-                      </li>
-                      <li>
-                        Use headings for sections (## Responsibilities, ###
-                        Benefits)
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         );
@@ -1013,7 +991,7 @@ const AdForm = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 sm:bg-white">
+    <div className="bg-gray-50 sm:bg-white">
       {/* Mobile-native Header - Non-sticky */}
       <div className="bg-white border-b border-gray-200 shadow-sm sm:hidden">
         <div className="flex items-center justify-between px-4 py-3">

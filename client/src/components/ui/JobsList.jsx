@@ -378,6 +378,7 @@ const JobsList = ({
       ) : (
         <div className="space-y-2">
           {jobs.map((job) => {
+            console.log("Job:::::::::::::", job.gender);
             // Transform job data for shared JobCard
             const jobData = {
               id: job.id,
@@ -428,6 +429,7 @@ const JobsList = ({
               hasApplied: Boolean(job.hasApplied),
               experienceLevel: job.experienceLevel,
               status: job.status || "APPROVED",
+              gender: job.gender,
             };
 
             // Determine the variant based on user role for the SharedJobCard

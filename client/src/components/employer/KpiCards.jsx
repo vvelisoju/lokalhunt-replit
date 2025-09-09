@@ -35,7 +35,7 @@ const KpiCards = ({ stats }) => {
 
   const kpis = [
     {
-      name: "Pending Approval",
+      name: "Pending",
       value: stats?.pendingApproval || 0,
       icon: ClockIcon,
       color: "bg-yellow-500",
@@ -80,7 +80,7 @@ const KpiCards = ({ stats }) => {
       link: "/employer/ads?status=APPROVED",
     },
     {
-      name: "Bookmarked Candidates",
+      name: "Bookmarks",
       value: stats?.bookmarkedCandidates || 0,
       icon: BookmarkIcon,
       color: "bg-emerald-500",

@@ -67,7 +67,7 @@ body {
     height: 100dvh; /* Dynamic viewport height for better mobile support */
     overflow-x: hidden;
   }
-  
+
   body {
     min-height: 100vh;
     min-height: 100dvh;
@@ -75,7 +75,7 @@ body {
     padding: 0;
     background: #f8fafc; /* Consistent background */
   }
-  
+
   #root {
     min-height: 100vh;
     min-height: 100dvh;
@@ -92,7 +92,7 @@ body {
   --safe-area-inset-bottom: 0px;
   --safe-area-inset-left: 0px;
   --safe-area-inset-right: 0px;
-  
+
   /* Android-specific fallbacks for devices without proper env() support */
   --android-status-bar-height: 44px;
   --android-navigation-bar-height: 48px;
@@ -173,7 +173,7 @@ body {
   /* Use values set by SafeAreaManager - will be 0px on regular devices */
   padding-top: var(--safe-area-inset-top);
   min-height: calc(3.5rem + var(--safe-area-inset-top));
-  
+
   /* Ensure header stays above content when safe areas are applied */
   /* position: relative; */
   z-index: 100;
@@ -263,7 +263,7 @@ body.has-fixed-header {
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
   }
-  
+
   /* Fixed bottom sheets and modals - CRITICAL for Sign Out access on mobile only */
   .capacitor-mobile .fixed.bottom-0,
   .capacitor-android .fixed.bottom-0,

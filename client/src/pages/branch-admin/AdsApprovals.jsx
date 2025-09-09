@@ -1,22 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
-import JobCard from '../../components/ui/JobCard';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
-import { getPendingAds } from '../../services/branch-admin/ads';
-import {
-  MagnifyingGlassIcon,
-  FunnelIcon,
-} from '@heroicons/react/24/outline';
+import React, { useState, useEffect } from "react";
+import { toast } from "react-hot-toast";
+import JobCard from "../../components/ui/JobCard";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import { getPendingAds } from "../../services/branch-admin/ads";
+import { MagnifyingGlassIcon, FunnelIcon } from "@heroicons/react/24/outline";
 
 const AdsApprovals = () => {
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    search: '',
-    status: 'PENDING_APPROVAL',
-    sortBy: 'createdAt',
-    sortOrder: 'desc'
+    search: "",
+    status: "PENDING_APPROVAL",
+    sortBy: "createdAt",
+    sortOrder: "desc",
   });
 
   // Placeholder for pagination state, as it was present in the modified snippet but not in the original.
@@ -24,7 +21,6 @@ const AdsApprovals = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalAds, setTotalAds] = useState(0);
-
 
   useEffect(() => {
     loadAds();
@@ -36,19 +32,27 @@ const AdsApprovals = () => {
       const response = await getPendingAds(filters);
 
       if (response.success) {
-        console.log('API Response:', response.data); // Debug log
-        console.log('First ad sample:', response.data.ads?.[0]); // Debug log
+        console.log("API Response:", response.data); // Debug log
+        console.log("First ad sample:", response.data.ads?.[0]); // Debug log
         setAds(response.data.ads || []);
-        setTotalPages(response.data.pagination?.totalPages || response.data.pagination?.pages || 1);
-        setCurrentPage(response.data.pagination?.currentPage || response.data.pagination?.page || 1);
+        setTotalPages(
+          response.data.pagination?.totalPages ||
+            response.data.pagination?.pages ||
+            1,
+        );
+        setCurrentPage(
+          response.data.pagination?.currentPage ||
+            response.data.pagination?.page ||
+            1,
+        );
         setTotalAds(response.data.pagination?.total || 0);
       } else {
-        toast.error(response.error || 'Failed to load ads');
+        toast.error(response.error || "Failed to load ads");
         setAds([]);
       }
     } catch (error) {
-      console.error('Error loading ads:', error);
-      toast.error('Failed to load ads');
+      console.error("Error loading ads:", error);
+      toast.error("Failed to load ads");
       setAds([]);
     } finally {
       setLoading(false);
@@ -60,28 +64,28 @@ const AdsApprovals = () => {
   };
 
   const handleSearchChange = (e) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      search: e.target.value
+      search: e.target.value,
     }));
   };
 
   const handleStatusFilter = (status) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      status
+      status,
     }));
   };
 
   const transformAdToJobCard = (ad) => {
     return {
       id: ad.id,
-      title: ad.title || 'No Title',
+      title: ad.title || "No Title",
       description: ad.description,
       company: ad.company || { name: ad.companyName },
-      companyName: ad.company?.name || ad.companyName || 'Unknown Company',
-      location: ad.location || ad.locationName || 'Location not specified',
-      jobType: ad.jobType || ad.employmentType || 'Full Time',
+      companyName: ad.company?.name || ad.companyName || "Unknown Company",
+      location: ad.location || ad.locationName || "Location not specified",
+      jobType: ad.jobType || ad.employmentType || "Full Time",
       salary: ad.salary || ad.salaryRange,
       skills: ad.skills || [],
       status: ad.status,
@@ -89,7 +93,8 @@ const AdsApprovals = () => {
       createdAt: ad.createdAt,
       candidatesCount: ad.applicationCount || 0,
       applicationCount: ad.applicationCount || 0,
-      employerId: ad.employerId || ad.employer?.id
+      employerId: ad.employerId || ad.employer?.id,
+      gender: ad.gender,
     };
   };
 
@@ -147,19 +152,20 @@ const AdsApprovals = () => {
                 onClick={handleRefresh}
                 disabled={loading}
               >
-                {loading ? 'Loading...' : 'Refresh'}
+                {loading ? "Loading..." : "Refresh"}
               </Button>
             </div>
           </div>
         </Card>
 
-
-
         {/* Ads List */}
         {loading ? (
           <div className="space-y-4">
             {[...Array(5)].map((_, index) => (
-              <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 animate-pulse">
+              <div
+                key={index}
+                className="bg-white border border-gray-200 rounded-lg p-4 animate-pulse"
+              >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="h-6 bg-gray-200 rounded w-1/2 mb-2"></div>
@@ -180,12 +186,13 @@ const AdsApprovals = () => {
         ) : ads.length === 0 ? (
           <Card>
             <div className="text-center py-12">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No ads found</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No ads found
+              </h3>
               <p className="text-gray-500">
-                {filters.status === 'PENDING_APPROVAL' 
-                  ? 'No ads are currently pending approval.'
-                  : 'Try adjusting your search criteria or filters.'
-                }
+                {filters.status === "PENDING_APPROVAL"
+                  ? "No ads are currently pending approval."
+                  : "Try adjusting your search criteria or filters."}
               </p>
             </div>
           </Card>

@@ -290,6 +290,7 @@ const Bookmarks = () => {
                 bookmark.hasApplied || bookmark.ad?.hasApplied || false,
               experienceLevel:
                 bookmark.ad?.categorySpecificFields?.experienceLevel,
+              gender: bookmark.ad?.gender,
             };
 
             return (

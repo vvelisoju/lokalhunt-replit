@@ -119,10 +119,10 @@ const Dashboard = () => {
       if (applicationsResponse.status === "fulfilled") {
         console.log("Applications data loaded");
       }
-
+      console.log("statsResponse.status......", statsResponse);
       // Handle stats data
       if (statsResponse.status === "fulfilled" && statsResponse.value?.data) {
-        setStats(statsResponse.value.data);
+        setStats(statsResponse.value.data?.data);
         console.log("Dashboard stats loaded");
       } else {
         console.warn("Failed to load dashboard stats");
@@ -588,6 +588,10 @@ const Dashboard = () => {
                         application.job?.company?.industry,
                     },
                     hasApplied: true, // Since these are applications, user has already applied
+                    gender:
+                      application.gender ||
+                      application.ad?.gender ||
+                      application.job?.gender,
                   };
 
                   return (

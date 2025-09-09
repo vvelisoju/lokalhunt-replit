@@ -178,7 +178,6 @@ const AdsList = () => {
     } catch (error) {
       toast.error("Failed to archive ad");
     }
-    setConfirmModal({ isOpen: false, type: "", adId: null });
   };
 
   const handleConfirmAction = () => {
@@ -319,6 +318,7 @@ const AdsList = () => {
                     bookmarkedCount:
                       ad._count?.employerBookmarks || ad.bookmarkedCount || 0,
                     rejectionReason: ad.rejectionReason || "",
+                    gender: ad.gender,
                   }}
                   variant="employer"
                   onSubmit={() =>
@@ -328,13 +328,7 @@ const AdsList = () => {
                       adId: ad.id,
                     })
                   }
-                  onArchive={() =>
-                    setConfirmModal({
-                      isOpen: true,
-                      type: "archive",
-                      adId: ad.id,
-                    })
-                  }
+                  onArchive={() => handleArchiveAd(ad.id)}
                   onViewCandidates={() => {
                     const candidatesRoute = isAdminView()
                       ? `/branch-admin/employers/${getCurrentEmployerId()}/candidates?adId=${ad.id}&adTitle=${encodeURIComponent(ad.title)}`
