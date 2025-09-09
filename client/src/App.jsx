@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import safeAreaManager from './utils/safeArea'
 
 // Landing Page
 import Landing from "./pages/Landing";
@@ -96,6 +97,19 @@ function App() {
   // Initialize push notifications on component mount
   useEffect(() => {
     initializeCapacitor();
+  }, []);
+
+  // Initialize safe area manager in App component
+  useEffect(() => {
+    // Initialize safe area detection - no await needed as init() doesn't return a promise
+    safeAreaManager.init();
+    console.log('Safe area manager initialized');
+    
+    // Expose for debugging
+    if (typeof window !== 'undefined') {
+      window.safeAreaManager = safeAreaManager;
+      console.log('SafeAreaManager exposed globally for debugging');
+    }
   }, []);
 
   // Initialize Capacitor and push notifications
@@ -223,7 +237,7 @@ function App() {
   return (
     <ToastProvider>
       <CandidateProvider>
-        <div className="min-h-screen flex flex-col">
+        <div className={`min-h-screen flex flex-col ${isNativePlatform ? 'safe-area-full capacitor-mobile capacitor-android' : ''}`}>
           {/* Push notification registration button - hidden to prevent UI overlap */}
           {false && isNativePlatform && (
             <div className="fixed top-4 right-4 z-50">

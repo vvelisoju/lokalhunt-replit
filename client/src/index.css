@@ -1,3 +1,5 @@
+
+
 @import "tailwindcss";
 
 @theme {
@@ -53,29 +55,97 @@
   --gradient-brand-subtle: linear-gradient(135deg, #eff8ff 0%, #fff8ed 100%);
 }
 
+/* Body font family */
+body {
+  font-family: Inter, system-ui, sans-serif;
+}
 
+/* Force full-screen layout for mobile apps */
+@media screen and (max-width: 768px) {
+  html {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for better mobile support */
+    overflow-x: hidden;
+  }
+  
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    margin: 0;
+    padding: 0;
+    background: #f8fafc; /* Consistent background */
+  }
+  
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: #f8fafc;
+  }
+}
+
+/* Safe area detection - values will be set by JavaScript SafeAreaManager */
 :root {
-  --safe-area-inset-top: env(safe-area-inset-top);
-  --safe-area-inset-bottom: env(safe-area-inset-bottom);
-  --safe-area-inset-left: env(safe-area-inset-left);
-  --safe-area-inset-right: env(safe-area-inset-right);
+  /* Default to zero - SafeAreaManager will override these if device needs safe areas */
+  --safe-area-inset-top: 0px;
+  --safe-area-inset-bottom: 0px;
+  --safe-area-inset-left: 0px;
+  --safe-area-inset-right: 0px;
+  
+  /* Android-specific fallbacks for devices without proper env() support */
+  --android-status-bar-height: 44px;
+  --android-navigation-bar-height: 48px;
 }
 
-/* Apply padding to header and footer */
-.header {
-  padding-top: var(--safe-area-inset-top);
-  padding-left: var(--safe-area-inset-left);
-  padding-right: var(--safe-area-inset-right);
+/* Mobile Capacitor app specific styles */
+.capacitor-mobile {
+  --safe-area-inset-top: max(env(safe-area-inset-top), 44px);
+  --safe-area-inset-bottom: max(env(safe-area-inset-bottom), 34px);
 }
 
-.footer {
-  padding-bottom: var(--safe-area-inset-bottom);
-  padding-left: var(--safe-area-inset-left);
-  padding-right: var(--safe-area-inset-right);
+/* Android-specific safe area fallbacks */
+.capacitor-android {
+  --safe-area-inset-top: max(env(safe-area-inset-top), var(--android-status-bar-height));
+  --safe-area-inset-bottom: max(env(safe-area-inset-bottom), var(--android-navigation-bar-height));
 }
 
-/* Safe area utilities for common scenarios */
+/* Override ALL safe area styles for devices that don't need them */
+.no-safe-areas-device {
+  --safe-area-inset-top: 0px !important;
+  --safe-area-inset-bottom: 0px !important;
+  --safe-area-inset-left: 0px !important;
+  --safe-area-inset-right: 0px !important;
+  --android-status-bar-height: 0px !important;
+  --android-navigation-bar-height: 0px !important;
+}
+
+/* Override safe area utility classes for no-safe-areas devices */
+.no-safe-areas-device .safe-top,
+.no-safe-areas-device .mobile-safe-top,
+.no-safe-areas-device .mobile-header {
+  padding-top: 0px !important;
+}
+
+.no-safe-areas-device .safe-bottom {
+  padding-bottom: 0px !important;
+}
+
+.no-safe-areas-device .safe-left {
+  padding-left: 0px !important;
+}
+
+.no-safe-areas-device .safe-right {
+  padding-right: 0px !important;
+}
+
+.no-safe-areas-device .mobile-header {
+  min-height: 3.5rem !important;
+}
+
+/* Safe area utility classes - JavaScript managed values */
 .safe-top {
+  /* Use values set by SafeAreaManager - will be 0px on regular devices */
   padding-top: var(--safe-area-inset-top);
 }
 
@@ -98,35 +168,102 @@
   padding-right: var(--safe-area-inset-right);
 }
 
-/* Ensure body respects safe areas */
-body {
-  font-family: Inter, system-ui, sans-serif;
-  padding-left: var(--safe-area-inset-left);
-  padding-right: var(--safe-area-inset-right);
+/* Mobile header with conditional safe area support */
+.mobile-header {
+  /* Use values set by SafeAreaManager - will be 0px on regular devices */
+  padding-top: var(--safe-area-inset-top);
+  min-height: calc(3.5rem + var(--safe-area-inset-top));
+  
+  /* Ensure header stays above content when safe areas are applied */
+  /* position: relative; */
+  z-index: 100;
 }
 
-/* Fixed positioned elements (common in mobile apps) */
 .fixed-header {
   position: fixed;
-  top: 0;
+  top: var(--safe-area-inset-top);
   left: 0;
   right: 0;
+  z-index: 9999;
+  /* Apply safe area insets as padding to keep content within safe areas */
   padding-top: var(--safe-area-inset-top);
   padding-left: var(--safe-area-inset-left);
   padding-right: var(--safe-area-inset-right);
+
 }
 
-.fixed-footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+/* Push main content below fixed header */
+.main-content-with-fixed-header {
+  /* Margin-top = header height + safe area top */
+  margin-top: calc(3.8rem + var(--safe-area-inset-top));
+  /* Add bottom padding for safe area (navigation gestures) */
   padding-bottom: var(--safe-area-inset-bottom);
+  min-height: calc(100vh - 4rem - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
+
+}
+
+/* Mobile header specific styles */
+.mobile-header {
+  /* Height includes safe area automatically via padding */
+  min-height: 3.5rem;
+  /* Do NOT add padding-top here for fixed headers */
+}
+
+/* For fixed mobile headers */
+.mobile-header.fixed-header {
+  /* Safe area padding already applied by .fixed-header */
+  height: calc(3.5rem + var(--safe-area-inset-top));
+}
+
+body.has-fixed-header {
+  padding-top: calc(3.5rem + var(--safe-area-inset-top));
+}
+/* Content container for mobile with fixed header */
+.mobile-content-container {
+
+  margin-top: calc(3.5rem + var(--safe-area-inset-top));
   padding-left: var(--safe-area-inset-left);
   padding-right: var(--safe-area-inset-right);
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
+/* Reset mobile content container styles on larger screens */
+@media (min-width: 640px) {
+  .sm\:mobile-content-container-reset {
+    margin-top: 0;
+    padding-left: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+  }
+}
+
+/* Mobile safe top utility - conditional based on device capability */
+.mobile-safe-top {
+  padding-top: var(--safe-area-inset-top);
 }
 
 
+
+/* Apply safe areas only on mobile devices with fullscreen gestures */
+@media screen and (max-width: 1024px) {
+  /* Only apply to mobile devices, not web browsers */
+  .capacitor-mobile body,
+  .capacitor-android body,
+  .capacitor-ios body {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  
+  /* Fixed bottom sheets and modals - CRITICAL for Sign Out access on mobile only */
+  .capacitor-mobile .fixed.bottom-0,
+  .capacitor-android .fixed.bottom-0,
+  .capacitor-ios .fixed.bottom-0,
+  .capacitor-mobile [style*="bottom: 0"],
+  .capacitor-android [style*="bottom: 0"],
+  .capacitor-ios [style*="bottom: 0"] {
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 48px)) !important;
+  }
+}
 
 /* Text truncation utilities */
 .line-clamp-2 {
@@ -147,11 +284,6 @@ body {
     padding: 1rem 3rem !important;
     font-size: 1rem !important;
   }
-}
-
-/* Test styles to ensure CSS is loading */
-body {
-  font-family: Inter, system-ui, sans-serif;
 }
 
 /* Custom utility classes for landing page */
@@ -179,39 +311,41 @@ html {
 }
 
 .recharts-cartesian-grid-horizontal line,
-  .recharts-cartesian-grid-vertical line {
-    stroke: #cbd5e1;
+.recharts-cartesian-grid-vertical line {
+  stroke: #cbd5e1;
+}
+
+/* Print styles for public candidate profile */
+@media print {
+  .print\:hidden {
+    display: none !important;
   }
 
-  /* Print styles for public candidate profile */
-  @media print {
-    .print\:hidden {
-      display: none !important;
-    }
+  body {
+    background: white !important;
+  }
 
-    body {
-      background: white !important;
-    }
+  .bg-gray-50 {
+    background: white !important;
+  }
 
-    .bg-gray-50 {
-      background: white !important;
-    }
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl {
+    box-shadow: none !important;
+  }
 
-    .shadow-sm,
-    .shadow-md,
-    .shadow-lg,
-    .shadow-xl {
-      box-shadow: none !important;
-    }
+  .border {
+    border: 1px solid #e5e7eb !important;
+  }
 
-    .border {
-      border: 1px solid #e5e7eb !important;
-    }
+  .rounded-lg,
+  .rounded-xl {
+    border-radius: 8px !important;
+  }
+}
 
-    .rounded-lg,
-    .rounded-xl {
-      border-radius: 8px !important;
-    }
 /* Hero section filter styles */
 .hero-filters .bg-white {
   @apply bg-white opacity-95 backdrop-blur-sm border-0 shadow-xl;
@@ -234,8 +368,6 @@ html {
   background-size: cover;
 }
 
-  }
-
 /* Logo styles */
 .logo {
   height: 48px;
@@ -247,3 +379,4 @@ html {
     height: 56px;
   }
 }
+

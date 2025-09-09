@@ -341,8 +341,11 @@ const ProfileDropdown = ({ logout, onLanguageChange }) => {
             className={`fixed inset-x-0 bottom-0 z-50 transform transition-transform duration-300 ${
               showUserMenu ? "translate-y-0" : "translate-y-full"
             }`}
+            style={{
+              paddingBottom: 'var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 48px))'
+            }}
           >
-            <div className="bg-white rounded-t-2xl shadow-2xl max-h-[80vh] overflow-y-auto">
+            <div className="bg-white rounded-t-2xl shadow-2xl max-h-[80vh] overflow-y-auto safe-bottom">
               {/* Handle */}
               <div className="flex justify-center pt-3 pb-2">
                 <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
@@ -351,7 +354,7 @@ const ProfileDropdown = ({ logout, onLanguageChange }) => {
               <MenuContent />
 
               {/* Safe area padding for devices with home indicator */}
-              <div className="pb-safe"></div>
+              <div className="safe-bottom"></div>
             </div>
           </div>
         </>

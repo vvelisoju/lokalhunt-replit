@@ -6,12 +6,15 @@
     "SplashScreen": {
       "launchAutoHide": true,
       "androidScaleType": "CENTER_CROP",
-      "showFullscreen": false
+      "showFullscreen": false,
+      "androidSplashResourceName": "splash",
+      "iosLaunchStoryboard": "LaunchScreen"
     },
     "StatusBar": {
-      "style": "LIGHT_CONTENT",
+      "style": "DARK",
       "backgroundColor": "#1976d2",
-      "overlaysWebView": false
+      "overlaysWebView": true,
+      "androidOverlaysWebView": true
     }
   },
   "server": {

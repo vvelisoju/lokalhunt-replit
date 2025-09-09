@@ -1,21 +1,45 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bars3Icon, BellIcon, GlobeAltIcon, BriefcaseIcon } from "@heroicons/react/24/outline";
+import {
+  Bars3Icon,
+  BellIcon,
+  GlobeAltIcon,
+  BriefcaseIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import { useCandidateAuth } from "../../hooks/useCandidateAuth";
 import { useTranslation } from "react-i18next";
 import ProfileDropdown from "../ui/ProfileDropdown";
-import NotificationBell from '../ui/NotificationBell';
+import NotificationBell from "../ui/NotificationBell";
 
-const Header = ({ onMenuClick }) => {
+const Header = ({ onMenuClick, isMenuOpen }) => {
   const { user, logout } = useCandidateAuth();
   const { t, i18n } = useTranslation();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Check if we're running in Capacitor (mobile app)
+    const checkMobileEnvironment = async () => {
+      try {
+        if (typeof window !== "undefined" && window.Capacitor) {
+          const { Capacitor } = await import("@capacitor/core");
+          setIsMobile(Capacitor.isNativePlatform());
+        }
+      } catch (error) {
+        setIsMobile(false);
+      }
+    };
+    checkMobileEnvironment();
+  }, []);
 
   const changeLanguage = (lng) => {
     i18n.changeLanguage(lng);
   };
 
   return (
-    <header className="bg-white border-b border-neutral-200 px-4 py-3 sm:px-6 lg:px-8 h-20 sm:h-16">
+    <header
+      className={`bg-white border-b border-neutral-200 px-4 py-2 sm:px-6 lg:px-8 ${isMobile ? "safe-top mobile-header fixed-header" : ""}`}
+    >
       <div className="flex items-center justify-between h-full">
         {/* Left side - Mobile menu button + Logo */}
         <div className="flex items-center">
@@ -24,8 +48,13 @@ const Header = ({ onMenuClick }) => {
             type="button"
             className="lg:hidden p-3 sm:p-2 rounded-md text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 transition-colors"
             onClick={onMenuClick}
+            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
           >
-            <Bars3Icon className="h-8 sm:h-6 w-8 sm:w-6" />
+            {isMenuOpen ? (
+              <XMarkIcon className="h-6 w-6" />
+            ) : (
+              <Bars3Icon className="h-6 w-6" />
+            )}
           </button>
 
           {/* Logo - visible on mobile */}
@@ -33,7 +62,7 @@ const Header = ({ onMenuClick }) => {
             <img
               src="/images/logo.png"
               alt="LokalHunt"
-              className="h-12 sm:h-8 w-auto"
+              className="h-10 w-auto"
             />
           </div>
 

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Bars3Icon,
   BellIcon,
@@ -18,6 +18,22 @@ const Header = ({ onMenuClick }) => {
   const { user, logout } = useAuth()
   const { t, i18n } = useTranslation()
   const { isAdminView, targetEmployer } = useRole()
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Check if we're running in Capacitor (mobile app)
+    const checkMobileEnvironment = async () => {
+      try {
+        if (typeof window !== "undefined" && window.Capacitor) {
+          const { Capacitor } = await import("@capacitor/core");
+          setIsMobile(Capacitor.isNativePlatform());
+        }
+      } catch (error) {
+        setIsMobile(false);
+      }
+    };
+    checkMobileEnvironment();
+  }, []);
 
   const changeLanguage = (lng) => {
     i18n.changeLanguage(lng)
@@ -33,7 +49,7 @@ const Header = ({ onMenuClick }) => {
 
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header className={`bg-white shadow-sm border-b border-gray-200 ${isMobile ? 'safe-top' : ''}`}>
       {/* Role Indicator for Branch Admin */}
       {isAdminView() && (
         <div className="bg-purple-50 border-b border-purple-200">
@@ -57,7 +73,7 @@ const Header = ({ onMenuClick }) => {
       )}
 
       <div className="px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20 sm:h-16">
+        <div className="flex justify-between items-center h-14">
           {/* Left side - Mobile menu button and logo */}
           <div className="flex items-center">
             {/* Mobile menu button */}
@@ -66,7 +82,7 @@ const Header = ({ onMenuClick }) => {
               className="lg:hidden p-3 sm:p-2 rounded-md text-gray-500 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               onClick={onMenuClick}
             >
-              <Bars3Icon className="h-8 sm:h-6 w-8 sm:w-6" aria-hidden="true" />
+              <Bars3Icon className="h-6 w-6" aria-hidden="true" />
             </button>
 
             {/* Logo - shown on mobile, hidden on desktop */}
@@ -75,7 +91,7 @@ const Header = ({ onMenuClick }) => {
                 <img
                   src="/images/logo.png"
                   alt="LokalHunt"
-                  className="h-12 sm:h-8 w-auto"
+                  className="h-10 w-auto"
                 />
               </Link>
             </div>

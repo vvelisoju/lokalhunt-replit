@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   HomeIcon,
@@ -17,6 +17,22 @@ import logoImage from "../../assets/lokalhunt-logo.png";
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const { t } = useTranslation();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Check if we're running in Capacitor (mobile app)
+    const checkMobileEnvironment = async () => {
+      try {
+        if (typeof window !== "undefined" && window.Capacitor) {
+          const { Capacitor } = await import("@capacitor/core");
+          setIsMobile(Capacitor.isNativePlatform());
+        }
+      } catch (error) {
+        setIsMobile(false);
+      }
+    };
+    checkMobileEnvironment();
+  }, []);
 
   const navigation = [
     {
@@ -78,11 +94,12 @@ const Sidebar = ({ isOpen, onClose }) => {
         transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
         lg:shadow-none shadow-2xl
+        ${isMobile && window.Capacitor ? "safe-top main-content-with-fixed-header" : ""}
       `}
       >
         {/* Mobile Header with Close Button - Native iOS/Android style */}
+        {!isMobile &&
         <div className="relative flex items-center justify-between h-16 px-5 border-b border-gray-100 bg-white lg:bg-gradient-to-r lg:from-primary-50 lg:to-secondary-50 lg:border-neutral-200 lg:h-20 lg:justify-center">
-          {/* Logo - Left aligned on mobile, centered on desktop */}
           <Link
             to="/candidate/dashboard"
             onClick={onClose}
@@ -94,8 +111,6 @@ const Sidebar = ({ isOpen, onClose }) => {
               className="h-10 lg:h-16 w-auto object-contain"
             />
           </Link>
-
-          {/* Close button - Mobile native style */}
           <button
             onClick={onClose}
             className="lg:hidden p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-all duration-200 active:scale-95"
@@ -104,6 +119,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             <XMarkIcon className="h-5 w-5 text-gray-600" />
           </button>
         </div>
+}
 
         {/* Navigation - Mobile native list style */}
         <div className="flex-1 overflow-y-auto bg-gray-50 lg:bg-white">
@@ -127,12 +143,20 @@ const Sidebar = ({ isOpen, onClose }) => {
                         }
                       `}
                     >
-                      <Icon className={`mr-4 lg:mr-3 h-6 w-6 lg:h-5 lg:w-5 flex-shrink-0 ${
-                        isActive(item.href) ? "text-blue-600 lg:text-white" : "text-gray-500"
-                      }`} />
-                      <span className={`font-medium lg:font-medium text-base lg:text-sm ${
-                        isActive(item.href) ? "text-blue-600 lg:text-white" : "text-gray-900"
-                      }`}>
+                      <Icon
+                        className={`mr-4 lg:mr-3 h-6 w-6 lg:h-5 lg:w-5 flex-shrink-0 ${
+                          isActive(item.href)
+                            ? "text-blue-600 lg:text-white"
+                            : "text-gray-500"
+                        }`}
+                      />
+                      <span
+                        className={`font-medium lg:font-medium text-base lg:text-sm ${
+                          isActive(item.href)
+                            ? "text-blue-600 lg:text-white"
+                            : "text-gray-900"
+                        }`}
+                      >
                         {item.name}
                       </span>
                       {/* iOS style chevron indicator for active item on mobile */}
@@ -194,8 +218,8 @@ const Sidebar = ({ isOpen, onClose }) => {
           </div>
         </div> */}
 
-        {/* Mobile-specific bottom safe area */}
-        <div className="h-8 lg:h-0 bg-gray-50 lg:bg-white border-t border-gray-200 lg:border-0"></div>
+        {/* Mobile-specific bottom spacing */}
+        <div className="h-8 lg:h-0 bg-gray-50 lg:bg-white border-t border-gray-200 lg:border-0 lg:hidden"></div>
       </div>
     </>
   );

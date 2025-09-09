@@ -41,7 +41,7 @@ const BranchAdminLayout = () => {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 safe-area-full">
       {/* Mobile-friendly layout with responsive design */}
       <div className="flex h-screen overflow-hidden">
         {/* Sidebar Component */}

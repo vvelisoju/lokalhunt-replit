@@ -91,7 +91,7 @@ const KpiCards = ({ stats }) => {
   ];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 safe-area-full">
       {/* Prominent Main Metrics Row */}
       <div className="grid grid-cols-2 gap-3">
         {mainMetrics.map((metric) => (

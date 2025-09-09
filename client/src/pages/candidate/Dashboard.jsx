@@ -19,6 +19,7 @@ import { useCandidate } from "../../context/CandidateContext";
 import { useCandidateAuth } from "../../hooks/useCandidateAuth";
 import { candidateApi } from "../../services/candidateApi";
 import api from "../../services/api";
+import safeAreaManager from "../../utils/safeArea";
 
 const Dashboard = () => {
   const { t } = useTranslation();
@@ -136,6 +137,11 @@ const Dashboard = () => {
     }
   }, [user, fetchAllDashboardData]);
 
+  // Initialize safe area manager
+  useEffect(() => {
+    safeAreaManager.init();
+  }, []);
+
   const handleOnboardingComplete = useCallback((data) => {
     console.log("Onboarding completed:", data);
     setShowOnboarding(false);
@@ -238,7 +244,49 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="space-y-4 sm:space-y-6  sm:p-0">
+    <div className="space-y-4 sm:space-y-6 sm:p-0">
+      {/* Debug Safe Area Values */}
+      {/* <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-3 text-xs font-mono">
+        <div className="font-bold mb-2">🔍 Safe Area Debug Info:</div>
+        
+        {/* Native Android Data */}
+        {/* <div className="mb-2">
+          <div className="font-semibold">🤖 Native Android WindowInsets:</div>
+          <div>• Received: {safeAreaManager.nativeInsetsReceived ? 'YES' : 'NO'}</div>
+          {window.androidSafeAreaInsets && (
+            <div>• Raw data: {JSON.stringify(window.androidSafeAreaInsets)}</div>
+          )}
+        </div>
+        
+        {/* CSS Detection */}
+        {/* <div className="mb-2">
+          <div className="font-semibold">📏 CSS Detection:</div>
+          <div>• env(safe-area-inset-top): <span style={{paddingLeft: 'env(safe-area-inset-top, 0px)'}} className="bg-red-200">env(safe-area-inset-top, 0px)</span></div>
+          <div>• env(safe-area-inset-bottom): <span style={{paddingBottom: 'env(safe-area-inset-bottom, 0px)'}} className="bg-red-200">env(safe-area-inset-bottom, 0px)</span></div>
+        </div>
+        
+        {/* Applied Values */}
+        {/* <div className="mb-2">
+          <div className="font-semibold">✅ Applied Values:</div>
+          <div>• --safe-area-inset-top: <span style={{paddingLeft: 'var(--safe-area-inset-top)'}} className="bg-blue-200">{getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top').trim() || '0px'}</span></div>
+          <div>• --safe-area-inset-bottom: <span style={{paddingBottom: 'var(--safe-area-inset-bottom)'}} className="bg-blue-200">{getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom').trim() || '0px'}</span></div>
+        </div>
+        
+        {/* SafeArea Manager Status */}
+        {/* <div className="mb-2">
+          <div className="font-semibold">⚙️ SafeArea Manager:</div>
+          <div>• Has support: {safeAreaManager.hasSafeAreas() ? 'YES' : 'NO'}</div>
+          <div>• Platform: {window.Capacitor ? window.Capacitor.getPlatform() : 'web'}</div>
+          <div>• Values: {JSON.stringify(safeAreaManager.getSafeAreas())}</div>
+        </div>
+        
+        {/* Visual Test */}
+        {/* <div>
+          <div className="font-semibold">🎯 Visual Test:</div>
+          <div>Header padding: <span className="mobile-header bg-green-200 inline-block px-2 py-1">Should be ZERO on regular devices</span></div>
+        </div>
+      </div> */}
+      
       {/* Welcome Section - Mobile optimized */}
       <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
