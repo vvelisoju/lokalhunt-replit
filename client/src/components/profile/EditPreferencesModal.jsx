@@ -1,24 +1,24 @@
-
 import React, { useState, useEffect } from 'react'
 import Button from '../ui/Button'
 import { getCities } from '../../services/common/cities'
+import Modal from '../ui/Modal'
 
 const EditPreferencesModal = ({ isOpen, onClose, preferences, onSave }) => {
   const [formData, setFormData] = useState({
     // From Step 1 - Basic Info
     currentEmploymentStatus: '',
-    
+
     // From Step 2 - Job Preferences
     jobTypes: [],
     preferredRoles: [],
     industry: [],
     preferredLocations: [],
     shiftPreference: '',
-    
+
     // From Step 3 - Skills & Experience
     experienceLevel: '',
     salaryRange: { min: '', max: '' },
-    
+
     // From Step 4 - Final Setup
     availability: '',
     languages: [],
@@ -38,7 +38,7 @@ const EditPreferencesModal = ({ isOpen, onClose, preferences, onSave }) => {
   useEffect(() => {
     if (isOpen && preferences) {
       console.log('EditPreferencesModal received preferences:', preferences)
-      
+
       // Handle preferred locations - could be array of strings or array of objects
       let processedLocations = []
       if (preferences.preferredLocations) {
@@ -68,22 +68,22 @@ const EditPreferencesModal = ({ isOpen, onClose, preferences, onSave }) => {
 
       console.log('Mapped experience level:', experienceLevel)
       console.log('Mapped availability:', availability)
-      
+
       setFormData({
         // Basic Info
         currentEmploymentStatus: preferences.currentEmploymentStatus || '',
-        
+
         // Job Preferences
         jobTypes: preferences.jobTypes || [],
         preferredRoles: preferences.preferredRoles || preferences.jobTitles || [],
         industry: preferences.industry || [],
         preferredLocations: processedLocations,
         shiftPreference: preferences.shiftPreference || '',
-        
+
         // Skills & Experience - ensure these are properly mapped
         experienceLevel: experienceLevel,
         salaryRange: preferences.salaryRange || { min: '', max: '' },
-        
+
         // Final Setup - handle multiple availability field sources
         availability: availability,
         languages: preferences.languages || [],
@@ -130,7 +130,7 @@ const EditPreferencesModal = ({ isOpen, onClose, preferences, onSave }) => {
         availabilityStatus: formData.availability,
         availabilityDate: formData.availability,
       }
-      
+
       console.log('Saving preferences data:', dataToSave)
       await onSave(dataToSave)
       onClose()
@@ -217,21 +217,13 @@ const EditPreferencesModal = ({ isOpen, onClose, preferences, onSave }) => {
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-2 sm:p-4 bg-black bg-opacity-50 overflow-y-auto modal">
-      <div className="relative bg-white rounded-lg w-full max-w-2xl mx-auto my-4 sm:my-8">
-        {/* Header - Sticky */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 rounded-t-lg px-4 sm:px-6 py-4 flex items-center justify-between">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Edit Job Preferences</h2>
-          <button 
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl font-light"
-          >
-            ×
-          </button>
-        </div>
-        
-        {/* Content */}
-        <div className="px-4 sm:px-6 py-4 max-h-[calc(90vh-120px)] overflow-y-auto">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Edit Job Preferences"
+      maxWidth="md"
+    >
+      <div className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             {/* Current Employment Status */}
             <div className="space-y-2">
@@ -459,7 +451,7 @@ const EditPreferencesModal = ({ isOpen, onClose, preferences, onSave }) => {
                           location === city.name || 
                           location.includes(city.name.split(',')[0]) // Handle partial matches
                         )
-                        
+
                         return (
                           <label key={city.id} className="flex items-center space-x-2 mb-1 text-xs">
                             <input
@@ -586,29 +578,27 @@ const EditPreferencesModal = ({ isOpen, onClose, preferences, onSave }) => {
               </label>
             </div>
           </form>
-        </div>
 
         {/* Footer - Sticky */}
-        <div className="sticky bottom-0 bg-white border-t border-gray-200 rounded-b-lg px-4 sm:px-6 py-4">
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-end">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={handleClose}
-              className="w-full sm:w-auto order-2 sm:order-1"
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-6 mt-6 border-t border-gray-200">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="w-full sm:w-auto py-3 px-6 text-base font-semibold rounded-xl"
             >
               Cancel
             </Button>
-            <Button 
+            <Button
+              type="submit"
               onClick={handleSubmit}
-              className="w-full sm:w-auto order-1 sm:order-2"
+              className="w-full sm:w-auto py-3 px-6 text-base font-semibold rounded-xl bg-blue-600 hover:bg-blue-700"
             >
-              Save Changes
+              Save Preferences
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

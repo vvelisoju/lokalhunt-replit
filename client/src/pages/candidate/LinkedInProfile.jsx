@@ -201,10 +201,22 @@ const LinkedInProfile = ({
 
   // Update open to work state when profile data changes
   useEffect(() => {
-    if (profileData?.profileData?.openToWork !== undefined) {
-      setOpenToWork(profileData.profileData.openToWork);
+    const openToWorkValue = 
+      profileData?.openToWork ?? 
+      profileData?.profileData?.openToWork ?? 
+      false;
+    
+    console.log("🔄 Updating openToWork state from profile data:", {
+      profileDataOpenToWork: profileData?.openToWork,
+      profileDataProfileDataOpenToWork: profileData?.profileData?.openToWork,
+      finalValue: openToWorkValue,
+      currentState: openToWork
+    });
+    
+    if (openToWorkValue !== openToWork) {
+      setOpenToWork(openToWorkValue);
     }
-  }, [profileData?.profileData?.openToWork]);
+  }, [profileData?.openToWork, profileData?.profileData?.openToWork]);
 
   // Override fetchProfile to prevent calls in viewOnly mode
   const optimizedFetchProfile = viewOnly ? () => {} : fetchProfile;
@@ -755,15 +767,50 @@ const LinkedInProfile = ({
   const handleToggleOpenToWork = async () => {
     const newStatus = !openToWork;
     try {
+      console.log("🔄 Toggling Open to Work from", openToWork, "to", newStatus);
+      
       // Call dedicated Open to Work API endpoint
       const response = await candidateApi.updateOpenToWorkStatus(newStatus);
+      console.log("✅ Open to Work API response:", response);
+      
       if (response.data) {
-        setOpenToWork(newStatus);
-        // Also update the local profile data to keep UI consistent
+        // Update the local openToWork state immediately with the actual API response value
+        const actualStatus = response.data.data?.openToWork ?? newStatus;
+        setOpenToWork(actualStatus);
+        
+        // Also update the profileData to keep UI consistent
         setProfileData((prev) => ({
           ...prev,
-          openToWork: newStatus,
+          openToWork: actualStatus,
+          profileData: {
+            ...prev?.profileData,
+            openToWork: actualStatus,
+          },
         }));
+        
+        // Update the context profile as well
+        if (dispatch) {
+          dispatch({ 
+            type: "UPDATE_PROFILE", 
+            payload: {
+              ...profileData,
+              openToWork: actualStatus,
+              profileData: {
+                ...profileData?.profileData,
+                openToWork: actualStatus,
+              },
+            }
+          });
+        }
+        
+        console.log("🎉 Open to Work status updated successfully to:", actualStatus);
+        
+        // Force a profile refresh to ensure data consistency
+        setTimeout(() => {
+          if (!viewOnly && fetchProfile) {
+            fetchProfile();
+          }
+        }, 500);
       }
     } catch (error) {
       console.error("Failed to update Open to Work status:", error);
@@ -902,55 +949,47 @@ const LinkedInProfile = ({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Back Button and Header */}
-      <div className="bg-white shadow-sm overflow-hidden px-3 sm:px-6 py-3 border-b border-gray-200">
-        <div className="flex items-center justify-between mb-6 lg:mb-8">
-          <button
-            onClick={onBack}
-            className="flex items-center px-3 py-2 lg:px-4 lg:py-2 text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg transition-colors duration-200"
-          >
-            <ArrowLeftIcon className="h-4 w-4 lg:h-5 lg:w-5 mr-2" />
-            <span className="text-sm lg:text-base">Back</span>
-          </button>
+      {/* Header - Only show for viewOnly mode (employer viewing candidate) */}
+      {viewOnly && (
+        <div className="bg-white shadow-sm overflow-hidden px-3 sm:px-6 py-3 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-6 lg:mb-8">
+            <button
+              onClick={onBack}
+              className="flex items-center px-3 py-2 lg:px-4 lg:py-2 text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg transition-colors duration-200"
+            >
+              <ArrowLeftIcon className="h-4 w-4 lg:h-5 lg:w-5 mr-2" />
+              <span className="text-sm lg:text-base">Back</span>
+            </button>
 
-          <div className="flex items-center space-x-2 lg:space-x-4">
-            {viewOnly && onBookmarkToggle && (
-              <button
-                onClick={onBookmarkToggle}
-                disabled={bookmarkLoading}
-                className={`flex items-center px-3 py-2 lg:px-4 lg:py-2 border rounded-lg transition-colors duration-200 ${
-                  isBookmarked
-                    ? "text-red-600 bg-red-50 border-red-200 hover:bg-red-100"
-                    : "text-pink-600 bg-pink-50 border-pink-200 hover:bg-pink-100"
-                } ${bookmarkLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                {isBookmarked ? (
-                  <HeartIconSolid className="h-4 w-4 lg:h-5 lg:w-5 mr-2" />
-                ) : (
-                  <HeartIcon className="h-4 w-4 lg:h-5 lg:w-5 mr-2" />
-                )}
-                <span className="text-sm lg:text-base">
-                  {bookmarkLoading
-                    ? "Updating..."
-                    : isBookmarked
-                      ? "Bookmarked"
-                      : "Bookmark"}
-                </span>
-              </button>
-            )}
-
-            {!viewOnly && (
-              <button
-                onClick={() => setShowEditProfileModal(true)}
-                className="flex items-center px-3 py-2 lg:px-4 lg:py-2 text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors duration-200"
-              >
-                <PencilIcon className="h-4 w-4 lg:h-5 lg:w-5 mr-2" />
-                <span className="text-sm lg:text-base">Edit Profile</span>
-              </button>
-            )}
+            <div className="flex items-center space-x-2 lg:space-x-4">
+              {onBookmarkToggle && (
+                <button
+                  onClick={onBookmarkToggle}
+                  disabled={bookmarkLoading}
+                  className={`flex items-center px-3 py-2 lg:px-4 lg:py-2 border rounded-lg transition-colors duration-200 ${
+                    isBookmarked
+                      ? "text-red-600 bg-red-50 border-red-200 hover:bg-red-100"
+                      : "text-pink-600 bg-pink-50 border-pink-200 hover:bg-pink-100"
+                  } ${bookmarkLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  {isBookmarked ? (
+                    <HeartIconSolid className="h-4 w-4 lg:h-5 lg:w-5 mr-2" />
+                  ) : (
+                    <HeartIcon className="h-4 w-4 lg:h-5 lg:w-5 mr-2" />
+                  )}
+                  <span className="text-sm lg:text-base">
+                    {bookmarkLoading
+                      ? "Updating..."
+                      : isBookmarked
+                        ? "Bookmarked"
+                        : "Bookmark"}
+                  </span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Mobile-First Profile Header */}
       <div className="bg-white shadow-sm overflow-hidden">
@@ -1088,15 +1127,6 @@ const LinkedInProfile = ({
                   </>
                 )}
               </div>
-              {!viewOnly && (
-                <button
-                  onClick={() => setShowEditProfileModal(true)}
-                  className="text-gray-500 hover:text-blue-600 transition-all duration-200 p-2 hover:bg-blue-50 rounded-full ml-2 flex-shrink-0"
-                  title="Edit Profile"
-                >
-                  <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200 hover:scale-110" />
-                </button>
-              )}
             </div>
 
             {/* Contact Info - Mobile Stack */}
@@ -1212,7 +1242,16 @@ const LinkedInProfile = ({
                     : "bg-blue-600 text-white hover:bg-blue-700"
                 }`}
               >
-                {openToWork ? "Remove Open to Work" : "Set Open to Work"}
+                {(() => {
+                  const buttonText = openToWork ? "❌ Remove Open to Work" : "✅ Set Open to Work";
+                  console.log("🔘 Rendering openToWork button:", {
+                    openToWork,
+                    buttonText,
+                    profileDataOpenToWork: profileData?.openToWork,
+                    profileDataProfileDataOpenToWork: profileData?.profileData?.openToWork
+                  });
+                  return buttonText;
+                })()}
               </Button>
             </div>
           )}

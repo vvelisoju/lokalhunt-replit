@@ -84,7 +84,7 @@ const Header = ({ onMenuClick, isMenuOpen }) => {
             {/* Mobile menu button */}
             <button
               type="button"
-              className="lg:hidden p-3 sm:p-2 rounded-md text-gray-500 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="lg:hidden p-3 sm:p-2 rounded-md text-gray-500 hover:text-gray-600 hover:bg-gray-100"
               onClick={onMenuClick}
               aria-label={isMenuOpen ? "Close menu" : "Open menu"}
             >

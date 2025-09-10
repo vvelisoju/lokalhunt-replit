@@ -46,9 +46,9 @@ const NotificationCenter = ({ onClose }) => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl mx-auto">
+    <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl mx-auto safe-area-full">
       {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b">
+      <div className="flex items-center justify-between p-4 sm:p-6 border-b safe-top">
         <div className="flex items-center space-x-3">
           <BellIcon className="h-6 w-6 text-blue-600" />
           <h2 className="text-xl font-semibold text-gray-900">
@@ -68,7 +68,8 @@ const NotificationCenter = ({ onClose }) => {
               className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800 transition-colors px-3 py-1 rounded-md hover:bg-blue-50"
             >
               <CheckSolidIcon className="h-4 w-4" />
-              <span>Mark all as read</span>
+              <span className="hidden sm:inline">Mark all as read</span>
+              <span className="sm:hidden">Mark all</span>
             </button>
           )}
 
@@ -83,8 +84,14 @@ const NotificationCenter = ({ onClose }) => {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-h-96 overflow-y-auto">
+      {/* Content - Account for safe areas */}
+      <div 
+        className="overflow-y-auto"
+        style={{
+          maxHeight: 'calc(100vh - 200px - var(--safe-area-inset-top) - var(--safe-area-inset-bottom))',
+          minHeight: '200px'
+        }}
+      >
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
             <BellIcon className="h-16 w-16 text-gray-300 mb-4" />
@@ -154,6 +161,9 @@ const NotificationCenter = ({ onClose }) => {
           </div>
         )}
       </div>
+
+      {/* Safe area aware bottom padding */}
+      <div className="safe-bottom h-4"></div>
     </div>
   );
 };
