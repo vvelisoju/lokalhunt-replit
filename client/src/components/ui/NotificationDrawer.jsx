@@ -141,7 +141,7 @@ const NotificationDrawer = ({
       <div className="h-full bg-white flex flex-col">
         {/* Header */}
         <div
-          className={`flex items-center justify-between p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-white ${isMobile ? "safe-top fixed-header" : ""}`}
+          className={`flex items-center justify-between p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-white ${isMobile ? "mobile-header fixed-header" : ""}`}
         >
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-100 rounded-full">
@@ -180,7 +180,7 @@ const NotificationDrawer = ({
 
         {/* Content */}
         <div
-          className={`flex-1 overflow-y-auto ${isMobile ? "main-content-with-fixed-header" : ""}`}
+          className={`flex-1 overflow-y-auto safe-area-full ${isMobile ? "notification-content-with-fixed-header " : ""}`}
         >
           {loading ? (
             <div className="flex items-center justify-center py-12">
@@ -300,7 +300,7 @@ const NotificationDrawer = ({
 
         {/* Footer for mobile */}
         <div
-          className={`sm:hidden p-4 border-t bg-gray-50 ${isMobile ? "safe-bottom fixed-footer" : ""}`}
+          className={`sm:hidden p-4 border-t bg-gray-50 ${isMobile ? "fixed-footer" : ""}`}
         >
           <button
             onClick={onClose}

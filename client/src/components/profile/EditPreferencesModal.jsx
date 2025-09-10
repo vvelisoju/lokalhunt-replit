@@ -217,7 +217,7 @@ const EditPreferencesModal = ({ isOpen, onClose, preferences, onSave }) => {
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-2 sm:p-4 bg-black bg-opacity-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-2 sm:p-4 bg-black bg-opacity-50 overflow-y-auto modal">
       <div className="relative bg-white rounded-lg w-full max-w-2xl mx-auto my-4 sm:my-8">
         {/* Header - Sticky */}
         <div className="sticky top-0 bg-white border-b border-gray-200 rounded-t-lg px-4 sm:px-6 py-4 flex items-center justify-between">

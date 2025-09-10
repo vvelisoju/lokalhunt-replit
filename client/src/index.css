@@ -184,12 +184,18 @@ body {
   top: var(--safe-area-inset-top);
   left: 0;
   right: 0;
-  z-index: 1000;
+  z-index: 9999;
   /* Apply safe area insets as padding to keep content within safe areas */
   padding-top: var(--safe-area-inset-top);
   padding-left: var(--safe-area-inset-left);
   padding-right: var(--safe-area-inset-right);
 
+}
+
+.modal{
+  z-index: 10000;
+   top: var(--safe-area-inset-top);
+   bottom: var(--safe-area-inset-bottom);
 }
 
 .fixed-footer {
@@ -202,6 +208,8 @@ body {
   padding-bottom: var(--safe-area-inset-bottom);
 }
 
+
+
 /* Push main content below fixed header */
 .main-content-with-fixed-header {
   /* Margin-top = header height + safe area top */
@@ -210,6 +218,15 @@ body {
   padding-bottom: var(--safe-area-inset-bottom);
   min-height: calc(100vh - 4rem - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
 
+}
+
+.notification-content-with-fixed-header {
+  /* Margin-top = header height + safe area top */
+  margin-top: var(--safe-area-inset-top);
+  /* Add bottom padding for footer height + safe area */
+  padding-bottom: calc(5rem + var(--safe-area-inset-bottom));
+  /* Adjust min-height to account for header, footer and safe areas */
+  min-height: calc(100vh - 5rem - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
 }
 
 /* Mobile header specific styles */
