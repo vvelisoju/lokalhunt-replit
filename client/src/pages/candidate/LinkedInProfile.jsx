@@ -201,18 +201,16 @@ const LinkedInProfile = ({
 
   // Update open to work state when profile data changes
   useEffect(() => {
-    const openToWorkValue = 
-      profileData?.openToWork ?? 
-      profileData?.profileData?.openToWork ?? 
-      false;
-    
+    const openToWorkValue =
+      profileData?.openToWork ?? profileData?.profileData?.openToWork ?? false;
+
     console.log("🔄 Updating openToWork state from profile data:", {
       profileDataOpenToWork: profileData?.openToWork,
       profileDataProfileDataOpenToWork: profileData?.profileData?.openToWork,
       finalValue: openToWorkValue,
-      currentState: openToWork
+      currentState: openToWork,
     });
-    
+
     if (openToWorkValue !== openToWork) {
       setOpenToWork(openToWorkValue);
     }
@@ -768,16 +766,16 @@ const LinkedInProfile = ({
     const newStatus = !openToWork;
     try {
       console.log("🔄 Toggling Open to Work from", openToWork, "to", newStatus);
-      
+
       // Call dedicated Open to Work API endpoint
       const response = await candidateApi.updateOpenToWorkStatus(newStatus);
       console.log("✅ Open to Work API response:", response);
-      
+
       if (response.data) {
         // Update the local openToWork state immediately with the actual API response value
         const actualStatus = response.data.data?.openToWork ?? newStatus;
         setOpenToWork(actualStatus);
-        
+
         // Also update the profileData to keep UI consistent
         setProfileData((prev) => ({
           ...prev,
@@ -787,11 +785,11 @@ const LinkedInProfile = ({
             openToWork: actualStatus,
           },
         }));
-        
+
         // Update the context profile as well
         if (dispatch) {
-          dispatch({ 
-            type: "UPDATE_PROFILE", 
+          dispatch({
+            type: "UPDATE_PROFILE",
             payload: {
               ...profileData,
               openToWork: actualStatus,
@@ -799,12 +797,15 @@ const LinkedInProfile = ({
                 ...profileData?.profileData,
                 openToWork: actualStatus,
               },
-            }
+            },
           });
         }
-        
-        console.log("🎉 Open to Work status updated successfully to:", actualStatus);
-        
+
+        console.log(
+          "🎉 Open to Work status updated successfully to:",
+          actualStatus,
+        );
+
         // Force a profile refresh to ensure data consistency
         setTimeout(() => {
           if (!viewOnly && fetchProfile) {
@@ -1127,6 +1128,16 @@ const LinkedInProfile = ({
                   </>
                 )}
               </div>
+
+              {!viewOnly && (
+                <button
+                  onClick={() => setShowEditProfileModal(true)}
+                  className="text-gray-500 hover:text-blue-600 transition-all duration-200 p-2 hover:bg-blue-50 rounded-full ml-2 flex-shrink-0"
+                  title="Edit Profile"
+                >
+                  <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200 hover:scale-110" />
+                </button>
+              )}
             </div>
 
             {/* Contact Info - Mobile Stack */}
@@ -1243,12 +1254,15 @@ const LinkedInProfile = ({
                 }`}
               >
                 {(() => {
-                  const buttonText = openToWork ? "❌ Remove Open to Work" : "✅ Set Open to Work";
+                  const buttonText = openToWork
+                    ? "❌ Remove Open to Work"
+                    : "✅ Set Open to Work";
                   console.log("🔘 Rendering openToWork button:", {
                     openToWork,
                     buttonText,
                     profileDataOpenToWork: profileData?.openToWork,
-                    profileDataProfileDataOpenToWork: profileData?.profileData?.openToWork
+                    profileDataProfileDataOpenToWork:
+                      profileData?.profileData?.openToWork,
                   });
                   return buttonText;
                 })()}
