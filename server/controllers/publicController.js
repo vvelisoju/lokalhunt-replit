@@ -156,7 +156,7 @@ class PublicController {
   // Get job categories with counts
   async getCategories(req, res, next) {
     try {
-      // Get all job categories from database
+      // Get all job categories from database with actual job counts
       const categories = await prisma.jobCategory.findMany({
         where: {
           isActive: true,
@@ -165,18 +165,29 @@ class PublicController {
           id: true,
           name: true,
           description: true,
+          _count: {
+            select: {
+              ads: {
+                where: {
+                  status: "APPROVED",
+                  isActive: true,
+                },
+              },
+            },
+          },
         },
         orderBy: {
           name: "asc",
         },
       });
 
-      // Add job counts to categories (simplified approach for now)
+      // Transform categories with actual job counts
       const categoriesWithCounts = categories.map((category) => ({
         id: category.id,
         name: category.name,
         description: category.description,
-        count: 0, // Will be updated when jobs are properly categorized
+        count: category._count.ads,
+        icon: "💼", // Default icon, you can customize this per category
       }));
 
       res.json(

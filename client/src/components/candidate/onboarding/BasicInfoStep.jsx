@@ -7,6 +7,7 @@ import {
 import Button from "../../ui/Button";
 import CityDropdown from "../../ui/CityDropdown";
 import { useAuth } from "../../../context/AuthContext";
+import { getEmploymentTypeOptions, CurrentEmploymentStatus, CurrentEmploymentStatusLabels } from "../../../utils/enums";
 
 const BasicInfoStep = ({
   data = {},
@@ -21,21 +22,13 @@ const BasicInfoStep = ({
   const [selectedCityId, setSelectedCityId] = useState(data?.location || "");
 
   // Employment types from the EmploymentType enum
-  const employmentTypes = [
-    { value: "FULL_TIME", label: "Full-time" },
-    { value: "PART_TIME", label: "Part-time" },
-    { value: "CONTRACT", label: "Contract" },
-    { value: "INTERNSHIP", label: "Internship" },
-    { value: "FREELANCE", label: "Freelance" },
-  ];
+  const employmentTypes = getEmploymentTypeOptions();
 
   // Current employment status options
-  const statusOptions = [
-    { value: "LOOKING_FOR_JOB", label: "Looking for a job" },
-    { value: "OPEN_TO_OPPORTUNITIES", label: "Open to opportunities" },
-    { value: "CURRENTLY_WORKING", label: "Currently working" },
-    { value: "STUDENT_RECENT_GRADUATE", label: "Student / Recent Graduate" },
-  ];
+  const statusOptions = Object.values(CurrentEmploymentStatus).map((value) => ({
+    value,
+    label: CurrentEmploymentStatusLabels[value],
+  }));
 
   // Auto-select candidate's city if available and not already set
   useEffect(() => {

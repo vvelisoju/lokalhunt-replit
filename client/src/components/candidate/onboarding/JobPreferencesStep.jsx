@@ -5,7 +5,8 @@ import {
   ClockIcon,
 } from "@heroicons/react/24/outline";
 import Button from "../../ui/Button";
-import { publicApi } from "../../../services/publicApi";
+import { getShiftPreferenceOptions } from "../../../utils/enums";
+import { useAppData } from "../../../context/AppDataContext";
 
 const JobPreferencesStep = ({
   data,
@@ -13,84 +14,53 @@ const JobPreferencesStep = ({
   onNext,
   onBack,
   onSkip,
-  isFirstStep,
   stepTitle,
 }) => {
-  const [jobRoles, setJobRoles] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Get data from AppDataContext
+  const { categories, loading: { categories: categoriesLoading } } = useAppData();
 
-  // Shift preference options from enum
-  const shiftOptions = [
-    { value: "DAY_SHIFT", label: "Day Shift" },
-    { value: "NIGHT_SHIFT", label: "Night Shift" },
-    { value: "FLEXIBLE_HOURS", label: "Flexible Hours" },
-    { value: "WEEKEND_ONLY", label: "Weekend Only" },
+  // Shift preference options from enums
+  const shiftOptions = getShiftPreferenceOptions();
+
+  // Process categories data properly
+  const categoriesArray = Array.isArray(categories) ? categories : [];
+  const isDataReady = !categoriesLoading && categoriesArray.length > 0;
+
+  // Define specific job roles (different from categories)
+  const jobRoles = [
+    { id: 1, name: "Delivery Driver", description: "Deliver products and packages to customers" },
+    { id: 2, name: "Sales Executive", description: "Drive sales and customer acquisition" },
+    { id: 3, name: "Customer Support", description: "Provide customer service and support" },
+    { id: 4, name: "Retail Associate", description: "Assist customers in retail stores" },
+    { id: 5, name: "Food Service", description: "Prepare and serve food in restaurants" },
+    { id: 6, name: "Security Guard", description: "Provide security services for premises" },
+    { id: 7, name: "Electrician", description: "Install and maintain electrical systems" },
+    { id: 8, name: "Data Entry Operator", description: "Enter and maintain database information" },
+    { id: 9, name: "House Keeping", description: "Maintain cleanliness and organization" },
+    { id: 10, name: "Driver", description: "Operate vehicles for transportation services" },
+    { id: 11, name: "Field Sales", description: "Conduct sales activities in the field" },
+    { id: 12, name: "Cook", description: "Prepare food in kitchen environments" },
+    { id: 13, name: "Waiter", description: "Serve customers in restaurants" },
+    { id: 14, name: "Cashier", description: "Handle customer transactions" },
+    { id: 15, name: "Office Assistant", description: "Provide administrative support" },
+    { id: 16, name: "Receptionist", description: "Manage front desk and customer inquiries" },
+    { id: 17, name: "Telecaller", description: "Handle customer calls and inquiries" },
+    { id: 18, name: "Store Manager", description: "Manage retail store operations" },
+    { id: 19, name: "Supervisor", description: "Oversee team operations" },
+    { id: 20, name: "Mechanic", description: "Repair and maintain vehicles/equipment" }
   ];
 
-  // Load job roles and categories from API
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
+  // Use categories for industry selection (this is correct)
+  const availableIndustries = categoriesArray.map((category) => category.name);
 
-        // Load job roles and categories in parallel
-        const [rolesResponse, categoriesResponse] = await Promise.all([
-          publicApi.getJobRoles(),
-          publicApi.getCategories(),
-        ]);
-
-        console.log("Job roles response:", rolesResponse);
-        console.log("Categories response:", categoriesResponse);
-
-        // Handle job roles response - check if data exists in response
-        if (rolesResponse?.success && rolesResponse?.data) {
-          setJobRoles(rolesResponse.data);
-        } else if (rolesResponse?.data) {
-          // Sometimes the response might not have success flag but still have data
-          setJobRoles(rolesResponse.data);
-        } else if (Array.isArray(rolesResponse)) {
-          // Handle case where response is directly an array
-          setJobRoles(rolesResponse);
-        } else {
-          console.error("Failed to load job roles:", rolesResponse);
-          setJobRoles([]); // Set empty array as fallback
-        }
-
-        // Handle categories response - check if data exists in response
-        if (categoriesResponse?.success && categoriesResponse?.data) {
-          setCategories(categoriesResponse.data);
-        } else if (categoriesResponse?.data) {
-          // Sometimes the response might not have success flag but still have data
-          setCategories(categoriesResponse.data);
-        } else if (Array.isArray(categoriesResponse)) {
-          // Handle case where response is directly an array
-          setCategories(categoriesResponse);
-        } else {
-          console.error("Failed to load categories:", categoriesResponse);
-          setCategories([]); // Set empty array as fallback
-        }
-      } catch (error) {
-        console.error("Error loading job data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
-
-  // Debug logging for state changes
-  useEffect(() => {
-    console.log("Job roles state updated:", jobRoles);
-    console.log("Job roles length:", jobRoles?.length);
-    console.log("Local roles:", jobRoles?.filter(role => role.category === "local" || !role.category));
-    console.log("Tech roles:", jobRoles?.filter(role => role.category === "tech"));
-  }, [jobRoles]);
-
-  useEffect(() => {
-    console.log("Categories state updated:", categories);
-    console.log("Categories length:", categories?.length);
-  }, [categories]);
+  // Debug logging
+  console.log("JobPreferencesStep - Debug Info:", {
+    categoriesLoading,
+    categoriesLength: categoriesArray.length,
+    isDataReady,
+    jobRolesLength: jobRoles.length,
+    availableIndustriesLength: availableIndustries.length,
+  });
 
   const handleToggle = (field, value) => {
     const current = data[field] || [];
@@ -101,15 +71,10 @@ const JobPreferencesStep = ({
     }
   };
 
-  // Group roles by category - ensure jobRoles is an array
-  const rolesArray = Array.isArray(jobRoles) ? jobRoles : [];
-  const localRoles = rolesArray.filter(
-    (role) => role?.category === "local" || !role?.category,
-  );
-  const techRoles = rolesArray.filter((role) => role?.category === "tech");
-
-  // Ensure categories is an array
-  const categoriesArray = Array.isArray(categories) ? categories : [];
+  // Handle industry toggle
+  const handleIndustryToggle = (industry) => {
+    handleToggle("industry", industry);
+  };
 
   return (
     <div className="space-y-6">
@@ -131,129 +96,70 @@ const JobPreferencesStep = ({
             </span>
           </label>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="ml-2 text-gray-600 text-sm">
-                Loading job roles...
-              </span>
+          {jobRoles.length > 0 ? (
+            <div
+              className="border border-gray-200 rounded-xl p-4 bg-gray-50"
+              style={{ height: "300px", overflowY: "auto" }}
+            >
+              <div className="mb-6">
+                <h4 className="text-xs font-semibold text-gray-600 mb-3 uppercase tracking-wide">
+                  Available Job Categories ({jobRoles.length})
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {jobRoles.map((role, index) => (
+                    <button
+                      key={role.id || `role-${index}`}
+                      onClick={() => handleToggle("preferredRoles", role.name)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 border-2 text-left ${
+                        (data.preferredRoles || []).includes(role.name)
+                          ? "bg-blue-100 text-blue-800 border-blue-300 shadow-sm"
+                          : "bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:border-blue-200"
+                      }`}
+                      title={role.description || role.name}
+                    >
+                      {role.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
-            <>
-              {/* Job Roles Container with Fixed Height */}
-              <div className="border border-gray-200 rounded-xl p-4 bg-gray-50" style={{ height: '300px', overflowY: 'auto' }}>
-                {/* Local Jobs Section */}
-                {localRoles.length > 0 && (
-                  <div className="mb-6">
-                    <h4 className="text-xs font-semibold text-blue-600 mb-3 uppercase tracking-wide">
-                      Popular Local Jobs
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      {localRoles.map((role, index) => (
-                        <button
-                          key={role.id || role.name || `local-role-${index}`}
-                          onClick={() =>
-                            handleToggle("preferredRoles", role.name)
-                          }
-                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 border-2 text-left ${
-                            (data.preferredRoles || []).includes(role.name)
-                              ? "bg-blue-100 text-blue-800 border-blue-300 shadow-sm"
-                              : "bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:border-blue-200"
-                          }`}
-                        >
-                          {role.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Tech Jobs Section - Only show if there are tech roles */}
-                {techRoles.length > 0 && (
-                  <div className="mb-6">
-                    <h4 className="text-xs font-semibold text-purple-600 mb-3 uppercase tracking-wide">
-                      Tech Jobs
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      {techRoles.map((role, index) => (
-                        <button
-                          key={role.id || role.name || `tech-role-${index}`}
-                          onClick={() =>
-                            handleToggle("preferredRoles", role.name)
-                          }
-                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 border-2 text-left ${
-                            (data.preferredRoles || []).includes(role.name)
-                              ? "bg-purple-100 text-purple-800 border-purple-300 shadow-sm"
-                              : "bg-white text-gray-700 border-gray-200 hover:bg-purple-50 hover:border-purple-200"
-                          }`}
-                        >
-                          {role.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* No roles available message */}
-              {!loading && localRoles.length === 0 && techRoles.length === 0 && (
-                <div className="text-sm text-gray-500 py-8 text-center">
-                  <BriefcaseIcon className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                  <p>No job roles available at the moment</p>
-                  <p className="text-xs mt-1">Please try again later</p>
-                  {/* Debug info */}
-                  <p className="text-xs mt-2 text-red-500">
-                    Debug: jobRoles.length = {rolesArray.length}, 
-                    type = {typeof jobRoles}, 
-                    isArray = {Array.isArray(jobRoles).toString()}
-                  </p>
-                </div>
-              )}
-            </>
+            <div className="text-sm text-gray-500 py-8 text-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+              <BriefcaseIcon className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+              <p>No job categories available at the moment</p>
+            </div>
           )}
         </div>
 
-        {/* Job Category */}
+        {/* Industry */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-3">
             <BuildingOfficeIcon className="w-4 h-4 inline mr-1" />
-            Preferred Job Category
-            <span className="text-xs text-gray-500 ml-1">(Optional)</span>
+            Preferred Industry
+            <span className="text-xs text-gray-500 ml-1">
+              (Select multiple)
+            </span>
           </label>
-          {loading ? (
-            <div className="flex items-center justify-center py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="ml-2 text-gray-600 text-sm">
-                Loading categories...
-              </span>
-            </div>
-          ) : categoriesArray.length > 0 ? (
-            <div className="border border-gray-200 rounded-xl p-4 bg-gray-50" style={{ height: '200px', overflowY: 'auto' }}>
-              <div className="grid grid-cols-2 gap-2">
-                {categoriesArray.map((category, index) => (
-                  <button
-                    key={category.id || category.name || `category-${index}`}
-                    onClick={() => handleToggle("industry", category.name)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 border-2 text-left ${
-                      (data.industry || []).includes(category.name)
-                        ? "bg-green-100 text-green-800 border-green-300 shadow-sm"
-                        : "bg-white text-gray-700 border-gray-200 hover:bg-green-50 hover:border-green-200"
-                    }`}
-                  >
-                    {category.name}
-                  </button>
-                ))}
-              </div>
+          {!isDataReady ? (
+            <div className="flex items-center justify-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+              <span className="ml-2 text-gray-600">Loading industries...</span>
             </div>
           ) : (
-            <div className="text-sm text-gray-500 py-4 text-center">
-              <p>No job categories available</p>
-              {/* Debug info */}
-              <p className="text-xs mt-2 text-red-500">
-                Debug: categories.length = {categoriesArray.length}, 
-                type = {typeof categories}, 
-                isArray = {Array.isArray(categories).toString()}
-              </p>
+            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+              {availableIndustries.map((industry) => (
+                <button
+                  key={industry}
+                  onClick={() => handleIndustryToggle(industry)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border-2 ${
+                    (data.industry || []).includes(industry)
+                      ? "bg-purple-100 text-purple-800 border-purple-300 shadow-sm"
+                      : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                  }`}
+                >
+                  {industry}
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -282,18 +188,10 @@ const JobPreferencesStep = ({
       {/* Action Buttons - Mobile optimized */}
       <div className="pt-6 space-y-3">
         <div className="flex gap-3">
-          <Button
-            variant="outline"
-            onClick={onBack}
-            className="flex-1"
-          >
+          <Button variant="outline" onClick={onBack} className="flex-1">
             Back
           </Button>
-          <Button
-            variant="primary"
-            onClick={onNext}
-            className="flex-1"
-          >
+          <Button variant="primary" onClick={onNext} className="flex-1">
             Next Step
           </Button>
         </div>

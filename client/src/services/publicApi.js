@@ -42,10 +42,29 @@ export const publicApi = {
     return response.data;
   },
 
-  // Get job categories with counts
+  // Get job categories
   async getCategories() {
     const response = await apiInstance.get("/public/categories");
     return response.data;
+  },
+
+  // Get job roles
+  async getJobRoles() {
+    try {
+      console.log('PublicApi: Fetching job roles from /public/job-roles');
+      const response = await apiInstance.get('/public/job-roles');
+      console.log('PublicApi: Job roles response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('PublicApi: Error fetching job roles:', error);
+      console.error('PublicApi: Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+      // Return empty array instead of throwing to prevent UI breakage
+      return { status: 'error', data: [] };
+    }
   },
 
   // Get popular cities

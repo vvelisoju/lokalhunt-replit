@@ -3,6 +3,7 @@ import { CalendarIcon, LanguageIcon, DocumentIcon, CheckCircleIcon, CloudArrowUp
 import Button from '../../ui/Button';
 import { candidateApi } from '../../../services/candidateApi';
 import { useToast } from "../../ui/Toast"; // Assuming useToast is in this path
+import { getAvailabilityOptions, getLanguageOptions } from '../../../utils/enums';
 
 const FinalSetupStep = ({ data, updateData, onNext, onBack, onSkip, isSubmitting, stepTitle }) => {
   const [isCompleted, setIsCompleted] = useState(false);
@@ -11,28 +12,10 @@ const FinalSetupStep = ({ data, updateData, onNext, onBack, onSkip, isSubmitting
   const { toast } = useToast();
 
   // Availability options from database enum
-  const availabilityOptions = [
-    { value: 'IMMEDIATELY', label: 'Immediately' },
-    { value: 'WITHIN_1_WEEK', label: 'Within 1 week' },
-    { value: 'WITHIN_1_MONTH', label: 'Within 1 month' },
-    { value: 'PLUS_2_MONTHS', label: '2+ months' }
-  ];
+  const availabilityOptions = getAvailabilityOptions();
 
   // Language options from database enum  
-  const languageOptions = [
-    { value: 'ENGLISH', label: 'English' },
-    { value: 'HINDI', label: 'Hindi' },
-    { value: 'TELUGU', label: 'Telugu' },
-    { value: 'TAMIL', label: 'Tamil' },
-    { value: 'KANNADA', label: 'Kannada' },
-    { value: 'MALAYALAM', label: 'Malayalam' },
-    { value: 'BENGALI', label: 'Bengali' },
-    { value: 'MARATHI', label: 'Marathi' },
-    { value: 'GUJARATI', label: 'Gujarati' },
-    { value: 'PUNJABI', label: 'Punjabi' },
-    { value: 'URDU', label: 'Urdu' },
-    { value: 'ODIA', label: 'Odia' }
-  ];
+  const languageOptions = getLanguageOptions();
 
   const handleLanguageToggle = (languageValue) => {
     const current = data.languages || [];

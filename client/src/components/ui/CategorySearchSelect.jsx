@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react'
 
 const CategorySearchSelect = ({
@@ -44,12 +43,12 @@ const CategorySearchSelect = ({
   const handleInputChange = (e) => {
     const searchValue = e.target.value
     setSearchTerm(searchValue)
-    
+
     // If there's a selected category and user is typing something different, clear the selection
     if (value && searchValue !== getSelectedOption()?.label) {
       onChange('')
     }
-    
+
     // Filter categories based on search term
     const filtered = options.filter(option => 
       option.label.toLowerCase().includes(searchValue.toLowerCase())
@@ -104,12 +103,12 @@ const CategorySearchSelect = ({
           {label} {required && <span className="text-red-500">*</span>}
         </label>
       )}
-      
+
       <div className="relative" ref={containerRef}>
         <input
           type="text"
           placeholder={placeholder}
-          className={`w-full px-3 py-2 pr-10 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+          className={`w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
             error ? 'border-red-300' : 'border-gray-300'
           } ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
           value={getDisplayValue()}
@@ -117,28 +116,60 @@ const CategorySearchSelect = ({
           onFocus={handleInputFocus}
           disabled={disabled || loading}
         />
-        
-        {/* Clear button */}
-        {value && !disabled && (
-          <button
-            type="button"
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            onClick={handleClear}
+
+        {/* Category Icon */}
+        <svg 
+          className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" 
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth={2} 
+            d="M19 11H5m14-7H5m14 14H5"
+          />
+        </svg>
+
+        <div className="absolute inset-y-0 right-0 flex items-center pr-4">
+          {value && !disabled && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="text-gray-400 hover:text-red-500 mr-2 p-1 rounded-full hover:bg-red-50 transition-colors"
+              title="Clear selection"
+            >
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          )}
+          <svg 
+            className={`h-4 w-4 text-gray-400 transition-transform ${
+              showDropdown ? "rotate-180" : ""
+            }`}
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
           >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
-        )}
-        
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </div>
+
         {/* Dropdown */}
         {showDropdown && filteredOptions.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+          <div className="absolute z-[9999] mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
             {filteredOptions.map((option) => (
               <div
                 key={option.value}
-                className={`px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm ${
-                  value === option.value ? 'bg-blue-50 text-blue-700' : ''
+                className={`px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm text-left ${
+                  value === option.value ? 'text-blue-600' : 'text-gray-900'
                 }`}
                 onClick={() => handleOptionSelect(option)}
               >
@@ -154,7 +185,7 @@ const CategorySearchSelect = ({
             ))}
           </div>
         )}
-        
+
         {/* No results message */}
         {showDropdown && filteredOptions.length === 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
@@ -164,7 +195,7 @@ const CategorySearchSelect = ({
           </div>
         )}
       </div>
-      
+
       {error && (
         <p className="text-sm text-red-600 mt-1">{error}</p>
       )}

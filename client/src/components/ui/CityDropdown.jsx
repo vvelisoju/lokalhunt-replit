@@ -193,7 +193,7 @@ const CityDropdown = ({
       )}
 
       <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
           <MapPinIcon className="h-5 w-5 text-gray-400" />
         </div>
 
@@ -252,7 +252,7 @@ const CityDropdown = ({
         {/* Dropdown */}
         {showDropdown && !loading && !disabled && (
           <div
-            className={`absolute z-50 w-full mt-1 bg-white border border-gray-200 shadow-lg max-h-60 overflow-y-auto ${
+            className={`absolute z-[9999] w-full mt-1 bg-white border border-gray-200 shadow-lg max-h-80 overflow-y-auto ${
               variant === "register" ? "rounded-lg" : "rounded-md"
             }`}
           >
@@ -262,16 +262,16 @@ const CityDropdown = ({
                   key={city.id}
                   type="button"
                   onClick={() => handleCitySelect(city)}
-                  className={`w-full text-left hover:bg-gray-50 focus:bg-blue-50 focus:outline-none transition-colors ${
+                  className={`w-full text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none transition-colors ${
                     variant === "register" ? "px-4 py-3" : "px-3 py-2"
                   } ${
                     selectedCity?.id === city.id
-                      ? "bg-blue-50 text-blue-600"
+                      ? "text-blue-600"
                       : "text-gray-900"
                   }`}
                 >
                   <div className="flex items-center">
-                    <MapPinIcon className="h-4 w-4 text-gray-400 mr-3" />
+                    <MapPinIcon className="h-4 w-4 text-gray-400 mr-3 flex-shrink-0" />
                     <span className="text-sm">
                       {city.name}, {city.state}
                     </span>

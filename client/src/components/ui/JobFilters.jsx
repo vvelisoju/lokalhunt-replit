@@ -21,8 +21,15 @@ const JobFilters = ({
   dateRangeOptions = [],
   className = "",
   compact = false,
+  showSearchButton = false,
+  onSearch,
 }) => {
-  const { categories: contextCategories, cities, educationQualifications, isDataLoaded } = useAppData();
+  const {
+    categories: contextCategories,
+    cities,
+    educationQualifications,
+    isDataLoaded,
+  } = useAppData();
 
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   // Removed local states for categories, locations, and educationQualifications as they are now in context
@@ -61,12 +68,19 @@ const JobFilters = ({
   useEffect(() => {
     if (filters.location && cities && cities.length > 0) {
       // Check if location is a UUID (city ID)
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(filters.location);
+      const isUUID =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          filters.location,
+        );
 
       if (isUUID) {
-        const selectedCity = cities.find(city => city.id === filters.location);
+        const selectedCity = cities.find(
+          (city) => city.id === filters.location,
+        );
         if (selectedCity) {
-          setSelectedLocationName(`${selectedCity.name}, ${selectedCity.state}`);
+          setSelectedLocationName(
+            `${selectedCity.name}, ${selectedCity.state}`,
+          );
         } else {
           setSelectedLocationName("");
         }
@@ -79,7 +93,6 @@ const JobFilters = ({
     }
   }, [filters.location, cities]); // Depend on cities from context
 
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -89,11 +102,13 @@ const JobFilters = ({
     };
   }, []);
 
-
-
   const updateFilters = (newFilters) => {
     const updatedFilters = { ...filters, ...newFilters };
-    console.log("JobFilters: Updating filters", { current: filters, new: newFilters, updated: updatedFilters });
+    console.log("JobFilters: Updating filters", {
+      current: filters,
+      new: newFilters,
+      updated: updatedFilters,
+    });
     onFiltersChange(updatedFilters);
   };
 
@@ -214,10 +229,14 @@ const JobFilters = ({
             <CategorySearchSelect
               value={filters.category || ""}
               onChange={handleCategoryChange}
-              options={Array.isArray(contextCategories) ? contextCategories.map(category => ({
-                value: category.id,
-                label: category.name
-              })) : []}
+              options={
+                Array.isArray(contextCategories)
+                  ? contextCategories.map((category) => ({
+                      value: category.id,
+                      label: category.name,
+                    }))
+                  : []
+              }
               placeholder="All Categories"
               className="w-full"
             />
@@ -237,18 +256,21 @@ const JobFilters = ({
             </div>
           </div>
 
-          {/* Search Button - Hidden as requested */}
-          {/* <Button
-            type="button"
-            className="lg:px-8 whitespace-nowrap bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600"
-            onClick={(e) => {
-              e.preventDefault();
-              // The search is already handled by the filter changes, no need for explicit search
-              console.log("Search button clicked with filters:", filters);
-            }}
-          >
-            Search
-          </Button> */}
+          {/* Search Button - Only shown on landing page */}
+          {showSearchButton && (
+            <Button
+              type="button"
+              className="lg:px-8 whitespace-nowrap bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600"
+              onClick={(e) => {
+                e.preventDefault();
+                if (onSearch) {
+                  onSearch(filters);
+                }
+              }}
+            >
+              Search
+            </Button>
+          )}
         </div>
       </div>
 

@@ -11,27 +11,30 @@ const Jobs = () => {
   const [searchParams] = useSearchParams();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [pageTitle, setPageTitle] = useState("Find Your Dream Job");
-  const [pageSubtitle, setPageSubtitle] = useState("Discover opportunities that match your skills and preferences");
+  const [pageSubtitle, setPageSubtitle] = useState(
+    "Discover opportunities that match your skills and preferences",
+  );
 
   // Update page title based on URL filters
   useEffect(() => {
-    const search = searchParams.get('search');
-    const location = searchParams.get('location');
-    const category = searchParams.get('category');
-    
+    const search = searchParams.get("search");
+    const location = searchParams.get("location");
+    const category = searchParams.get("category");
+
     let title = "Find Your Dream Job";
-    let subtitle = "Discover opportunities that match your skills and preferences";
-    
+    let subtitle =
+      "Discover opportunities that match your skills and preferences";
+
     if (search || location || category) {
       const filters = [];
       if (search) filters.push(`"${search}"`);
       if (category) filters.push(category);
       if (location) filters.push(`in ${location}`);
-      
-      title = filters.length > 0 ? `Jobs ${filters.join(' ')}` : title;
+
+      title = filters.length > 0 ? `Find Jobs` : title;
       subtitle = `Found jobs matching your search criteria`;
     }
-    
+
     setPageTitle(title);
     setPageSubtitle(subtitle);
   }, [searchParams]);
@@ -41,7 +44,7 @@ const Jobs = () => {
       <Header />
 
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4">
-        <JobsList 
+        <JobsList
           showFilters={true}
           title={pageTitle}
           subtitle={pageSubtitle}

@@ -1090,7 +1090,7 @@ const LinkedInProfile = ({
                       processedUrl: getImageUrl(profileData?.profilePhoto),
                     });
                     e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                      profileData?.user?.firstName || "User",
+                      profileData?.firstName || "User",
                     )}&size=128&background=3b82f6&color=ffffff`;
                   }}
                   style={{
