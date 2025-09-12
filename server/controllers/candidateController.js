@@ -112,7 +112,6 @@ class CandidateController {
         firstName,
         lastName,
         email,
-        phone,
         openToWork,
         coverPhoto,
         cityId,
@@ -157,7 +156,7 @@ class CandidateController {
       }
 
       // Handle job preferences - map to dedicated candidate columns
-      if (jobPreferences !== undefined) {
+      if (jobPreferences !== undefined && jobPreferences !== null) {
         // Map to dedicated candidate columns
         if (jobPreferences.jobTitles !== undefined)
           updateData.preferredJobTitles = jobPreferences.jobTitles;
@@ -256,9 +255,10 @@ class CandidateController {
           cleanProfileData.availabilityPreference =
             profileData.availabilityPreference;
 
-        // Handle availability preference from jobPreferences
+        // Handle availability preference from jobPreferences - add null check
         if (
-          jobPreferences?.availability &&
+          jobPreferences &&
+          jobPreferences.availability &&
           [
             "IMMEDIATELY",
             "WITHIN_1_WEEK",
@@ -281,13 +281,12 @@ class CandidateController {
         };
       }
 
-      // Update user data if provided
+      // Update user data if provided (phone number is not allowed to be updated)
       const userUpdateData = {};
       if (firstName !== undefined) userUpdateData.firstName = firstName;
       if (lastName !== undefined) userUpdateData.lastName = lastName;
       if (email !== undefined) userUpdateData.email = email;
-      if (phone !== undefined) userUpdateData.phone = phone;
-      if (cityId !== undefined) userUpdateData.cityId = cityId; // Added cityId update
+      if (cityId !== undefined) userUpdateData.cityId = cityId;
 
       // Update user if there are user fields to update
       if (Object.keys(userUpdateData).length > 0) {
@@ -575,14 +574,20 @@ class CandidateController {
         prisma.allocation.count({ where }),
       ]);
 
-      // Transform applications to include candidate count
-      const applicationsWithCount = applications.map((application) => ({
-        ...application,
-        ad: {
-          ...application.ad,
-          candidatesCount: application.ad?._count?.allocations || 0,
+      // Use shared job transformation utility
+      const {
+        transformJobsArrayForResponse,
+      } = require("../utils/jobTransform");
+
+      const transformedApplications = transformJobsArrayForResponse(
+        applications,
+        {
+          source: "application",
+          hasApplied: true,
+          isBookmarked: false, // We'll check this if needed
+          includeApplicationInfo: true,
         },
-      }));
+      );
 
       const pagination = {
         page: parseInt(page),
@@ -593,13 +598,15 @@ class CandidateController {
         hasPrev: parseInt(page) > 1,
       };
 
-      res.json(
-        createResponse(
-          "Applications retrieved successfully",
-          applicationsWithCount,
-          pagination,
-        ),
-      );
+      const response = {
+        data: transformedApplications,
+        total,
+        page: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        pagination, // Keep for backward compatibility
+      };
+
+      res.json(createResponse("Applications retrieved successfully", response));
     } catch (error) {
       next(error);
     }
@@ -728,8 +735,8 @@ class CandidateController {
         prisma.bookmark.count({ where: { candidateId: candidate.id } }),
       ]);
 
-      // Check application status for each bookmarked job and include counts
-      const bookmarksWithStatus = await Promise.all(
+      // Check application status for each bookmarked job
+      const bookmarksWithApplicationStatus = await Promise.all(
         bookmarks.map(async (bookmark) => {
           const application = await prisma.allocation.findFirst({
             where: {
@@ -741,15 +748,30 @@ class CandidateController {
           return {
             ...bookmark,
             hasApplied: !!application,
-            ad: {
-              ...bookmark.ad,
-              candidatesCount: bookmark.ad?._count?.allocations || 0,
-              applicationCount: bookmark.ad?._count?.allocations || 0,
-              bookmarkedCount: bookmark.ad?._count?.bookmarks || 0,
-            },
+            applicationStatus: application?.status || null,
           };
         }),
       );
+
+      // Use shared job transformation utility
+      const {
+        transformJobsArrayForResponse,
+      } = require("../utils/jobTransform");
+
+      const transformedBookmarks = transformJobsArrayForResponse(
+        bookmarksWithApplicationStatus,
+        {
+          source: "bookmark",
+          hasApplied: false, // Will be overridden per job
+          isBookmarked: true,
+          includeApplicationInfo: true,
+        },
+      ).map((job, index) => ({
+        ...job,
+        hasApplied: bookmarksWithApplicationStatus[index].hasApplied,
+        applicationStatus:
+          bookmarksWithApplicationStatus[index].applicationStatus,
+      }));
 
       const pagination = {
         page: parseInt(page),
@@ -760,13 +782,15 @@ class CandidateController {
         hasPrev: parseInt(page) > 1,
       };
 
-      res.json(
-        createResponse(
-          "Bookmarks retrieved successfully",
-          bookmarksWithStatus,
-          pagination,
-        ),
-      );
+      const response = {
+        data: transformedBookmarks,
+        total,
+        page: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        pagination, // Keep for backward compatibility
+      };
+
+      res.json(createResponse("Bookmarks retrieved successfully", response));
     } catch (error) {
       next(error);
     }
@@ -1234,6 +1258,18 @@ class CandidateController {
           updateData.profilePhoto = basicInfo.profilePhoto;
         if (basicInfo.coverPhoto !== undefined)
           updateData.coverPhoto = basicInfo.coverPhoto;
+
+        // Map current employment status from basicInfo
+        if (basicInfo.currentEmploymentStatus !== undefined)
+          updateData.currentEmploymentStatus =
+            basicInfo.currentEmploymentStatus || null;
+
+        // Map preferred location from basicInfo - save cityId instead of city name
+        if (basicInfo.location !== undefined && basicInfo.location) {
+          updateData.preferredLocations = [basicInfo.location];
+        } else if (basicInfo.cityId !== undefined && basicInfo.cityId) {
+          updateData.preferredLocations = [basicInfo.cityId];
+        }
       }
 
       // Update candidate data from jobPreferences - map to respective columns
@@ -1276,6 +1312,14 @@ class CandidateController {
         if (jobPreferences.currentEmploymentStatus !== undefined)
           updateData.currentEmploymentStatus =
             jobPreferences.currentEmploymentStatus || null;
+
+        // Map preferred languages from jobPreferences
+        if (jobPreferences.languages !== undefined)
+          updateData.preferredLanguages = jobPreferences.languages || [];
+
+        // Map notice period from jobPreferences
+        if (jobPreferences.noticePeriod !== undefined)
+          updateData.noticePeriod = jobPreferences.noticePeriod || null;
       }
 
       // Update candidate data from skillsExperience - map to respective columns
@@ -1290,7 +1334,7 @@ class CandidateController {
           updateData.skillsWithExperience = skillsWithExp;
         }
 
-        // Map to candidate table columns
+        // Map current employment status from skillsExperience (this will override basicInfo and jobPreferences if present)
         if (skillsExperience.currentEmploymentStatus !== undefined) {
           updateData.currentEmploymentStatus =
             skillsExperience.currentEmploymentStatus || null;
@@ -1331,8 +1375,11 @@ class CandidateController {
             }
           }
         }
+
+        // Map notice period from skillsExperience (this will override jobPreferences if present)
         if (skillsExperience.noticePeriod !== undefined)
           updateData.noticePeriod = skillsExperience.noticePeriod || null;
+
         if (skillsExperience.currentSalary !== undefined)
           updateData.currentSalary = skillsExperience.currentSalary;
 
@@ -1731,6 +1778,7 @@ class CandidateController {
     try {
       const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
+        include: { user: true },
       });
 
       if (!candidate) {
@@ -1754,21 +1802,58 @@ class CandidateController {
         where: { candidateId: candidate.id },
       });
 
-      // Calculate profile completeness
-      const profileFields = [
-        candidate.profileData,
-        candidate.resumeUrl,
-        candidate.education,
-        candidate.experience,
-        candidate.profilePhoto,
-        candidate.dateOfBirth,
+      // Calculate profile completeness using simplified logic
+      const profileData = candidate.profileData || {};
+      // Profile completion sections with simplified 40-10-10-10-10-10-10 breakdown
+      const sections = [
+        {
+          weight: 40,
+          items: [
+            candidate.user?.firstName,
+            candidate.user?.lastName,
+            candidate.user?.phone,
+            candidate.profilePhoto,
+            candidate.coverPhoto,
+            profileData.headline,
+          ],
+        },
+        { weight: 10, items: [profileData.summary] },
+        { weight: 10, items: [candidate.skillsWithExperience], isObject: true },
+        { weight: 10, items: [candidate.resumeUrl] },
+        { weight: 10, items: [candidate.preferredJobTitles], isArray: true },
+        { weight: 10, items: [candidate.experience], isArray: true },
+        { weight: 10, items: [candidate.education], isArray: true },
       ];
-      const completedFields = profileFields.filter(
-        (field) => field !== null && field !== undefined,
-      ).length;
-      const profileCompletion = Math.round(
-        (completedFields / profileFields.length) * 100,
-      );
+
+      let totalCompleteness = 0;
+
+      sections.forEach((section) => {
+        let sectionCompleted = 0;
+        let sectionTotal = section.items.length;
+
+        section.items.forEach((item) => {
+          let isCompleted = false;
+
+          if (section.isArray) {
+            isCompleted = Array.isArray(item) && item.length > 0;
+          } else if (section.isObject) {
+            isCompleted =
+              item && typeof item === "object" && Object.keys(item).length > 0;
+          } else {
+            isCompleted = item !== null && item !== undefined && item !== "";
+          }
+
+          if (isCompleted) {
+            sectionCompleted++;
+          }
+        });
+
+        const sectionPercentage =
+          (sectionCompleted / sectionTotal) * section.weight;
+        totalCompleteness += sectionPercentage;
+      });
+
+      const profileCompletion = Math.round(totalCompleteness);
 
       const stats = {
         totalApplications: applications.length,
@@ -1798,6 +1883,17 @@ class CandidateController {
     try {
       const candidate = await prisma.candidate.findUnique({
         where: { userId: req.user.userId },
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              cityId: true,
+            },
+          },
+        },
       });
 
       if (!candidate) {
@@ -1806,36 +1902,204 @@ class CandidateController {
           .json(createErrorResponse("Candidate profile not found", 404));
       }
 
-      const profileFields = [
-        candidate.profileData,
-        candidate.resumeUrl,
-        candidate.education,
-        candidate.experience,
-        candidate.profilePhoto,
-        candidate.dateOfBirth,
+      const profileData = candidate.profileData || {};
+
+      // Profile completion sections with simplified 40-10-10-10-10-10-10 breakdown
+      const sections = [
+        {
+          name: "Profile Content",
+          weight: 40,
+          items: [
+            {
+              field: "firstName",
+              value: candidate.user?.firstName,
+              description: "Add your first name",
+            },
+            {
+              field: "lastName",
+              value: candidate.user?.lastName,
+              description: "Add your last name",
+            },
+            {
+              field: "phone",
+              value: candidate.user?.phone,
+              description: "Add your phone number",
+            },
+            {
+              field: "email",
+              value: candidate.user?.email,
+              description: "Add your email",
+            },
+            {
+              field: "profilePhoto",
+              value: candidate.profilePhoto,
+              description: "Add a profile photo",
+            },
+            {
+              field: "coverPhoto",
+              value: candidate.coverPhoto,
+              description: "Add a cover photo",
+            },
+            {
+              field: "headline",
+              value: profileData.headline,
+              description: "Add a professional headline",
+            },
+          ],
+        },
+        {
+          name: "About Us",
+          weight: 10,
+          items: [
+            {
+              field: "summary",
+              value: profileData.summary,
+              description: "Add a professional summary",
+            },
+          ],
+        },
+        {
+          name: "Skills",
+          weight: 10,
+          items: [
+            {
+              field: "skills",
+              value: candidate.skillsWithExperience,
+              description: "Add your skills",
+              isObject: true,
+            },
+          ],
+        },
+        {
+          name: "Resume",
+          weight: 10,
+          items: [
+            {
+              field: "resume",
+              value: candidate.resumeUrl,
+              description: "Upload your resume",
+            },
+          ],
+        },
+        {
+          name: "Preferences",
+          weight: 10,
+          items: [
+            {
+              field: "jobTitles",
+              value: candidate.preferredJobTitles,
+              description: "Add preferred job titles",
+              isArray: true,
+            },
+          ],
+        },
+        {
+          name: "Experience",
+          weight: 10,
+          items: [
+            {
+              field: "experience",
+              value: candidate.experience,
+              description: "Add work experience",
+              isArray: true,
+            },
+          ],
+        },
+        {
+          name: "Education",
+          weight: 10,
+          items: [
+            {
+              field: "education",
+              value: candidate.education,
+              description: "Add education details",
+              isArray: true,
+            },
+          ],
+        },
       ];
 
-      const completedFields = profileFields.filter(
-        (field) => field !== null && field !== undefined,
-      ).length;
-      const completeness = Math.round(
-        (completedFields / profileFields.length) * 100,
-      );
-
+      let totalCompleteness = 0;
       const recommendations = [];
-      if (!candidate.resumeUrl) recommendations.push("Upload your resume");
-      if (!candidate.profilePhoto) recommendations.push("Add a profile photo");
-      if (!candidate.experience || candidate.experience.length === 0)
-        recommendations.push("Add work experience");
-      if (!candidate.education || candidate.education.length === 0)
-        recommendations.push("Add education details");
+      const completionDetails = {};
+
+      sections.forEach((section) => {
+        let sectionCompleted = 0;
+        let sectionTotal = section.items.length;
+
+        section.items.forEach((item) => {
+          let isCompleted = false;
+
+          if (item.isArray) {
+            isCompleted = Array.isArray(item.value) && item.value.length > 0;
+          } else if (item.isObject) {
+            isCompleted =
+              item.value &&
+              typeof item.value === "object" &&
+              Object.keys(item.value).length > 0;
+          } else {
+            isCompleted =
+              item.value !== null &&
+              item.value !== undefined &&
+              item.value !== "";
+          }
+
+          if (isCompleted) {
+            sectionCompleted++;
+          } else {
+            recommendations.push(item.description);
+          }
+
+          completionDetails[item.field] = {
+            completed: isCompleted,
+            section: section.name,
+            description: item.description,
+          };
+        });
+
+        // Calculate section percentage and add to total
+        const sectionPercentage =
+          (sectionCompleted / sectionTotal) * section.weight;
+        totalCompleteness += sectionPercentage;
+      });
+
+      const completeness = Math.round(totalCompleteness);
 
       res.json(
         createResponse("Profile completeness retrieved successfully", {
           completeness,
           recommendations,
-          totalFields: profileFields.length,
-          completedFields,
+          completionDetails,
+          sections: sections.map((section) => ({
+            name: section.name,
+            weight: section.weight,
+            completed: section.items.filter((item) => {
+              if (item.isArray) {
+                return Array.isArray(item.value) && item.value.length > 0;
+              } else if (item.isObject) {
+                return (
+                  item.value &&
+                  typeof item.value === "object" &&
+                  Object.keys(item.value).length > 0
+                );
+              } else {
+                return (
+                  item.value !== null &&
+                  item.value !== undefined &&
+                  item.value !== ""
+                );
+              }
+            }).length,
+            total: section.items.length,
+          })),
+          // Legacy fields for backward compatibility
+          totalFields: sections.reduce(
+            (total, section) => total + section.items.length,
+            0,
+          ),
+          completedFields: Object.values(completionDetails).filter(
+            (detail) => detail.completed,
+          ).length,
         }),
       );
     } catch (error) {

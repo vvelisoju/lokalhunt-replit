@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import {
   MagnifyingGlassIcon,
   MapPinIcon,
@@ -10,11 +10,11 @@ import Modal from "./Modal";
 import { publicApi } from "../../services/publicApi";
 import CategorySearchSelect from "./CategorySearchSelect";
 import CityDropdown from "./CityDropdown";
+import { useAppData } from "../../context/AppDataContext";
 
 const JobFilters = ({
   filters,
   onFiltersChange,
-  onSearch,
   showAdvancedFilters = true,
   showApplicationFilters = false,
   statusOptions = [],
@@ -22,10 +22,12 @@ const JobFilters = ({
   className = "",
   compact = false,
 }) => {
+  const { categories: contextCategories, cities, educationQualifications, isDataLoaded } = useAppData();
+
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [categories, setCategories] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [educationQualifications, setEducationQualifications] = useState([]);
+  // Removed local states for categories, locations, and educationQualifications as they are now in context
+  const [selectedLocationName, setSelectedLocationName] = useState(""); // State to hold the resolved location name
+  const [searchTerm, setSearchTerm] = useState(filters.search || ""); // Local state for search term
   const searchTimeoutRef = useRef(null);
 
   // Advanced filter options
@@ -52,10 +54,31 @@ const JobFilters = ({
     { id: "100000+", label: "₹1,00,000+", value: "100000+" },
   ];
 
-  // Load filter data on mount
+  // Data is automatically loaded by AppDataContext on app initialization
+  // No need for additional fetching logic hered from context
+
+  // Resolve location ID to location name for display
   useEffect(() => {
-    loadFilterData();
-  }, []);
+    if (filters.location && cities && cities.length > 0) {
+      // Check if location is a UUID (city ID)
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(filters.location);
+
+      if (isUUID) {
+        const selectedCity = cities.find(city => city.id === filters.location);
+        if (selectedCity) {
+          setSelectedLocationName(`${selectedCity.name}, ${selectedCity.state}`);
+        } else {
+          setSelectedLocationName("");
+        }
+      } else {
+        // Handle legacy city name format
+        setSelectedLocationName(filters.location);
+      }
+    } else {
+      setSelectedLocationName("");
+    }
+  }, [filters.location, cities]); // Depend on cities from context
+
 
   // Cleanup on unmount
   useEffect(() => {
@@ -66,57 +89,42 @@ const JobFilters = ({
     };
   }, []);
 
-  const loadFilterData = async () => {
-    try {
-      const [categoriesRes, citiesRes, educationRes] = await Promise.all([
-        publicApi.getCategories().catch(() => ({ data: [] })),
-        publicApi.getCities().catch(() => ({ data: [] })),
-        publicApi.getEducationQualifications().catch(() => ({ data: [] })),
-      ]);
 
-      setCategories(categoriesRes.data || []);
-      setLocations(citiesRes.data || []);
-      setEducationQualifications(educationRes.data || []);
-    } catch (error) {
-      console.error("Error loading filter data:", error);
-    }
-  };
 
   const updateFilters = (newFilters) => {
     const updatedFilters = { ...filters, ...newFilters };
+    console.log("JobFilters: Updating filters", { current: filters, new: newFilters, updated: updatedFilters });
     onFiltersChange(updatedFilters);
   };
 
-  // Update internal state when filters prop changes (for URL navigation)
+  // Update internal state when filters prop changes (for URL navigation and localStorage)
   useEffect(() => {
-    // This ensures the component updates when filters are changed externally (like from URL)
-    // We don't need to do anything here as the parent manages the filters state
-  }, [filters]);
+    // Sync local searchTerm state with filters.search when it changes externally
+    setSearchTerm(filters.search || "");
+  }, [filters.search]);
 
   const handleSearchChange = (value) => {
+    setSearchTerm(value); // Update local state immediately
+
     // Clear existing timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    // Update the search value immediately in the UI
-    updateFilters({ search: value });
-
     // Set a new timeout for the actual search
     searchTimeoutRef.current = setTimeout(() => {
+      updateFilters({ search: value }); // Update parent filters only after debounce
       // The search will trigger automatically through the parent's effect
     }, 400); // 400ms debounce
   };
 
   const handleLocationChange = (cityId) => {
-    // Find the city name from the cityId for backward compatibility
-    const selectedCity = locations.find((city) => city.id === cityId);
-    const locationName = selectedCity ? selectedCity.name : "";
-    updateFilters({ location: locationName });
+    // Send the cityId directly for location filtering
+    updateFilters({ location: cityId });
   };
 
-  const handleCategoryChange = (category) => {
-    updateFilters({ category });
+  const handleCategoryChange = (categoryId) => {
+    updateFilters({ category: categoryId });
   };
 
   const handleArrayFilterChange = (filterKey, value) => {
@@ -145,6 +153,7 @@ const JobFilters = ({
       maxSalary: "",
     };
     onFiltersChange(clearedFilters);
+    setSearchTerm(""); // Clear local search term as well
   };
 
   const getActiveFiltersCount = () => {
@@ -190,35 +199,28 @@ const JobFilters = ({
           <div className="flex-1">
             <div className="relative">
               <CityDropdown
-                value={
-                  locations.find((city) => city.name === filters.location)
-                    ?.id || ""
-                }
+                value={filters.location} // Pass the city ID or name
                 onChange={handleLocationChange}
                 placeholder="All Locations"
                 hideLabel={true}
                 variant="default"
+                options={cities} // Pass cities from context
               />
             </div>
           </div>
 
           {/* Category Filter */}
           <div className="flex-1">
-            <div className="relative">
-              <select
-                value={filters.category}
-                onChange={(e) => handleCategoryChange(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white text-gray-700"
-              >
-                <option value="">All Categories</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.name}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDownIcon className="h-5 w-5 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
-            </div>
+            <CategorySearchSelect
+              value={filters.category || ""}
+              onChange={handleCategoryChange}
+              options={Array.isArray(contextCategories) ? contextCategories.map(category => ({
+                value: category.id,
+                label: category.name
+              })) : []}
+              placeholder="All Categories"
+              className="w-full"
+            />
           </div>
 
           {/* Search Input */}
@@ -228,26 +230,25 @@ const JobFilters = ({
               <input
                 type="text"
                 placeholder="Search jobs, companies..."
-                value={filters.search}
+                value={searchTerm} // Use local state for input value
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
 
-          {/* Search Button */}
-          <Button
+          {/* Search Button - Hidden as requested */}
+          {/* <Button
             type="button"
             className="lg:px-8 whitespace-nowrap bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600"
             onClick={(e) => {
               e.preventDefault();
-              if (onSearch) {
-                onSearch(filters);
-              }
+              // The search is already handled by the filter changes, no need for explicit search
+              console.log("Search button clicked with filters:", filters);
             }}
           >
             Search
-          </Button>
+          </Button> */}
         </div>
       </div>
 

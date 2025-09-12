@@ -31,7 +31,7 @@ const CandidateJobView = () => {
 
   const fetchJobDetails = useCallback(async () => {
     if (fetchingRef.current) return;
-    
+
     try {
       fetchingRef.current = true;
       setLoading(true);
@@ -70,8 +70,6 @@ const CandidateJobView = () => {
   useEffect(() => {
     fetchJobDetails();
   }, [fetchJobDetails]);
-
-  
 
   const handleApplyToJob = async () => {
     if (!isAuthenticated || user?.role !== "CANDIDATE") {
@@ -137,21 +135,7 @@ const CandidateJobView = () => {
   };
 
   const handleGoBack = () => {
-    // Navigate back based on the 'from' parameter
-    switch (fromPage) {
-      case "dashboard":
-        navigate("/candidate/dashboard");
-        break;
-      case "bookmarks":
-        navigate("/candidate/bookmarks");
-        break;
-      case "applications":
-        navigate("/candidate/applications");
-        break;
-      default:
-        navigate("/candidate/jobs");
-        break;
-    }
+    navigate(-1);
   };
 
   if (loading) {
@@ -185,20 +169,15 @@ const CandidateJobView = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="px-3 sm:px-4 lg:px-8 py-3 sm:py-4">
-        {/* Back Button - Mobile Optimized */}
-        <div className="mb-4 sm:mb-6">
+      <div className="px-3 sm:px-4 lg:px-8 py-2 sm:py-4">
+        {/* Back Button - Compact Mobile Design */}
+        <div className="mb-3 sm:mb-6">
           <button
             onClick={handleGoBack}
-            className="flex items-center text-gray-600 hover:text-gray-900 transition-colors group p-2 sm:p-0 -ml-2 sm:ml-0 rounded-lg sm:rounded-none hover:bg-gray-100 sm:hover:bg-transparent"
+            className="flex items-center text-gray-600 hover:text-gray-900 transition-colors group p-1 sm:p-0 -ml-1 sm:ml-0 rounded-md sm:rounded-none hover:bg-gray-100 sm:hover:bg-transparent"
           >
-            <ArrowLeftIcon className="h-5 w-5 mr-2 group-hover:-translate-x-1 transition-transform flex-shrink-0" />
-            <span className="font-medium text-sm sm:text-base">
-              {fromPage === "dashboard" && "Back to Dashboard"}
-              {fromPage === "bookmarks" && "Back to Bookmarks"}
-              {fromPage === "applications" && "Back to Applications"}
-              {fromPage === "jobs" && "Back to Jobs"}
-            </span>
+            <ArrowLeftIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 group-hover:-translate-x-1 transition-transform flex-shrink-0" />
+            <span className="text-sm sm:text-base font-medium">Back</span>
           </button>
         </div>
 

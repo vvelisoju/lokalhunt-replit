@@ -63,7 +63,7 @@ const BasicInfoStep = ({
 
   const handleCityChange = (cityId) => {
     setSelectedCityId(cityId);
-    updateData({ location: cityId });
+    updateData({ location: cityId, cityId: cityId });
   };
 
   return (

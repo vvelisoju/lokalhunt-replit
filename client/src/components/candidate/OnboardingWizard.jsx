@@ -39,8 +39,9 @@ const OnboardingWizard = ({ onComplete, user }) => {
   const structureOnboardingData = (data) => {
     return {
       basicInfo: {
-        // Location should update user.cityId
+        // Location should update user.cityId and also set as preferred location
         cityId: data.location,
+        location: data.location, // Add location field for preferred locations mapping
         currentEmploymentStatus: data.currentStatus
       },
       jobPreferences: {

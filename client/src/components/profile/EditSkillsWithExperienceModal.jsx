@@ -1,130 +1,133 @@
-import React, { useState, useEffect } from 'react'
-import { XMarkIcon, PlusIcon } from '@heroicons/react/24/outline'
-import Button from '../ui/Button'
-import Modal from '../ui/Modal'
-import { publicApi } from '../../services/publicApi'
+import React, { useState, useEffect, useCallback } from 'react';
+import { XMarkIcon, PlusIcon } from '@heroicons/react/24/outline';
+import Button from '../ui/Button';
+import Modal from '../ui/Modal';
+import { useAppData } from '../../context/AppDataContext';
 
 const EditSkillsWithExperienceModal = ({ isOpen, onClose, skillsWithExperience = {}, onSave }) => {
-  const [selectedSkills, setSelectedSkills] = useState([])
-  const [customSkill, setCustomSkill] = useState('')
-  const [skillsFromAPI, setSkillsFromAPI] = useState([])
-  const [groupedSkills, setGroupedSkills] = useState({})
-  const [loading, setLoading] = useState(true)
-  const [selectedCategory, setSelectedCategory] = useState('all')
-  const [showCategoryFilter, setShowCategoryFilter] = useState(false)
-  const [saving, setSaving] = useState(false)
+  // Use skills from AppDataContext
+  const { skills, loading: skillsLoading, fetchSkills } = useAppData();
+  const [selectedSkills, setSelectedSkills] = useState([]);
+  const [customSkill, setCustomSkill] = useState('');
+  const [groupedSkills, setGroupedSkills] = useState({});
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  // Load skills from API
+  // Load skills from context and group them
   useEffect(() => {
-    const loadSkills = async () => {
-      try {
-        setLoading(true)
-        const response = await publicApi.getSkills()
+    const processSkills = (skillsData) => {
+      if (!Array.isArray(skillsData) || skillsData.length === 0) {
+        setGroupedSkills({});
+        return;
+      }
 
-        if (response.status === "success") {
-          const skills = response.data || []
-          setSkillsFromAPI(skills)
-
-          // Group skills by category
-          const grouped = skills.reduce((acc, skill) => {
-            const category = skill.category || "Other"
-            if (!acc[category]) {
-              acc[category] = []
-            }
-            acc[category].push(skill)
-            return acc
-          }, {})
-
-          setGroupedSkills(grouped)
-        } else {
-          console.error("Failed to load skills:", response.message)
-          setSkillsFromAPI([])
-          setGroupedSkills({})
+      const grouped = skillsData.reduce((acc, skill) => {
+        const category = skill.category || "Other";
+        if (!acc[category]) {
+          acc[category] = [];
         }
-      } catch (error) {
-        console.error("Error loading skills:", error)
-        setSkillsFromAPI([])
-        setGroupedSkills({})
-      } finally {
-        setLoading(false)
+        acc[category].push(skill);
+        return acc;
+      }, {});
+      setGroupedSkills(grouped);
+    };
+
+    if (isOpen) {
+      console.log('EditSkillsWithExperienceModal: Processing skills', {
+        skillsLength: skills?.length,
+        skillsLoading,
+        skills: skills?.slice(0, 3)
+      });
+
+      // Process skills if available
+      if (Array.isArray(skills) && skills.length > 0) {
+        processSkills(skills);
+      } else if (!skillsLoading) {
+        // Try to fetch skills if not loading
+        console.log('EditSkillsWithExperienceModal: Fetching skills...');
+        fetchSkills().then(fetchedSkills => {
+          if (Array.isArray(fetchedSkills) && fetchedSkills.length > 0) {
+            processSkills(fetchedSkills);
+          }
+        });
       }
     }
-    loadSkills()
-  }, [])
+  }, [isOpen, skills, skillsLoading, fetchSkills]);
 
   useEffect(() => {
     if (isOpen) {
       // Convert skillsWithExperience object to array of skill names
       if (skillsWithExperience && typeof skillsWithExperience === 'object') {
-        setSelectedSkills(Object.keys(skillsWithExperience))
+        setSelectedSkills(Object.keys(skillsWithExperience));
       } else {
-        setSelectedSkills([])
+        setSelectedSkills([]);
       }
     }
-  }, [isOpen, skillsWithExperience])
+  }, [isOpen, skillsWithExperience]);
 
   const handleSkillToggle = (skillName) => {
     if (selectedSkills.includes(skillName)) {
-      setSelectedSkills(selectedSkills.filter(s => s !== skillName))
+      setSelectedSkills(selectedSkills.filter(s => s !== skillName));
     } else {
-      setSelectedSkills([...selectedSkills, skillName])
+      setSelectedSkills([...selectedSkills, skillName]);
     }
-  }
+  };
 
   const handleAddCustomSkill = () => {
     if (customSkill.trim() && !selectedSkills.includes(customSkill.trim())) {
-      setSelectedSkills([...selectedSkills, customSkill.trim()])
-      setCustomSkill('')
+      setSelectedSkills([...selectedSkills, customSkill.trim()]);
+      setCustomSkill('');
     }
-  }
+  };
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
-      e.preventDefault()
-      handleAddCustomSkill()
+      e.preventDefault();
+      handleAddCustomSkill();
     }
-  }
+  };
 
   const handleSave = async () => {
-    setSaving(true)
+    setSaving(true);
     try {
-      await onSave(selectedSkills)
-      onClose()
+      await onSave(selectedSkills);
+      onClose();
     } catch (error) {
-      console.error('Failed to save additional skills:', error)
+      console.error('Failed to save additional skills:', error);
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const handleClose = () => {
-    setSelectedSkills([])
-    setCustomSkill('')
-    onClose()
-  }
+    setSelectedSkills([]);
+    setCustomSkill('');
+    onClose();
+  };
 
   // Get skills to display based on selected category
   const getDisplaySkills = () => {
     if (selectedCategory === 'all') {
-      return skillsFromAPI
+      return skills; // Use skills directly from context
     }
-    return groupedSkills[selectedCategory] || []
-  }
+    return groupedSkills[selectedCategory] || [];
+  };
 
   // Get available categories
   const getCategories = () => {
-    return Object.keys(groupedSkills)
-  }
+    return Object.keys(groupedSkills);
+  };
 
   // Get skill count for category display
   const getSkillCount = (category) => {
     if (category === 'all') {
-      return skillsFromAPI.length
+      return skills.length; // Use skills length from context
     }
-    return groupedSkills[category]?.length || 0
-  }
+    return groupedSkills[category]?.length || 0;
+  };
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <Modal
@@ -161,7 +164,7 @@ const EditSkillsWithExperienceModal = ({ isOpen, onClose, skillsWithExperience =
         </div>
 
         {/* Collapsible Category Filter */}
-        {!loading && getCategories().length > 0 && (
+        {(!skillsLoading || (skills && skills.length > 0)) && getCategories().length > 0 && (
           <div className="mb-3 sm:mb-4">
             <button
               onClick={() => setShowCategoryFilter(!showCategoryFilter)}
@@ -182,8 +185,8 @@ const EditSkillsWithExperienceModal = ({ isOpen, onClose, skillsWithExperience =
                 <div className="grid grid-cols-1 gap-1 sm:gap-2">
                   <button
                     onClick={() => {
-                      setSelectedCategory("all")
-                      setShowCategoryFilter(false)
+                      setSelectedCategory("all");
+                      setShowCategoryFilter(false);
                     }}
                     className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm font-medium transition-colors text-left ${
                       selectedCategory === "all"
@@ -197,8 +200,8 @@ const EditSkillsWithExperienceModal = ({ isOpen, onClose, skillsWithExperience =
                     <button
                       key={category}
                       onClick={() => {
-                        setSelectedCategory(category)
-                        setShowCategoryFilter(false)
+                        setSelectedCategory(category);
+                        setShowCategoryFilter(false);
                       }}
                       className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm font-medium transition-colors text-left ${
                         selectedCategory === category
@@ -215,8 +218,8 @@ const EditSkillsWithExperienceModal = ({ isOpen, onClose, skillsWithExperience =
           </div>
         )}
 
-        {/* Skills from API */}
-        {loading ? (
+        {/* Skills from Context */}
+        {skillsLoading && (!skills || skills.length === 0) ? (
           <div className="flex items-center justify-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
             <span className="ml-2 text-gray-600">Loading skills...</span>
@@ -241,18 +244,34 @@ const EditSkillsWithExperienceModal = ({ isOpen, onClose, skillsWithExperience =
             </div>
             <div className="mt-3 pt-3 border-t border-gray-100">
               <p className="text-xs text-gray-500">
-                Showing {getDisplaySkills().length} skills in {selectedCategory === "all" ? "all categories" : selectedCategory}. 
-                Tap to select/deselect.
+                Tap skills to add them to your profile. Selected skills will be highlighted.
               </p>
             </div>
           </div>
         ) : (
-          <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-            <p className="text-gray-500">
-              {selectedCategory === "all"
-                ? "No skills available. Try adding a custom skill above."
-                : `No skills found in ${selectedCategory} category.`}
+          <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+            <div className="mb-4">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <p className="text-lg font-medium mb-2">
+              {selectedCategory === 'all' ? 'No skills available' : `No ${selectedCategory} skills available`}
             </p>
+            <p className="text-sm mb-4">
+              {selectedCategory === 'all'
+                ? 'Skills are currently being loaded or none are available. You can add custom skills above.'
+                : `No skills found in the ${selectedCategory} category. Try selecting a different category or add a custom skill.`
+              }
+            </p>
+            {selectedCategory !== 'all' && (
+              <button
+                onClick={() => setSelectedCategory('all')}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+              >
+                View All Categories
+              </button>
+            )}
           </div>
         )}
 
@@ -311,7 +330,7 @@ const EditSkillsWithExperienceModal = ({ isOpen, onClose, skillsWithExperience =
         </div>
       </div>
     </Modal>
-  )
-}
+  );
+};
 
-export default EditSkillsWithExperienceModal
+export default EditSkillsWithExperienceModal;

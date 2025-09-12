@@ -8,12 +8,15 @@ import { publicApi } from "../../services/publicApi";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "./Toast";
 import Loader from "./Loader";
+import { useCandidate } from "../../context/CandidateContext";
 
 const JobsList = ({
   showFilters = true,
   title = "Jobs",
   subtitle = "",
-  apiEndpoint = "candidate",
+  apiEndpoint = "public",
+  defaultFilters = {},
+  onFiltersChange,
 }) => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -27,29 +30,94 @@ const JobsList = ({
   const [jobsPerPage] = useState(12);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
-  // Initialize filters state from URL parameters
-  const initializeFiltersFromURL = useCallback(() => {
+  // Get candidate context for preferred locations
+  const { profile: candidateProfile } = useCandidate();
+
+  // Function to get filters from localStorage
+  const getSavedFilters = () => {
+    const savedFilters = localStorage.getItem("jobFilters");
+    return savedFilters ? JSON.parse(savedFilters) : null;
+  };
+
+  // Function to save filters to localStorage
+  const saveFiltersToLocalStorage = (filtersToSave) => {
+    localStorage.setItem("jobFilters", JSON.stringify(filtersToSave));
+  };
+
+  // Initialize filters state from URL parameters, localStorage, and default filters
+  const initializeFilters = useCallback(() => {
+    const jobTypeParam = searchParams.get("jobType");
+    const experienceParam = searchParams.get("experience");
+    const educationParam = searchParams.get("education");
+    
     const urlFilters = {
       search: searchParams.get("search") || "",
       location: searchParams.get("location") || "",
       category: searchParams.get("category") || "",
-      jobType: searchParams.get("jobType")
-        ? searchParams.get("jobType").split(",")
-        : [],
-      experience: searchParams.get("experience")
-        ? searchParams.get("experience").split(",")
-        : [],
+      jobType: jobTypeParam ? jobTypeParam.split(",") : [],
+      experience: experienceParam ? experienceParam.split(",") : [],
       gender: searchParams.get("gender") || "",
-      education: searchParams.get("education")
-        ? searchParams.get("education").split(",")
-        : [],
+      education: educationParam ? educationParam.split(",") : [],
       salaryRange: searchParams.get("salaryRange") || "",
       sortBy: searchParams.get("sortBy") || "newest",
     };
-    return urlFilters;
-  }, [searchParams]);
 
-  const [filters, setFilters] = useState(initializeFiltersFromURL);
+    const savedFilters = getSavedFilters();
+    const initialFilters = {
+      search: "",
+      location: "",
+      category: "",
+      jobType: [],
+      experience: [],
+      gender: "",
+      education: [],
+      salaryRange: "",
+      sortBy: "newest",
+    };
+
+    // Prioritize: URL > localStorage > defaultFilters > initialFilters
+    let mergedFilters = { ...initialFilters };
+
+    // Apply default filters if available
+    if (defaultFilters && Object.keys(defaultFilters).length > 0) {
+      mergedFilters = { ...mergedFilters, ...defaultFilters };
+    }
+
+    // Apply saved filters from localStorage if they exist and are not empty
+    if (savedFilters && Object.keys(savedFilters).some(key => savedFilters[key] !== "" && savedFilters[key] !== null && !(Array.isArray(savedFilters[key]) && savedFilters[key].length === 0))) {
+      mergedFilters = { ...mergedFilters, ...savedFilters };
+    }
+
+    // Apply URL filters if they exist and have meaningful values
+    const hasUrlFilters = Object.keys(urlFilters).some((key) => {
+      const value = urlFilters[key];
+      return (
+        value != null &&
+        value !== "" &&
+        (!Array.isArray(value) || value.length > 0)
+      );
+    });
+
+    if (hasUrlFilters) {
+      mergedFilters = { ...mergedFilters, ...urlFilters };
+    }
+
+    // Remove default location if it's the first preferred location and not set by URL/localStorage
+    if (mergedFilters.location === "" && candidateProfile?.preferredLocations?.length > 0) {
+       // No default location selection as candidate first preferred location
+    } else if (mergedFilters.location === "" && candidateProfile?.preferredLocations?.length > 0) {
+        // Do nothing here, let it remain empty if no other source provided it.
+    }
+
+
+    console.log("JobsList: Initializing filters with:", mergedFilters);
+    return mergedFilters;
+  }, [searchParams, defaultFilters, candidateProfile]);
+
+
+  // Initialize filters state
+  const [filters, setFilters] = useState(initializeFilters());
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   const sortOptions = [
     { value: "newest", label: "Newest First" },
@@ -67,25 +135,27 @@ const JobsList = ({
       search: filters.search,
       location: filters.location,
       category: filters.category,
-      jobType: filters.jobType.join(","),
-      experience: filters.experience.join(","),
+      jobType: Array.isArray(filters.jobType) ? filters.jobType.join(",") : "",
+      experience: Array.isArray(filters.experience) ? filters.experience.join(",") : "",
       salaryRange: filters.salaryRange,
       sortBy: filters.sortBy,
     };
 
     // Remove empty parameters
-    Object.keys(params).forEach((key) => {
-      if (!params[key] || params[key] === "") {
-        delete params[key];
+    const cleanedParams = {};
+    Object.entries(params).forEach(([key, value]) => {
+      if (value && value !== "") {
+        cleanedParams[key] = value;
       }
     });
 
-    return params;
+    return cleanedParams;
   }, [currentPage, jobsPerPage, filters]);
 
   const searchJobs = useCallback(async () => {
     try {
       setLoading(true);
+      console.log("JobsList: Making API call with params:", apiParams);
 
       let response;
       if (apiEndpoint === "candidate") {
@@ -100,27 +170,34 @@ const JobsList = ({
       const jobs = responseData?.jobs || [];
       const total = responseData?.total || 0;
 
+      console.log("JobsList: API response received:", {
+        jobs: jobs.length,
+        total,
+      });
+
+      // Always update jobs array, even if empty - this fixes the issue of showing old results
       setJobs(jobs);
       setTotalJobs(total);
     } catch (error) {
       console.error("Error loading jobs:", error);
+      // Clear jobs on error to avoid showing stale data
       setJobs([]);
       setTotalJobs(0);
     } finally {
       setLoading(false);
     }
-  }, [apiEndpoint, apiParams]);
+  }, [apiEndpoint, JSON.stringify(apiParams)]);
 
-  // Load jobs when component mounts or filters change
-  useEffect(() => {
-    searchJobs();
-  }, [searchJobs]);
-
-  // Update URL when filters change
-  const updateURL = useCallback(
+  // Update URL and localStorage when filters change
+  const updateFiltersAndStorage = useCallback(
     (newFilters) => {
-      const params = new URLSearchParams();
+      console.log("JobsList: Updating filters and storage:", newFilters);
+      setFilters(newFilters);
+      setCurrentPage(1); // Reset page when filters change
+      saveFiltersToLocalStorage(newFilters); // Save to localStorage
 
+      // Update URL
+      const params = new URLSearchParams();
       Object.entries(newFilters).forEach(([key, value]) => {
         if (
           value &&
@@ -134,46 +211,49 @@ const JobsList = ({
           }
         }
       });
-
-      // Add pagination
-      if (currentPage > 1) {
-        params.set("page", currentPage.toString());
-      }
-
       setSearchParams(params, { replace: true });
     },
-    [currentPage, setSearchParams],
+    [setSearchParams],
   );
 
-  // Update filters when URL parameters change (for back/forward navigation or direct links)
+  // Initialize filters on mount only once
   useEffect(() => {
-    const urlFilters = initializeFiltersFromURL();
-    setFilters(urlFilters);
-  }, [initializeFiltersFromURL]);
-
-  // Initial search when component mounts with URL filters
-  useEffect(() => {
-    if (
-      filters.search ||
-      filters.location ||
-      filters.category ||
-      filters.jobType.length > 0 ||
-      filters.experience.length > 0 ||
-      filters.gender ||
-      filters.education.length > 0 ||
-      filters.salaryRange
-    ) {
-      // If we have filters from URL, trigger search immediately
-      searchJobs();
+    if (!filtersInitialized) {
+      // Check if filters exist in localStorage first
+      const savedFilters = getSavedFilters();
+      
+      if (savedFilters && Object.keys(savedFilters).some(key => savedFilters[key] !== "" && savedFilters[key] !== null && !(Array.isArray(savedFilters[key]) && savedFilters[key].length === 0))) {
+        // Use saved filters directly without reinitializing
+        console.log('JobsList: Using saved filters from localStorage:', savedFilters);
+        setFilters(savedFilters);
+      } else {
+        // Only initialize filters if no valid saved filters exist
+        const initialFilters = initializeFilters();
+        setFilters(initialFilters);
+      }
+      
+      setFiltersInitialized(true);
     }
-  }, []); // Only run once on mount
+  }, [filtersInitialized]);
 
-  const handleFiltersChange = (newFilters) => {
-    setFilters(newFilters);
-    setCurrentPage(1); // Reset page when filters change
-    updateURL(newFilters);
-  };
+  // Fetch jobs when filters change or filters are initialized
+  useEffect(() => {
+    if (!filtersInitialized) {
+      console.log("JobsList: Filters not yet initialized, skipping API call");
+      return;
+    }
+    console.log("JobsList: Filters changed, calling searchJobs:", filters);
+    searchJobs();
+  }, [searchJobs, filtersInitialized]);
 
+  // Call onFiltersChange when filters change
+  useEffect(() => {
+    if (filtersInitialized && typeof onFiltersChange === 'function') {
+      onFiltersChange(filters);
+    }
+  }, [filters, filtersInitialized, onFiltersChange]);
+
+  // Clear filters and storage
   const handleClearFilters = () => {
     const clearedFilters = {
       search: "",
@@ -188,8 +268,10 @@ const JobsList = ({
     };
     setFilters(clearedFilters);
     setCurrentPage(1);
-    updateURL(clearedFilters);
+    saveFiltersToLocalStorage(clearedFilters); // Clear from localStorage
+    updateFiltersAndStorage(clearedFilters); // Also update URL and call prop
   };
+
 
   const handleJobCardClick = (jobId, status) => {
     // The 'variant' prop is not available in this component's scope.
@@ -324,7 +406,7 @@ const JobsList = ({
         <div className="">
           <JobFilters
             filters={filters}
-            onFiltersChange={handleFiltersChange}
+            onFiltersChange={updateFiltersAndStorage}
             onClearFilters={handleClearFilters}
             loading={loading}
           />
@@ -345,7 +427,7 @@ const JobsList = ({
           <select
             value={filters.sortBy}
             onChange={(e) =>
-              handleFiltersChange({ ...filters, sortBy: e.target.value })
+              updateFiltersAndStorage({ ...filters, sortBy: e.target.value })
             }
             className="py-2 px-3 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >

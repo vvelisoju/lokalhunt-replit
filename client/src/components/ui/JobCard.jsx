@@ -1105,24 +1105,22 @@ const JobCard = ({
                 {job.jobType || job.employmentType || "Full Time"}
               </span>
             </div>
-            {(job.salary || job.salaryRange) && (
-              <div className="flex items-center">
-                <CurrencyRupeeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600 mr-2 flex-shrink-0" />
-                <span className="font-semibold text-green-700 text-xs sm:text-sm truncate">
-                  {typeof job.salary === "string"
-                    ? job.salary
-                    : job.salary && typeof job.salary === "object"
-                      ? job.salary.min && job.salary.max
-                        ? `₹${job.salary.min.toLocaleString()} - ₹${job.salary.max.toLocaleString()}`
-                        : job.salary.min
-                          ? `₹${job.salary.min.toLocaleString()}+`
-                          : "Salary not disclosed"
-                      : job.salaryRange?.min && job.salaryRange?.max
-                        ? `₹${job.salaryRange.min.toLocaleString()} - ₹${job.salaryRange.max.toLocaleString()}`
-                        : "Salary not disclosed"}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center">
+              <CurrencyRupeeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600 mr-2 flex-shrink-0" />
+              <span className="font-semibold text-green-700 text-xs sm:text-sm truncate">
+                {typeof job.salary === "string"
+                  ? job.salary
+                  : job.salary && typeof job.salary === "object"
+                    ? job.salary.min && job.salary.max
+                      ? `₹${job.salary.min.toLocaleString()} - ₹${job.salary.max.toLocaleString()}`
+                      : job.salary.min
+                        ? `₹${job.salary.min.toLocaleString()}+`
+                        : "Salary not disclosed"
+                    : job.salaryRange?.min && job.salaryRange?.max
+                      ? `₹${job.salaryRange.min.toLocaleString()} - ₹${job.salaryRange.max.toLocaleString()}`
+                      : "Salary not disclosed"}
+              </span>
+            </div>
             <div className="flex items-center">
               <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 mr-2 flex-shrink-0" />
               <span 

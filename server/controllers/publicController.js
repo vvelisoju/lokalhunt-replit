@@ -1,11 +1,10 @@
-const { createResponse, createErrorResponse } = require('../utils/response');
-const { PrismaClient } = require('@prisma/client');
-const notificationController = require('./notificationController');
+const { createResponse, createErrorResponse } = require("../utils/response");
+const { PrismaClient } = require("@prisma/client");
+const notificationController = require("./notificationController");
 
 const prisma = new PrismaClient();
 
 class PublicController {
-
   // Get public job statistics
   async getStats(req, res, next) {
     try {
@@ -45,11 +44,11 @@ class PublicController {
   // Get all cities
   async getCities(req, res, next) {
     try {
-      const {stateId} = req.query;
+      const { stateId } = req.query;
 
       const where = {
         isActive: true,
-        ...(stateId && {stateId}),
+        ...(stateId && { stateId }),
       };
 
       const cities = await prisma.city.findMany({
@@ -59,7 +58,7 @@ class PublicController {
           name: true,
           state: true,
         },
-        orderBy: [{name: "asc"}],
+        orderBy: [{ name: "asc" }],
       });
 
       res.json(createResponse("Cities retrieved successfully", cities));
@@ -71,7 +70,7 @@ class PublicController {
   // Get featured/popular jobs for landing page
   async getFeaturedJobs(req, res, next) {
     try {
-      const {limit = 8} = req.query;
+      const { limit = 8 } = req.query;
 
       const featuredJobs = await prisma.ad.findMany({
         where: {
@@ -83,7 +82,7 @@ class PublicController {
         include: {
           employer: {
             include: {
-              user: {select: {name: true, email: true, phone: true}},
+              user: { select: { name: true, email: true, phone: true } },
             },
           },
           company: {
@@ -107,7 +106,7 @@ class PublicController {
             },
           },
         },
-        orderBy: [{createdAt: "desc"}],
+        orderBy: [{ createdAt: "desc" }],
       });
 
       // Transform jobs for frontend
@@ -225,11 +224,11 @@ class PublicController {
   // Get job roles
   async getJobRoles(req, res, next) {
     try {
-      const {category} = req.query;
+      const { category } = req.query;
 
       const where = {
         isActive: true,
-        ...(category && {category}),
+        ...(category && { category }),
       };
 
       const jobRoles = await prisma.jobRole.findMany({
@@ -241,7 +240,7 @@ class PublicController {
           description: true,
           sortOrder: true,
         },
-        orderBy: [{category: "asc"}, {sortOrder: "asc"}],
+        orderBy: [{ category: "asc" }, { sortOrder: "asc" }],
       });
 
       res.json(createResponse("Job roles retrieved successfully", jobRoles));
@@ -255,7 +254,7 @@ class PublicController {
   async getPopularCities(req, res, next) {
     try {
       const cities = await prisma.city.findMany({
-        where: {isActive: true},
+        where: { isActive: true },
         select: {
           id: true,
           name: true,
@@ -320,19 +319,31 @@ class PublicController {
       // Add search functionality
       if (search) {
         where.OR = [
-          {title: {contains: search, mode: "insensitive"}},
-          {description: {contains: search, mode: "insensitive"}},
+          { title: { contains: search, mode: "insensitive" } },
+          { description: { contains: search, mode: "insensitive" } },
         ];
       }
 
-      // Location filter
+      // Location filter - check if it's a city ID (UUID format) or city name
       if (location) {
-        where.location = {
-          OR: [
-            {name: {contains: location, mode: "insensitive"}},
-            {state: {contains: location, mode: "insensitive"}},
-          ],
-        };
+        // Check if location is a UUID (city ID)
+        const isUUID =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            location,
+          );
+
+        if (isUUID) {
+          // Filter by locationId (city ID)
+          where.locationId = location;
+        } else {
+          // Fallback to name-based search for backward compatibility
+          where.location = {
+            OR: [
+              { name: { contains: location, mode: "insensitive" } },
+              { state: { contains: location, mode: "insensitive" } },
+            ],
+          };
+        }
       }
 
       // Job type filter
@@ -353,9 +364,21 @@ class PublicController {
         };
       }
 
-      // Category filter
+      // Category filter - check if it's a category ID (UUID format) or category name
       if (category && category !== "") {
-        where.categoryName = category;
+        // Check if category is a UUID (category ID)
+        const isUUID =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            category,
+          );
+
+        if (isUUID) {
+          // Filter by categoryId (category ID)
+          where.categoryId = category;
+        } else {
+          // Fallback to name-based search for backward compatibility
+          where.categoryName = category;
+        }
       }
 
       // Salary range filter
@@ -395,20 +418,20 @@ class PublicController {
       }
 
       // Set up sorting
-      let orderBy = [{createdAt: "desc"}]; // default
+      let orderBy = [{ createdAt: "desc" }]; // default
       switch (sortBy) {
         case "oldest":
-          orderBy = [{createdAt: "asc"}];
+          orderBy = [{ createdAt: "asc" }];
           break;
         case "salary-high":
-          orderBy = [{salaryMax: "desc"}];
+          orderBy = [{ salaryMax: "desc" }];
           break;
         case "salary-low":
-          orderBy = [{salaryMin: "asc"}];
+          orderBy = [{ salaryMin: "asc" }];
           break;
         case "relevance":
           // For relevance, we'd need more complex scoring
-          orderBy = [{updatedAt: "desc"}];
+          orderBy = [{ updatedAt: "desc" }];
           break;
       }
 
@@ -420,7 +443,7 @@ class PublicController {
           include: {
             employer: {
               include: {
-                user: {select: {name: true, email: true, phone: true}},
+                user: { select: { name: true, email: true, phone: true } },
               },
             },
             company: {
@@ -446,7 +469,7 @@ class PublicController {
           },
           orderBy,
         }),
-        prisma.ad.count({where}),
+        prisma.ad.count({ where }),
       ]);
 
       // Get candidate info for status checking if authenticated
@@ -461,7 +484,7 @@ class PublicController {
           "Authenticated candidate, checking bookmarks and applications",
         );
         candidate = await prisma.candidate.findUnique({
-          where: {userId: req.user.userId},
+          where: { userId: req.user.userId },
         });
 
         if (candidate) {
@@ -471,13 +494,13 @@ class PublicController {
               where: {
                 candidateId: candidate.id,
               },
-              select: {adId: true},
+              select: { adId: true },
             }),
             prisma.allocation.findMany({
               where: {
                 candidateId: candidate.id,
               },
-              select: {adId: true},
+              select: { adId: true },
             }),
           ]);
 
@@ -494,6 +517,15 @@ class PublicController {
         const hasApplied = appliedJobIdsSet.has(job.id);
         const isBookmarked = bookmarkedJobIdsSet.has(job.id);
 
+        console.log(
+          "salaryMin :",
+          salaryMin,
+          "salaryMax :",
+          salaryMax,
+          "hasApplied :",
+          hasApplied,
+          "isBookmarked :",
+        );
         return {
           id: job.id,
           title: job.title,
@@ -543,9 +575,10 @@ class PublicController {
           isBookmarked,
           description: job.description,
           status: "APPROVED",
+          gender: job.gender,
         };
       });
-
+      console.log("transformedJobs", transformedJobs);
       const response = {
         jobs: transformedJobs,
         total,
@@ -562,7 +595,7 @@ class PublicController {
   // Get single job by ID for candidates with status info
   async getCandidateJobById(req, res, next) {
     try {
-      const {id} = req.params;
+      const { id } = req.params;
 
       if (!req.user || req.user.role !== "CANDIDATE") {
         return res.status(403).json(createErrorResponse("Access denied", 403));
@@ -619,7 +652,7 @@ class PublicController {
 
       // Get candidate
       const candidate = await prisma.candidate.findUnique({
-        where: {userId: req.user.userId},
+        where: { userId: req.user.userId },
       });
 
       if (!candidate) {
@@ -722,7 +755,7 @@ class PublicController {
   // Get single job by ID (public endpoint)
   async getJobById(req, res, next) {
     try {
-      const {id} = req.params;
+      const { id } = req.params;
 
       const job = await prisma.ad.findFirst({
         where: {
@@ -791,7 +824,7 @@ class PublicController {
           // Send notification to employer when candidate views the job
           if (req.user.role === "CANDIDATE") {
             const candidate = await prisma.candidate.findUnique({
-              where: {userId: userId},
+              where: { userId: userId },
               include: {
                 user: {
                   select: {
@@ -830,7 +863,7 @@ class PublicController {
 
           // Get total view count for this ad
           const viewCount = await prisma.jobView.count({
-            where: {adId: id},
+            where: { adId: id },
           });
 
           // Check for milestone notifications (10, 25, 50, 100, etc.)
@@ -912,7 +945,7 @@ class PublicController {
       // Add bookmark status and application status if user is authenticated
       if (req.user && req.user.role === "CANDIDATE") {
         const candidate = await prisma.candidate.findUnique({
-          where: {userId: req.user.userId},
+          where: { userId: req.user.userId },
         });
 
         if (candidate) {
@@ -959,7 +992,7 @@ class PublicController {
   // Get job preview by ID (for DRAFT and PENDING_APPROVAL jobs)
   async getJobPreview(req, res, next) {
     try {
-      const {id} = req.params;
+      const { id } = req.params;
 
       const job = await prisma.ad.findFirst({
         where: {
@@ -1138,14 +1171,14 @@ class PublicController {
       // Add search functionality
       if (search) {
         where.OR = [
-          {name: {contains: search, mode: "insensitive"}},
-          {description: {contains: search, mode: "insensitive"}},
+          { name: { contains: search, mode: "insensitive" } },
+          { description: { contains: search, mode: "insensitive" } },
         ];
       }
 
       // Industry filter
       if (industry && industry !== "") {
-        where.industry = {contains: industry, mode: "insensitive"};
+        where.industry = { contains: industry, mode: "insensitive" };
       }
 
       // Size filter
@@ -1156,7 +1189,7 @@ class PublicController {
       // Location filter
       if (location && location !== "") {
         where.city = {
-          name: {contains: location, mode: "insensitive"},
+          name: { contains: location, mode: "insensitive" },
         };
       }
 
@@ -1184,9 +1217,9 @@ class PublicController {
               },
             },
           },
-          orderBy: [{createdAt: "desc"}],
+          orderBy: [{ createdAt: "desc" }],
         }),
-        prisma.company.count({where}),
+        prisma.company.count({ where }),
       ]);
 
       // Transform companies for frontend
@@ -1219,7 +1252,7 @@ class PublicController {
   // Get public candidate profile
   async getCandidateProfile(req, res, next) {
     try {
-      const {candidateId} = req.params;
+      const { candidateId } = req.params;
 
       // Get candidate profile with user information
       const candidate = await prisma.candidate.findUnique({
@@ -1239,7 +1272,7 @@ class PublicController {
               phone: true,
               createdAt: true,
               city: {
-                select: {name: true, state: true},
+                select: { name: true, state: true },
               },
             },
           },
@@ -1252,16 +1285,16 @@ class PublicController {
           .json(createErrorResponse("Candidate profile not found", 404));
       }
 
-      let candidateProfile = {...candidate}; // Copy candidate data to modify
+      let candidateProfile = { ...candidate }; // Copy candidate data to modify
 
       // Send profile view notification and track profile view if the viewer is authenticated and is an employer
       if (req.user && req.user.role === "EMPLOYER") {
         // Get employer details for the notification
         const employer = await prisma.employer.findUnique({
-          where: {userId: req.user.userId},
+          where: { userId: req.user.userId },
           include: {
             companies: {
-              where: {isActive: true},
+              where: { isActive: true },
               select: {
                 name: true,
                 isDefault: true,
@@ -1309,7 +1342,10 @@ class PublicController {
       }
 
       res.json(
-        createResponse("Candidate profile retrieved successfully", candidateProfile),
+        createResponse(
+          "Candidate profile retrieved successfully",
+          candidateProfile,
+        ),
       );
     } catch (error) {
       console.error("Error getting public candidate profile:", error);
@@ -1320,10 +1356,10 @@ class PublicController {
   // Get skills
   async getSkills(req, res, next) {
     try {
-      const {category} = req.query;
+      const { category } = req.query;
 
       const where = {
-        ...(category && {category}),
+        ...(category && { category }),
       };
 
       const skills = await prisma.skill.findMany({
@@ -1334,7 +1370,7 @@ class PublicController {
           category: true,
           description: true,
         },
-        orderBy: [{category: "asc"}, {name: "asc"}],
+        orderBy: [{ category: "asc" }, { name: "asc" }],
       });
 
       res.json(createResponse("Skills retrieved successfully", skills));

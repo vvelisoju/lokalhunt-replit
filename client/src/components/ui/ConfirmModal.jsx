@@ -37,27 +37,24 @@ const ConfirmModal = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm">
-      <div className="p-6">
-        <div className="flex items-center space-x-4">
-          <div className={`flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center`}>
-            <ExclamationTriangleIcon className={`w-6 h-6 ${getIconColor()}`} />
+    <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
+      <div className="p-4 sm:p-6">
+        <div className="flex items-start space-x-3 sm:space-x-4">
+          <div className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-100 flex items-center justify-center`}>
+            <ExclamationTriangleIcon className={`w-5 h-5 sm:w-6 sm:h-6 ${getIconColor()}`} />
           </div>
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {title}
-            </h3>
-            <p className="text-sm text-gray-600">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
               {message}
             </p>
           </div>
         </div>
         
-        <div className="flex justify-end space-x-3 mt-6">
+        <div className="flex flex-col sm:flex-row sm:justify-end space-y-3 sm:space-y-0 sm:space-x-3 mt-6 gap-3">
           <Button
             variant="outline"
             onClick={onClose}
-            className="px-4 py-2"
+            className="w-full sm:w-auto px-4 py-2 order-2 sm:order-1"
           >
             {cancelText}
           </Button>
@@ -67,7 +64,7 @@ const ConfirmModal = ({
               onConfirm();
               onClose();
             }}
-            className="px-4 py-2"
+            className="w-full sm:w-auto px-4 py-2 order-1 sm:order-2"
           >
             {confirmText}
           </Button>

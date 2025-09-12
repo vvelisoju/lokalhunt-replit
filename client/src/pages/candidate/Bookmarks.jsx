@@ -35,8 +35,9 @@ const Bookmarks = () => {
   });
 
   const handleFiltersChange = useCallback((newFilters) => {
+    console.log("Bookmarks: Received filter change", { current: filters, new: newFilters });
     setFilters(newFilters);
-  }, []);
+  }, [filters]);
 
   useEffect(() => {
     fetchBookmarks();
@@ -48,91 +49,150 @@ const Bookmarks = () => {
       return;
     }
 
+    console.log("Filtering bookmarks:", bookmarks, "with filters:", filters);
+
+    // Debug: Log first bookmark structure to understand data format
+    if (bookmarks.length > 0) {
+      console.log("Sample bookmark structure:", JSON.stringify(bookmarks[0], null, 2));
+    }
+
     let filtered = [...bookmarks];
 
     // Search filter
     if (filters.search) {
-      filtered = filtered.filter(
-        (bookmark) =>
-          bookmark.ad?.title
-            ?.toLowerCase()
-            .includes(filters.search.toLowerCase()) ||
-          bookmark.ad?.company?.name
-            ?.toLowerCase()
-            .includes(filters.search.toLowerCase()) ||
-          bookmark.ad?.description
-            ?.toLowerCase()
-            .includes(filters.search.toLowerCase()),
-      );
-    }
-
-    // Location filter
-    if (filters.location) {
       filtered = filtered.filter((bookmark) => {
-        const jobLocation =
-          bookmark.ad?.location?.name?.toLowerCase() ||
-          bookmark.ad?.location?.toLowerCase() ||
-          "";
-        return jobLocation.includes(filters.location.toLowerCase());
+        const job = bookmark.ad || bookmark;
+        const title = job?.title?.toLowerCase() || "";
+        const companyName = job?.company?.name?.toLowerCase() || job?.employer?.user?.name?.toLowerCase() || "";
+        const description = job?.description?.toLowerCase() || "";
+        const searchTerm = filters.search.toLowerCase();
+
+        return title.includes(searchTerm) || 
+               companyName.includes(searchTerm) || 
+               description.includes(searchTerm);
       });
     }
 
-    // Category filter
-    if (filters.category) {
-      filtered = filtered.filter(
-        (bookmark) => bookmark.ad?.category?.name === filters.category,
-      );
+    // Location filter - handle both city ID and city name
+    if (filters.location) {
+      filtered = filtered.filter((bookmark) => {
+        const job = bookmark.ad || bookmark;
+
+        // Get location data from various possible sources
+        const locationId = job?.locationId || job?.cityId;
+        const locationName = job?.locationName || job?.location?.name || "";
+        const locationState = job?.locationState || job?.location?.state || "";
+        const location = job?.location || "";
+
+        // Handle UUID (city ID) vs city name
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(filters.location);
+
+        if (isUUID) {
+          // Match by location ID
+          return locationId === filters.location;
+        } else {
+          // Match by location name (case insensitive)
+          const searchLocation = filters.location.toLowerCase();
+          const fullLocation = `${locationName}, ${locationState}`.toLowerCase();
+
+          return locationName.toLowerCase().includes(searchLocation) ||
+                 locationState.toLowerCase().includes(searchLocation) ||
+                 fullLocation.includes(searchLocation) ||
+                 (typeof location === "string" && location.toLowerCase().includes(searchLocation));
+        }
+      });
+    }
+
+    // Category filter - now using categoryId
+    if (filters.category && filters.category !== "") {
+      filtered = filtered.filter((bookmark) => {
+        const job = bookmark.ad || bookmark;
+        return job.categoryId === filters.category;
+      });
     }
 
     // Job Type filter
     if (filters.jobType && filters.jobType.length > 0) {
-      filtered = filtered.filter((bookmark) =>
-        filters.jobType.includes(
-          bookmark.ad?.jobType?.toUpperCase() ||
-            bookmark.ad?.categorySpecificFields?.employmentType?.toUpperCase(),
-        ),
-      );
+      filtered = filtered.filter((bookmark) => {
+        const job = bookmark.ad || bookmark;
+        const jobType = (job?.jobType || job?.categorySpecificFields?.employmentType || job?.employmentType || "").toUpperCase();
+        return filters.jobType.includes(jobType);
+      });
     }
 
     // Experience filter
     if (filters.experience && filters.experience.length > 0) {
-      filtered = filtered.filter((bookmark) =>
-        filters.experience.includes(
-          bookmark.ad?.categorySpecificFields?.experienceLevel?.toUpperCase(),
-        ),
-      );
+      filtered = filtered.filter((bookmark) => {
+        const job = bookmark.ad || bookmark;
+        const experienceLevel = (job?.categorySpecificFields?.experienceLevel || job?.experienceLevel || "").toUpperCase();
+        return filters.experience.includes(experienceLevel);
+      });
+    }
+
+    // Gender filter
+    if (filters.gender) {
+      filtered = filtered.filter((bookmark) => {
+        const job = bookmark.ad || bookmark;
+        return job?.gender === filters.gender || (!job?.gender && filters.gender === "Both");
+      });
+    }
+
+    // Education filter
+    if (filters.education && filters.education.length > 0) {
+      filtered = filtered.filter((bookmark) => {
+        const job = bookmark.ad || bookmark;
+        const jobEducation = job?.categorySpecificFields?.minimumEducation || job?.minimumEducation || "";
+        return filters.education.includes(jobEducation);
+      });
     }
 
     // Salary range filter
     if (filters.salaryRange) {
       filtered = filtered.filter((bookmark) => {
-        const salaryRange = bookmark.ad?.categorySpecificFields?.salaryRange;
-        if (!salaryRange && !bookmark.ad?.salary) return false;
+        const job = bookmark.ad || bookmark;
 
         let salary = 0;
-        if (
-          salaryRange &&
-          typeof salaryRange === "object" &&
-          salaryRange.min &&
-          salaryRange.max
-        ) {
-          salary = (salaryRange.min + salaryRange.max) / 2;
-        } else if (bookmark.ad?.salary) {
-          salary =
-            typeof bookmark.ad.salary === "string"
-              ? parseInt(bookmark.ad.salary.replace(/[^\d]/g, ""))
-              : bookmark.ad.salary;
+
+        // Handle different salary structures
+        if (job?.categorySpecificFields?.salaryRange) {
+          const salaryRange = job.categorySpecificFields.salaryRange;
+          if (typeof salaryRange === "object" && salaryRange.min && salaryRange.max) {
+            salary = (salaryRange.min + salaryRange.max) / 2;
+          }
+        } else if (job?.salaryMin && job?.salaryMax) {
+          salary = (parseInt(job.salaryMin) + parseInt(job.salaryMax)) / 2;
+        } else if (job?.salary) {
+          if (typeof job.salary === "string") {
+            const numericSalary = job.salary.replace(/[^\d]/g, "");
+            salary = parseInt(numericSalary) || 0;
+          } else if (typeof job.salary === "number") {
+            salary = job.salary;
+          }
         }
 
-        if (filters.salaryRange === "1500000+") {
-          return salary >= 1500000;
+        if (!salary) return false;
+
+        // Handle salary range filtering
+        if (filters.salaryRange === "100000+") {
+          return salary >= 100000;
         }
 
-        const [min, max] = filters.salaryRange.split("-").map(Number);
-        return salary >= min && (max ? salary <= max : true);
+        const rangeParts = filters.salaryRange.split("-");
+        if (rangeParts.length === 2) {
+          const [min, max] = rangeParts.map(Number);
+          return salary >= min && salary <= max;
+        }
+
+        return false;
       });
     }
 
+    // Sort by newest by default
+    if (filters.sortBy === "newest" || !filters.sortBy) {
+      filtered = filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    console.log("Filtered bookmarks result:", filtered);
     setFilteredBookmarks(filtered);
   }, [bookmarks, filters]);
 
@@ -242,55 +302,65 @@ const Bookmarks = () => {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredBookmarks.map((bookmark) => {
-            // Transform bookmark data to job format for JobCard
+            // Extract job data from bookmark structure (bookmark.ad is the job)
+            const job = bookmark.ad || bookmark;
+
             const jobData = {
-              id: bookmark.ad?.id,
-              title: bookmark.ad?.title || "No Title",
-              companyName: bookmark.ad?.company?.name || "Unknown Company",
-              company: bookmark.ad?.company,
-              employer: bookmark.ad?.employer,
-              location:
-                bookmark.ad?.location?.name && bookmark.ad?.location?.state
-                  ? `${bookmark.ad.location.name}, ${bookmark.ad.location.state}`
-                  : bookmark.ad?.location?.name ||
-                    bookmark.ad?.location ||
-                    "Location not specified",
-              jobType:
-                bookmark.ad?.jobType ||
-                bookmark.ad?.categorySpecificFields?.employmentType ||
-                "Full Time",
-              salary: bookmark.ad?.categorySpecificFields?.salaryRange
-                ? typeof bookmark.ad.categorySpecificFields.salaryRange ===
-                    "object" &&
-                  bookmark.ad.categorySpecificFields.salaryRange.min &&
-                  bookmark.ad.categorySpecificFields.salaryRange.max
-                  ? `₹${bookmark.ad.categorySpecificFields.salaryRange.min.toLocaleString()} - ₹${bookmark.ad.categorySpecificFields.salaryRange.max.toLocaleString()}`
-                  : bookmark.ad.categorySpecificFields.salaryRange
-                : "Not disclosed",
-              description: bookmark.ad?.description || "",
-              skills: bookmark.ad?.categorySpecificFields?.requiredSkills || [],
-              postedAt: bookmark.ad?.createdAt,
-              createdAt: bookmark.ad?.createdAt,
+              id: job?.id || bookmark?.adId,
+              title: job?.title || "Job Title",
+              employer: job?.employer,
+              description: job?.description,
+
+              locationName: job?.location?.name || job?.locationName,
+
+              location: job?.location
+                ? typeof job.location === "string"
+                  ? job.location
+                  : `${job.location.name || ""}, ${job.location.state || ""}`
+                      .trim()
+                      .replace(/,$/, "")
+                : job?.locationName || "Location not specified",
+
+              locationState: job?.location?.state || job?.locationState,
+
+              salary: job?.salary || job?.salaryRange,
+              salaryRange: job?.salaryRange || job?.salary,
+
+              jobType: job?.jobType || job?.categorySpecificFields?.employmentType || job?.employmentType || "Full Time",
+
+              skills: job?.skills || [],
+
+              postedAt: job?.postedAt || job?.createdAt,
+
               candidatesCount:
-                bookmark.ad?.candidatesCount ||
-                bookmark.ad?.applicationCount ||
-                bookmark.ad?._count?.allocations ||
+                job?.candidatesCount ||
+                job?.applicationCount ||
+                job?._count?.allocations ||
                 0,
-              applicationCount:
-                bookmark.ad?.candidatesCount ||
-                bookmark.ad?.applicationCount ||
-                bookmark.ad?._count?.allocations ||
-                0,
-              bookmarkedCount:
-                bookmark.ad?.bookmarkedCount ||
-                bookmark.ad?._count?.bookmarks ||
-                0,
-              isBookmarked: true, // Always true for bookmarks page
-              hasApplied:
-                bookmark.hasApplied || bookmark.ad?.hasApplied || false,
-              experienceLevel:
-                bookmark.ad?.categorySpecificFields?.experienceLevel,
-              gender: bookmark.ad?.gender,
+
+              company: {
+                name: job?.company?.name || job?.employer?.user?.name || "Company",
+                industry: job?.company?.industry,
+              },
+
+              hasApplied: job?.hasApplied || false,
+              isBookmarked: true, // Since these are bookmarks
+              gender: job?.gender,
+
+              salaryDisplay: job?.salaryDisplay || (() => {
+                if (job?.salaryMin && job?.salaryMax) {
+                  return `₹${parseInt(job.salaryMin).toLocaleString()} - ₹${parseInt(job.salaryMax).toLocaleString()}`;
+                } else if (typeof job?.salary === "string") {
+                  return job.salary;
+                } else if (job?.salary && typeof job.salary === "object") {
+                  if (job.salary.min && job.salary.max) {
+                    return `₹${job.salary.min.toLocaleString()} - ₹${job.salary.max.toLocaleString()}`;
+                  } else if (job.salary.min) {
+                    return `₹${job.salary.min.toLocaleString()}+`;
+                  }
+                }
+                return "Not disclosed";
+              })(),
             };
 
             return (
@@ -298,14 +368,16 @@ const Bookmarks = () => {
                 key={bookmark.id}
                 job={jobData}
                 variant="bookmark"
+                applicationStatus={job?.applicationInfo?.status}
                 bookmarkDate={bookmark.createdAt}
+                showApplicationDate={false}
                 showBookmarkDate={true}
                 showCandidatesCount={true}
                 showBookmarkedCount={false}
                 onApply={(jobId) => handleApplyToJob(jobId)}
                 onRemoveBookmark={(jobId) => handleRemoveBookmark(jobId)}
                 onClick={() => {
-                  navigate(`/candidate/jobs/${bookmark.ad.id}?from=bookmarks`);
+                  navigate(`/candidate/jobs/${jobData.id}?from=bookmarks`);
                 }}
                 loading={{
                   apply: actionLoading.apply === jobData.id,

@@ -46,7 +46,7 @@ const CategorySearchSelect = ({
     setSearchTerm(searchValue)
     
     // If there's a selected category and user is typing something different, clear the selection
-    if (value && searchValue !== options.find(c => c.value === value)?.label) {
+    if (value && searchValue !== getSelectedOption()?.label) {
       onChange('')
     }
     
@@ -72,8 +72,12 @@ const CategorySearchSelect = ({
     setShowDropdown(true)
   }
 
+  const getSelectedOption = () => {
+    return options.find(option => option.value === value)
+  }
+
   const handleOptionSelect = (selectedOption) => {
-    onChange(selectedOption.value)
+    onChange(selectedOption.value) // This will now be the category ID
     setSearchTerm('') // Clear search term when category is selected
     setShowDropdown(false)
   }
@@ -87,7 +91,8 @@ const CategorySearchSelect = ({
 
   const getDisplayValue = () => {
     if (value) {
-      return options.find(c => c.value === value)?.label || ''
+      const selectedOption = getSelectedOption()
+      return selectedOption?.label || ''
     }
     return searchTerm
   }

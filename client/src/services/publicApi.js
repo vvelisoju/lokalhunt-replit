@@ -1,4 +1,3 @@
-
 import { createAxiosInstance } from './axiosFactory'
 
 // Create public API instance (optional auth - will include auth header if token exists)
@@ -58,12 +57,6 @@ export const publicApi = {
   // Get education qualifications
   async getEducationQualifications() {
     const response = await apiInstance.get('/public/education-qualifications');
-    return response.data;
-  },
-
-  // Get job roles
-  async getJobRoles() {
-    const response = await apiInstance.get('/public/job-roles');
     return response.data;
   },
 

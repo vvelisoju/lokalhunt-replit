@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   ArrowLeftIcon,
   PencilIcon,
@@ -23,6 +23,7 @@ import {
   TagIcon,
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
+import { useAppData } from "../../context/AppDataContext";
 
 // AboutContent component for expandable text
 const AboutContent = ({ summary, loading, onEdit, viewOnly = false }) => {
@@ -177,6 +178,10 @@ const LinkedInProfile = ({
     profileData?.profileData?.openToWork || false,
   );
 
+  // Get cities from AppDataContext
+  const { cities } = useAppData();
+  const [cityNamesCache, setCityNamesCache] = useState({});
+
   useEffect(() => {
     if (viewOnly && initialProfileData) {
       // View mode: use provided external profile data, don't fetch anything
@@ -186,7 +191,35 @@ const LinkedInProfile = ({
       console.log("LinkedInProfile: Fetching profile for user:", user);
       fetchProfile();
     }
-  }, [viewOnly, initialProfileData, user, profile, loading]);
+  }, [viewOnly, initialProfileData, user, profile, loading, fetchProfile]); // Keep all necessary dependencies
+
+  // Create city names cache from AppDataContext cities
+  useEffect(() => {
+    if (cities && cities.length > 0) {
+      // Create a cache map for quick lookups
+      const cache = {};
+      cities.forEach((city) => {
+        cache[city.id] = `${city.name}, ${city.state}`;
+      });
+      setCityNamesCache(cache);
+    }
+  }, [cities]);
+
+  // Function to resolve city ID to city name
+  const resolveCityName = (cityId) => {
+    if (!cityId) return cityId;
+
+    // If it's already a name (contains comma or is not a UUID-like string), return as is
+    if (
+      typeof cityId === "string" &&
+      (cityId.includes(",") || cityId.length < 30)
+    ) {
+      return cityId;
+    }
+
+    // Try to resolve from cache
+    return cityNamesCache[cityId] || cityId;
+  };
 
   // Clear profile data when user changes (logout/login with different user)
   useEffect(() => {
@@ -217,7 +250,9 @@ const LinkedInProfile = ({
   }, [profileData?.openToWork, profileData?.profileData?.openToWork]);
 
   // Override fetchProfile to prevent calls in viewOnly mode
-  const optimizedFetchProfile = viewOnly ? () => {} : fetchProfile;
+  const optimizedFetchProfile = useMemo(() => {
+    return viewOnly ? () => {} : fetchProfile;
+  }, [viewOnly, fetchProfile]);
 
   // Upload handlers for ObjectUploader
   const handleGetUploadParameters = useCallback(async () => {
@@ -445,7 +480,7 @@ const LinkedInProfile = ({
       return;
     }
 
-    if (profile && JSON.stringify(profile) !== JSON.stringify(profileData)) {
+    if (profile && (!profileData || JSON.stringify(profile) !== JSON.stringify(profileData))) {
       console.log("Profile data received in component:", profile);
       setProfileData(profile);
       // Set openToWork status from the fetched profile data
@@ -453,7 +488,7 @@ const LinkedInProfile = ({
         profile?.openToWork || profile?.profileData?.openToWork || false;
       setOpenToWork(openToWorkStatus);
     }
-  }, [profile, profileData, viewOnly, initialProfileData]);
+  }, [profile, viewOnly, initialProfileData, profileData]); // Include profileData for proper comparison
 
   const handleGenerateResume = () => {
     // TODO: Implement resume generation
@@ -540,8 +575,7 @@ const LinkedInProfile = ({
       } else {
         setProfileData(updatedProfile);
       }
-      // Refresh profile from context to ensure data sync
-      await optimizedFetchProfile();
+      // Profile data already updated, skip redundant fetch
     }
   };
 
@@ -558,7 +592,7 @@ const LinkedInProfile = ({
     setShowExperienceModal(true);
   };
 
-  const handleSaveExperience = async (experienceData) => {
+  const handleExperienceSave = async (experienceData) => {
     const currentExperience = profileData?.experience || [];
     let updatedExperience;
 
@@ -578,6 +612,7 @@ const LinkedInProfile = ({
 
     await updateProfile(updatedProfile);
     setProfileData(updatedProfile);
+    // Profile data already updated, skip redundant fetch
   };
 
   const handleDeleteExperience = async (index) => {
@@ -590,6 +625,7 @@ const LinkedInProfile = ({
 
     await updateProfile(updatedProfile);
     setProfileData(updatedProfile);
+    // Profile data already updated, skip redundant fetch
   };
 
   // Education section handlers
@@ -625,6 +661,7 @@ const LinkedInProfile = ({
 
     await updateProfile(updatedProfile);
     setProfileData(updatedProfile);
+    // Profile data already updated, skip redundant fetch
   };
 
   const handleDeleteEducation = async (index) => {
@@ -637,6 +674,7 @@ const LinkedInProfile = ({
 
     await updateProfile(updatedProfile);
     setProfileData(updatedProfile);
+    // Profile data already updated, skip redundant fetch
   };
 
   // Skills section handlers
@@ -650,6 +688,7 @@ const LinkedInProfile = ({
     if (result) {
       setProfileData(result);
     }
+    // Profile data already updated, skip redundant fetch
   };
 
   // Skills with Experience section handlers
@@ -681,8 +720,7 @@ const LinkedInProfile = ({
       if (result) {
         setProfileData(result);
       }
-      // Refresh profile from context to ensure data sync
-      await optimizedFetchProfile();
+      // Skip redundant profile fetch in save handlers
     } catch (error) {
       console.error("Failed to save skills with experience:", error);
       throw error;
@@ -726,8 +764,7 @@ const LinkedInProfile = ({
     if (result) {
       setProfileData(result);
     }
-    // Refresh profile from context to ensure data sync
-    await fetchProfile();
+    // Skip redundant profile fetch in save handlers
   };
 
   // Profile section handlers
@@ -757,8 +794,7 @@ const LinkedInProfile = ({
     } else {
       setProfileData(updatedProfile);
     }
-    // Refresh profile from context to ensure data sync
-    await fetchProfile();
+    // Skip redundant profile fetch in save handlers
   };
 
   // Open to work toggle - using dedicated API
@@ -992,7 +1028,7 @@ const LinkedInProfile = ({
         </div>
       )}
 
-      {/* Mobile-First Profile Header */}
+      {/* Profile Section - Mobile Optimized */}
       <div className="bg-white shadow-sm overflow-hidden">
         {/* Cover Banner - Mobile Optimized */}
         <div className="h-32 sm:h-48 relative overflow-hidden">
@@ -1034,7 +1070,11 @@ const LinkedInProfile = ({
                 <SkeletonCircle size="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40" />
               ) : profileData?.profilePhoto ? (
                 <img
-                  className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-full border-4 border-white object-cover shadow-xl ring-2 ring-gray-200"
+                  className={`w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-full border-4 border-white object-cover shadow-xl transition-opacity duration-300 ${
+                    openToWork
+                      ? "ring-4 ring-green-500"
+                      : "ring-2 ring-gray-200"
+                  }`}
                   src={getImageUrl(profileData?.profilePhoto)}
                   alt="Profile"
                   onLoad={() => {
@@ -1053,10 +1093,19 @@ const LinkedInProfile = ({
                       profileData?.user?.firstName || "User",
                     )}&size=128&background=3b82f6&color=ffffff`;
                   }}
-                  key={profileData.profilePhoto}
+                  style={{
+                    opacity: profileData?.profilePhoto ? 1 : 0,
+                    transition: 'opacity 0.3s ease-in-out'
+                  }}
                 />
               ) : (
-                <div className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-full border-4 border-white bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-2xl sm:text-3xl lg:text-4xl font-bold text-white shadow-xl ring-2 ring-gray-200">
+                <div
+                  className={`w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-full border-4 border-white bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-2xl sm:text-3xl lg:text-4xl font-bold text-white shadow-xl ${
+                    openToWork
+                      ? "ring-4 ring-green-500"
+                      : "ring-2 ring-gray-200"
+                  }`}
+                >
                   {profileData?.firstName?.[0] ||
                     profileData?.user?.firstName?.[0] ||
                     profileData?.profileData?.firstName?.[0] ||
@@ -1068,9 +1117,8 @@ const LinkedInProfile = ({
 
               {/* Open to Work Badge */}
               {openToWork && (
-                <div className="absolute -top-1 -right-1 sm:top-0 sm:right-0 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow-lg ring-2 ring-white">
-                  <span className="hidden sm:inline">🟢 Open to Work</span>
-                  <span className="sm:hidden">🟢</span>
+                <div className="absolute -top-1 -right-1 sm:top-0 sm:right-0 bg-white text-green-600 text-xs font-medium px-2 py-1 rounded-full shadow-lg ring-2 ring-green-500 border-2 border-green-500">
+                  <span>Open to Work</span>
                 </div>
               )}
 
@@ -1208,6 +1256,7 @@ const LinkedInProfile = ({
                           profileData?.preferredLocations
                         )
                           .slice(0, 2)
+                          .map((location) => resolveCityName(location))
                           .join(", ")}
                         {(
                           profileData?.jobPreferences?.preferredLocations ||
@@ -1417,7 +1466,10 @@ const LinkedInProfile = ({
                       variant="secondary"
                       size="sm"
                       onClick={() =>
-                        window.open(profileData.resumeUrl, "_blank")
+                        window.open(
+                          getImageUrl(profileData.resumeUrl),
+                          "_blank",
+                        )
                       }
                       className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5"
                     >
@@ -1703,7 +1755,7 @@ const LinkedInProfile = ({
                             key={index}
                             className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full font-medium"
                           >
-                            {location}
+                            {resolveCityName(location)}
                           </span>
                         ))}
                       </div>
@@ -2079,10 +2131,14 @@ const LinkedInProfile = ({
 
           <EditExperienceModal
             isOpen={showExperienceModal}
-            onClose={() => setShowExperienceModal(false)}
+            onClose={() => {
+              setShowExperienceModal(false);
+              setEditingExperience(null);
+              setExperienceIndex(-1);
+            }}
             experience={editingExperience}
-            onSave={handleSaveExperience}
-            isEditing={experienceIndex >= 0}
+            onSave={handleExperienceSave}
+            isEditing={editingExperience !== null}
           />
 
           <EditEducationModal

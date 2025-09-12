@@ -72,6 +72,8 @@ import { CandidateProvider } from "./context/CandidateContext";
 import { RoleProvider } from "./context/RoleContext";
 import RoleAwareRoute from "./routes/RoleAwareRoute";
 import ScrollToTop from "./components/ScrollToTop";
+import { AppDataProvider } from "./context/AppDataContext";
+
 
 // Shared Pages
 import CandidateProfileView from "./pages/candidate/CandidateProfileView";
@@ -105,7 +107,7 @@ function App() {
     // Initialize safe area detection - no await needed as init() doesn't return a promise
     safeAreaManager.init();
     console.log('Safe area manager initialized');
-    
+
     // Expose for debugging
     if (typeof window !== 'undefined') {
       window.safeAreaManager = safeAreaManager;
@@ -237,8 +239,9 @@ function App() {
 
   return (
     <ToastProvider>
-      <CandidateProvider>
-        <div className={`min-h-screen flex flex-col ${isNativePlatform ? 'safe-area-full capacitor-mobile capacitor-android' : ''}`}>
+      <AppDataProvider>
+        <CandidateProvider>
+          <div className={`min-h-screen flex flex-col ${isNativePlatform ? 'safe-area-full capacitor-mobile capacitor-android' : ''}`}>
           <ScrollToTop />
           {/* Push notification registration button - hidden to prevent UI overlap */}
           {false && isNativePlatform && (
@@ -499,8 +502,9 @@ function App() {
               />
             </Route>
           </Routes>
-        </div>
-      </CandidateProvider>
+          </div>
+        </CandidateProvider>
+      </AppDataProvider>
     </ToastProvider>
   );
 }

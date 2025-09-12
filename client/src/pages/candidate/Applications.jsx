@@ -5,6 +5,8 @@ import {
   XCircleIcon,
   ClockIcon,
   EyeIcon,
+  MagnifyingGlassIcon,
+  ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
@@ -13,6 +15,7 @@ import Loader from "../../components/ui/Loader";
 import { useCandidate } from "../../context/CandidateContext";
 import { candidateApi } from "../../services/candidateApi";
 import { useToast } from "../../components/ui/Toast";
+import { AllocationStatus, AllocationStatusLabels, getApplicationStatusOptions } from "../../utils/enums";
 
 const Applications = () => {
   const navigate = useNavigate();
@@ -41,12 +44,7 @@ const Applications = () => {
 
   const statusOptions = [
     { value: "", label: "All Statuses" },
-    { value: "APPLIED", label: "Applied" },
-    { value: "SCREENED", label: "Under Review" },
-    { value: "RATED", label: "Interview Scheduled" },
-    { value: "ALLOCATED", label: "Shortlisted" },
-    { value: "HIRED", label: "Hired" },
-    { value: "REJECTED", label: "Rejected" },
+    ...getApplicationStatusOptions()
   ];
 
   const dateRangeOptions = [
@@ -57,8 +55,18 @@ const Applications = () => {
     { value: "quarter", label: "Last 3 Months" },
   ];
 
+  // Load applications on mount - ensure it's called on component mount
   useEffect(() => {
-    fetchApplications();
+    console.log("Applications component mounted, fetching applications...");
+    const loadApplications = async () => {
+      try {
+        // Force refresh to always fetch fresh data
+        await fetchApplications({}, true);
+      } catch (error) {
+        console.error("Failed to fetch applications on mount:", error);
+      }
+    };
+    loadApplications();
   }, []);
 
   const handleFiltersChange = useCallback((newFilters) => {
@@ -73,59 +81,55 @@ const Applications = () => {
 
     let filtered = [...applications];
 
-    // Search filter
+    // Search filter (client-side since API doesn't support search)
     if (filters.search) {
       filtered = filtered.filter(
         (app) =>
-          app.ad?.title?.toLowerCase().includes(filters.search.toLowerCase()) ||
-          app.ad?.company?.name
+          app?.title?.toLowerCase().includes(filters.search.toLowerCase()) ||
+          app?.company?.name
             ?.toLowerCase()
             .includes(filters.search.toLowerCase()) ||
-          (app.ad?.location?.name || app.ad?.location || "")
-            .toLowerCase()
-            .includes(filters.search.toLowerCase()),
+          app?.location?.toLowerCase().includes(filters.search.toLowerCase()),
       );
     }
 
-    // Location filter
+    // Location filter (client-side)
     if (filters.location) {
       filtered = filtered.filter((app) => {
-        const locationName = app.ad?.location?.name || app.ad?.location || "";
-        const locationState = app.ad?.location?.state || "";
-        const fullLocation = `${locationName} ${locationState}`.toLowerCase();
-        return fullLocation.includes(filters.location.toLowerCase());
+        const location = app?.location || "";
+        return location.toLowerCase().includes(filters.location.toLowerCase());
       });
     }
 
-    // Category filter
+    // Category filter (client-side)
     if (filters.category) {
       filtered = filtered.filter(
-        (app) => app.ad?.category?.name === filters.category,
+        (app) => app?.category?.name === filters.category,
       );
     }
 
-    // Job Type filter
+    // Job Type filter (client-side)
     if (filters.jobType && filters.jobType.length > 0) {
       filtered = filtered.filter((app) =>
-        filters.jobType.includes(app.ad?.jobType?.toUpperCase()),
+        filters.jobType.includes(app?.jobType?.toUpperCase()),
       );
     }
 
-    // Experience filter
+    // Experience filter (client-side)
     if (filters.experience && filters.experience.length > 0) {
       filtered = filtered.filter((app) =>
-        filters.experience.includes(
-          app.ad?.categorySpecificFields?.experienceLevel?.toUpperCase(),
-        ),
+        filters.experience.includes(app?.experienceLevel?.toUpperCase()),
       );
     }
 
-    // Status filter
+    // Status filter (client-side) - use applicationInfo.status
     if (filters.status) {
-      filtered = filtered.filter((app) => app.status === filters.status);
+      filtered = filtered.filter(
+        (app) => app.applicationInfo?.status === filters.status,
+      );
     }
 
-    // Date range filter
+    // Date range filter (client-side) - use applicationInfo.createdAt for applied date
     if (filters.dateRange) {
       const now = new Date();
       let startDate = new Date();
@@ -149,7 +153,7 @@ const Applications = () => {
 
       if (startDate) {
         filtered = filtered.filter(
-          (app) => new Date(app.createdAt) >= startDate,
+          (app) => new Date(app.applicationInfo?.appliedAt || app.applicationInfo?.createdAt || app.createdAt) >= startDate,
         );
       }
     }
@@ -166,8 +170,8 @@ const Applications = () => {
     try {
       await candidateApi.withdrawApplication(applicationId);
       showSuccess("Application withdrawn successfully");
-      // Refresh applications to update the list
-      await fetchApplications();
+      // Force refresh applications to update the list
+      await fetchApplications({}, true);
     } catch (error) {
       console.error("Failed to withdraw application:", error);
       showError(
@@ -201,55 +205,28 @@ const Applications = () => {
     const baseClasses =
       "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
 
-    switch (status?.toLowerCase()) {
-      case "applied":
-      case "pending":
+    switch (status) {
+      case AllocationStatus.APPLIED:
         return `${baseClasses} bg-yellow-100 text-yellow-800`;
-      case "screened":
-      case "reviewed":
+      case AllocationStatus.SHORTLISTED:
         return `${baseClasses} bg-blue-100 text-blue-800`;
-      case "rated":
-      case "interview":
+      case AllocationStatus.INTERVIEW_SCHEDULED:
         return `${baseClasses} bg-purple-100 text-purple-800`;
-      case "allocated":
-      case "shortlisted":
-      case "approved":
-        return `${baseClasses} bg-green-100 text-green-800`;
-      case "hired":
+      case AllocationStatus.INTERVIEW_COMPLETED:
+        return `${baseClasses} bg-indigo-100 text-indigo-800`;
+      case AllocationStatus.HIRED:
         return `${baseClasses} bg-emerald-100 text-emerald-800`;
-      case "rejected":
+      case AllocationStatus.HOLD:
+        return `${baseClasses} bg-orange-100 text-orange-800`;
+      case AllocationStatus.REJECTED:
         return `${baseClasses} bg-red-100 text-red-800`;
-      case "withdrawn":
-        return `${baseClasses} bg-gray-100 text-gray-800`;
       default:
         return `${baseClasses} bg-yellow-100 text-yellow-800`;
     }
   };
 
   const getStatusText = (status) => {
-    switch (status?.toLowerCase()) {
-      case "applied":
-      case "pending":
-        return "Applied";
-      case "screened":
-      case "reviewed":
-        return "Under Review";
-      case "rated":
-      case "interview":
-        return "Interview Scheduled";
-      case "allocated":
-      case "shortlisted":
-      case "approved":
-        return "Approved";
-      case "hired":
-        return "Hired";
-      case "rejected":
-        return "Rejected";
-      case "withdrawn":
-        return "Withdrawn";
-      default:
-        return "Applied";
-    }
+    return AllocationStatusLabels[status] || "Applied";
   };
 
   const handleJobCardClick = (jobId) => {
@@ -277,57 +254,27 @@ const Applications = () => {
       </div>
 
       {/* Application-specific Filters */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+      {/* Enhanced Filter Controls - Using JobFilters styling */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Search */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search jobs..."
-                value={filters.search}
-                onChange={(e) =>
-                  handleFiltersChange({ ...filters, search: e.target.value })
-                }
-                className="w-full py-2 px-3 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <button
-                onClick={() => {
-                  /* Search handled by onChange */
-                }}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-500"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </button>
-            </div>
+          {/* Search Filter */}
+          <div className="relative">
+            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search jobs..."
+              value={filters.search}
+              onChange={(e) => handleFilterChange("search", e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
 
-          {/* Status */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
+          {/* Status Filter */}
+          <div className="relative">
             <select
-              value={filters.status || ""}
-              onChange={(e) =>
-                handleFiltersChange({ ...filters, status: e.target.value })
-              }
-              className="w-full py-2 px-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              value={filters.status}
+              onChange={(e) => handleFilterChange("status", e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white text-gray-700"
             >
               {statusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -335,19 +282,15 @@ const Applications = () => {
                 </option>
               ))}
             </select>
+            <ChevronDownIcon className="h-5 w-5 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
           </div>
 
-          {/* Date Range */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date Range
-            </label>
+          {/* Date Range Filter */}
+          <div className="relative">
             <select
-              value={filters.dateRange || ""}
-              onChange={(e) =>
-                handleFiltersChange({ ...filters, dateRange: e.target.value })
-              }
-              className="w-full py-2 px-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              value={filters.dateRange}
+              onChange={(e) => handleFilterChange("dateRange", e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white text-gray-700"
             >
               {dateRangeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -355,9 +298,11 @@ const Applications = () => {
                 </option>
               ))}
             </select>
+            <ChevronDownIcon className="h-5 w-5 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
           </div>
         </div>
       </div>
+
 
       {/* Application Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -372,7 +317,7 @@ const Applications = () => {
         <Card padding="p-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-yellow-600">
-              {applications.filter((app) => app.status === "APPLIED").length}
+              {applications.filter((app) => app.applicationInfo?.status === AllocationStatus.APPLIED).length}
             </div>
             <div className="text-sm text-gray-600">Applied</div>
           </div>
@@ -382,7 +327,7 @@ const Applications = () => {
             <div className="text-2xl font-bold text-green-600">
               {
                 applications.filter((app) =>
-                  ["ALLOCATED", "HIRED"].includes(app.status),
+                  [AllocationStatus.SHORTLISTED, AllocationStatus.HIRED, AllocationStatus.INTERVIEW_SCHEDULED, AllocationStatus.INTERVIEW_COMPLETED].includes(app.applicationInfo?.status),
                 ).length
               }
             </div>
@@ -392,7 +337,7 @@ const Applications = () => {
         <Card padding="p-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-red-600">
-              {applications.filter((app) => app.status === "REJECTED").length}
+              {applications.filter((app) => app.applicationInfo?.status === AllocationStatus.REJECTED).length}
             </div>
             <div className="text-sm text-gray-600">Rejected</div>
           </div>
@@ -433,45 +378,77 @@ const Applications = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredApplications.map((application) => {
+          {filteredApplications.map((job) => {
             // Transform application data to job format for JobCard
             const jobData = {
-              id: application.ad?.id,
-              title: application.ad?.title,
-              employer: application.ad?.employer,
+              id: job.id,
+              title: job?.title || "Job Title",
+              employer: job?.employer,
+              description: job?.description,
+
+              locationName: job?.locationName || job?.location?.name,
+
+              location: job?.location
+                ? typeof job.location === "string"
+                  ? job.location
+                  : `${job.location.name}, ${job.location.state || ""}`
+                      .trim()
+                      .replace(/,$/, "")
+                : "Location not specified",
+
+              locationState: job?.locationState || job?.location?.state,
+
+              salary: job?.salary || job?.salaryRange,
+              salaryRange: job?.salaryRange || job?.salary,
+
+              jobType: job?.jobType || job?.employmentType || "Full Time",
+
+              skills: job?.skills || [],
+
+              postedAt: job?.postedAt || job?.createdAt,
+
+              candidatesCount:
+                job?.candidatesCount ||
+                job?.applicationCount ||
+                job?._count?.allocations ||
+                0,
+
               company: {
-                name: application.ad?.company?.name,
-                industry: application.ad?.company?.industry,
+                name: job?.company?.name || "Company",
+                industry: job?.company?.industry,
               },
-              location: `${application.ad?.location?.name}, ${application.ad?.location?.state}`,
-              jobType:
-                application.ad?.categorySpecificFields?.employmentType ||
-                "Full Time",
-              salaryRange: application.ad?.categorySpecificFields?.salaryRange,
-              description: application.ad?.description,
-              skills:
-                application.ad?.categorySpecificFields?.requiredSkills || [],
-              postedAt: application.ad?.createdAt,
-              hasApplied: true,
-              candidatesCount: application.ad?.candidatesCount || 0,
-              gender: application.ad?.gender,
+
+              hasApplied: true, // Since these are applications, user has already applied
+              gender: job?.gender,
+
+              salaryDisplay:
+                job?.salaryDisplay ||
+                (typeof job?.salary === "string"
+                  ? job.salary
+                  : job?.salary && typeof job.salary === "object"
+                    ? job.salary.min && job.salary.max
+                      ? `₹${job.salary.min.toLocaleString()} - ₹${job.salary.max.toLocaleString()}`
+                      : job.salary.min
+                        ? `₹${job.salary.min.toLocaleString()}+`
+                        : "Not disclosed"
+                    : "Not disclosed"),
             };
 
             return (
               <JobCard
-                key={application.id}
+                key={job.id}
                 job={jobData}
                 variant="application"
-                applicationStatus={application.status}
-                applicationDate={application.createdAt}
+                applicationStatus={job.applicationInfo?.status}
+                applicationDate={job.createdAt}
                 onWithdraw={(appId) =>
-                  handleWithdrawApplication(application.id)
+                  handleWithdrawApplication(job.applicationInfo?.id)
                 }
                 onClick={() => handleJobCardClick(jobData.id)}
                 loading={{
                   apply: false,
                   bookmark: false,
-                  withdraw: actionLoading.withdraw === application.id,
+                  withdraw: actionLoading.withdraw === job.applicationInfo?.id,
                 }}
               />
             );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { getCities } from "../../services/common/cities";
+import { publicApi } from "../../services/publicApi";
+import { useAppData } from "../../context/AppDataContext";
 import {
   MapPinIcon,
   ChevronDownIcon,
@@ -28,26 +29,20 @@ const CityDropdown = ({
   const [selectedCity, setSelectedCity] = useState(null);
   const containerRef = useRef(null);
 
-  useEffect(() => {
-    const loadCities = async () => {
-      try {
-        setLoading(true);
-        const result = await getCities();
-        if (result.success) {
-          setCities(result.data);
-          setFilteredCities(result.data);
-        } else {
-          console.error("Failed to load cities:", result.error);
-        }
-      } catch (error) {
-        console.error("Error loading cities:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const { cities: contextCities, isDataLoaded, loading: appDataLoading } = useAppData();
 
-    loadCities();
-  }, []);
+  useEffect(() => {
+    if (contextCities && contextCities.length > 0) {
+      console.log("CityDropdown: Using cached cities from AppDataContext");
+      setCities(contextCities);
+      setFilteredCities(contextCities);
+      setLoading(false);
+    } else {
+      // Set loading state based on context loading state
+      setLoading(appDataLoading.cities);
+    }
+  }, [contextCities, appDataLoading.cities]);
+
 
   // Update selected city when value changes (only from parent, not user input)
   useEffect(() => {
@@ -67,10 +62,15 @@ const CityDropdown = ({
     }
   }, [value, cities, showDropdown]);
 
-  // Update filtered cities when cities change
+  // Update filtered cities when cities change (this might not be needed if context handles it)
+  // However, if the parent component updates 'cities' prop directly, this would be useful.
+  // For now, let's assume cities are only updated via context.
   useEffect(() => {
-    setFilteredCities(cities);
+    if (cities.length > 0) {
+      setFilteredCities(cities);
+    }
   }, [cities]);
+
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -172,7 +172,7 @@ const CityDropdown = ({
     setSearchTerm("");
     setSelectedCity(null);
     onChange("");
-    setFilteredCities(cities);
+    setFilteredCities(cities); // Reset to all cities
     setShowDropdown(false);
 
     // Focus back to input for immediate typing

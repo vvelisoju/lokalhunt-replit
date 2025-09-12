@@ -1,15 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   AcademicCapIcon,
   StarIcon,
   CurrencyRupeeIcon,
 } from "@heroicons/react/24/outline";
 import Button from "../../ui/Button";
-import { publicApi } from "../../../services/publicApi";
-import {
-  ExperienceLevel,
-  getExperienceLevelOptions,
-} from "../../../utils/enums";
+import { useAppData } from '../../../context/AppDataContext';
 
 const SkillsExperienceStep = ({
   data,
@@ -20,52 +16,35 @@ const SkillsExperienceStep = ({
   stepTitle,
 }) => {
   const [customSkill, setCustomSkill] = useState("");
-  const [skillsFromAPI, setSkillsFromAPI] = useState([]);
   const [groupedSkills, setGroupedSkills] = useState({});
-  const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
 
-  // Load skills from API
+  const { skills: allSkills, loading: skillsLoading, fetchSkills } = useAppData();
+
+  // Group skills by category and set loading state
   useEffect(() => {
-    const loadSkills = async () => {
-      try {
-        setLoading(true);
-        const response = await publicApi.getSkills();
-
-        console.log("API Response:", response, response.success);
-        if (response.status == "success") {
-          const skills = response.data || [];
-
-          console.log("Skills from API:", skills);
-          setSkillsFromAPI(skills);
-
-          // Group skills by category
-          const grouped = skills.reduce((acc, skill) => {
-            const category = skill.category || "Other";
-            if (!acc[category]) {
-              acc[category] = [];
-            }
-            acc[category].push(skill);
-            return acc;
-          }, {});
-
-          setGroupedSkills(grouped);
-        } else {
-          console.error("Failed to load skills:", response.message);
-          setSkillsFromAPI([]);
-          setGroupedSkills({});
+    if (allSkills.length > 0) {
+      const grouped = allSkills.reduce((acc, skill) => {
+        const category = skill.category || "Other";
+        if (!acc[category]) {
+          acc[category] = [];
         }
-      } catch (error) {
-        console.error("Error loading skills:", error);
-        setSkillsFromAPI([]);
-        setGroupedSkills({});
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadSkills();
-  }, []);
+        acc[category].push(skill);
+        return acc;
+      }, {});
+      setGroupedSkills(grouped);
+    } else {
+      setGroupedSkills({});
+    }
+  }, [allSkills]);
+
+  // Ensure skills are loaded from AppDataContext
+  useEffect(() => {
+    if (allSkills.length === 0 && !skillsLoading) {
+      fetchSkills();
+    }
+  }, [allSkills.length, skillsLoading, fetchSkills]);
 
   // Get experience level options from enum utility
   const experienceLevelOptions = getExperienceLevelOptions();
@@ -98,7 +77,7 @@ const SkillsExperienceStep = ({
   // Get skills to display based on selected category
   const getDisplaySkills = () => {
     if (selectedCategory === "all") {
-      return skillsFromAPI;
+      return allSkills;
     }
     return groupedSkills[selectedCategory] || [];
   };
@@ -111,7 +90,7 @@ const SkillsExperienceStep = ({
   // Get skill count for category display
   const getSkillCount = (category) => {
     if (category === "all") {
-      return skillsFromAPI.length;
+      return allSkills.length;
     }
     return groupedSkills[category]?.length || 0;
   };
@@ -152,7 +131,7 @@ const SkillsExperienceStep = ({
           </div>
 
           {/* Collapsible Category Filter */}
-          {!loading && getCategories().length > 0 && (
+          {!skillsLoading && getCategories().length > 0 && (
             <div className="mb-4">
               <button
                 onClick={() => setShowCategoryFilter(!showCategoryFilter)}
@@ -167,7 +146,7 @@ const SkillsExperienceStep = ({
                   </svg>
                 </div>
               </button>
-              
+
               {showCategoryFilter && (
                 <div className="mt-3 p-3 bg-white border-2 border-gray-100 rounded-lg max-h-48 overflow-y-auto">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -207,7 +186,7 @@ const SkillsExperienceStep = ({
           )}
 
           {/* Skills from API */}
-          {loading ? (
+          {skillsLoading ? (
             <div className="flex items-center justify-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
               <span className="ml-2 text-gray-600">Loading skills...</span>
@@ -232,7 +211,7 @@ const SkillsExperienceStep = ({
               </div>
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-500">
-                  Showing {getDisplaySkills().length} skills in {selectedCategory === "all" ? "all categories" : selectedCategory}. 
+                  Showing {getDisplaySkills().length} skills in {selectedCategory === "all" ? "all categories" : selectedCategory}.
                   Tap to select/deselect.
                 </p>
               </div>

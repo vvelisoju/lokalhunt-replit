@@ -71,9 +71,9 @@ const EditProfileModal = ({ isOpen, onClose, profileData, onSave }) => {
     }
   }, [profileData]);
 
-  const validatePhone = (phone) => {
-    const phoneRegex = /^[0-9]{10}$/;
-    return phoneRegex.test(phone);
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   };
 
   const validateForm = () => {
@@ -87,10 +87,10 @@ const EditProfileModal = ({ isOpen, onClose, profileData, onSave }) => {
       newErrors.lastName = "Last name is required";
     }
 
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required";
-    } else if (!validatePhone(formData.phone)) {
-      newErrors.phone = "Phone number must be exactly 10 digits";
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!validateEmail(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
     }
 
     setErrors(newErrors);
@@ -115,22 +115,11 @@ const EditProfileModal = ({ isOpen, onClose, profileData, onSave }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // For phone field, only allow numbers and limit to 10 digits
-    if (name === "phone") {
-      const numericValue = value.replace(/\D/g, "").slice(0, 10);
-      setFormData((prev) => ({ ...prev, [name]: numericValue }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
 
-      // Clear phone error when user starts typing
-      if (errors.phone) {
-        setErrors((prev) => ({ ...prev, phone: "" }));
-      }
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-
-      // Clear error when user starts typing
-      if (errors[name]) {
-        setErrors((prev) => ({ ...prev, [name]: "" }));
-      }
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
@@ -206,43 +195,30 @@ const EditProfileModal = ({ isOpen, onClose, profileData, onSave }) => {
               value={formData.email}
               onChange={handleChange}
               placeholder="Enter your email"
-              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base bg-gray-50 cursor-not-allowed focus:outline-none"
-              readOnly
+              className={`w-full border-2 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-0 transition-colors ${
+                errors.email
+                  ? "border-red-500 focus:border-red-500"
+                  : "border-gray-200 focus:border-blue-500"
+              }`}
             />
-            <p className="mt-1 text-xs text-gray-500">
-              Email cannot be changed
-            </p>
+            {errors.email && (
+              <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Phone Number <span className="text-red-500">*</span>
+              Phone Number
             </label>
-            <div className="relative">
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                className={`w-full border-2 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-0 transition-colors ${
-                  errors.phone
-                    ? "border-red-500 focus:border-red-500"
-                    : "border-gray-200 focus:border-blue-500"
-                }`}
-                placeholder="Enter 10-digit phone number"
-                maxLength="10"
-              />
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <span className="text-xs text-gray-400">
-                  {formData.phone.length}/10
-                </span>
-              </div>
-            </div>
-            {errors.phone && (
-              <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
-            )}
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base bg-gray-50 cursor-not-allowed focus:outline-none"
+              readOnly
+            />
             <p className="mt-1 text-xs text-gray-500">
-              Enter exactly 10 digits (numbers only)
+              Phone number cannot be changed
             </p>
           </div>
 

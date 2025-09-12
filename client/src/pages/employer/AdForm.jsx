@@ -31,6 +31,7 @@ import { getCities } from "../../services/common/cities";
 import { publicApi } from "../../services/publicApi";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../components/ui/Toast";
+import { useAppData } from "../../context/AppDataContext";
 
 const AdForm = () => {
   const { adId, employerId } = useParams();
@@ -38,6 +39,8 @@ const AdForm = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { success: showSuccess, error: showError } = useToast();
+  const { cities: contextCities, educationQualifications: contextEducationQualifications, categories: contextCategories } = useAppData();
+
 
   // Extract 'from' parameter from URL to determine redirect destination
   const searchParams = new URLSearchParams(location.search);
@@ -248,57 +251,101 @@ const AdForm = () => {
         showError("Failed to load companies");
       }
 
-      // Load categories and education qualifications in parallel
-      setLoadingCategories(true);
-      setLoadingEducation(true);
+      // Use data from context - no need for additional API calls
+      if (contextCities && contextCities.length > 0) {
+        console.log("Cities loaded from context:", contextCities);
+        setCities(
+          contextCities.map((city) => ({
+            value: city.id,
+            label: city.name,
+          })),
+        );
+        setLoadingCities(false);
+      } else {
+        setLoadingCities(true);
+      }
 
-      const [categoriesResult, educationResult] = await Promise.all([
-        publicApi
-          .getCategories()
-          .catch((err) => ({ success: false, error: err.message })),
-        publicApi
-          .getEducationQualifications()
-          .catch((err) => ({ success: false, error: err.message })),
-      ]);
-
-      // Process categories
-      if (categoriesResult.status === "success") {
-        console.log("Categories loaded successfully:", categoriesResult.data);
+      // Load categories and education qualifications from context
+      if (contextCategories && contextCategories.length > 0) {
+        console.log("Categories loaded from context.");
         setCategories(
-          categoriesResult.data.map((category) => ({
+          contextCategories.map((category) => ({
             value: category.id,
             label: category.name,
           })),
         );
+        setLoadingCategories(false);
       } else {
-        console.error(
-          "Failed to load categories:",
-          categoriesResult.error || "Unknown error",
-        );
-        showError("Failed to load categories");
+        setLoadingCategories(true);
       }
-      setLoadingCategories(false);
 
-      // Process education qualifications
-      if (educationResult.status === "success") {
-        console.log(
-          "Education qualifications loaded successfully:",
-          educationResult.data,
-        );
+      if (contextEducationQualifications && contextEducationQualifications.length > 0) {
+        console.log("Education Qualifications loaded from context.");
         setEducationQualifications(
-          educationResult.data.map((qualification) => ({
-            value: qualification.id,
-            label: qualification.name,
+          contextEducationQualifications.map((edu) => ({
+            value: edu.id,
+            label: edu.name,
           })),
         );
+        setLoadingEducation(false);
       } else {
-        console.error(
-          "Failed to load education qualifications:",
-          educationResult.error || "Unknown error",
-        );
-        showError("Failed to load education qualifications");
+        setLoadingEducation(true);
+        
+        // Fallback to direct API calls if context data is not ready
+        try {
+          const [categoriesResult, educationResult] = await Promise.all([
+            publicApi
+              .getCategories()
+              .catch((err) => ({ success: false, error: err.message })),
+            publicApi
+              .getEducationQualifications()
+              .catch((err) => ({ success: false, error: err.message })),
+          ]);
+
+          // Process categories
+          if (categoriesResult.status === "success") {
+            console.log("Categories loaded successfully:", categoriesResult.data);
+            setCategories(
+              categoriesResult.data.map((category) => ({
+                value: category.id,
+                label: category.name,
+              })),
+            );
+          } else {
+            console.error(
+              "Failed to load categories:",
+              categoriesResult.error || "Unknown error",
+            );
+            showError("Failed to load categories");
+          }
+
+          // Process education qualifications
+          if (educationResult.status === "success") {
+            console.log(
+              "Education qualifications loaded successfully:",
+              educationResult.data,
+            );
+            setEducationQualifications(
+              educationResult.data.map((qualification) => ({
+                value: qualification.id,
+                label: qualification.name,
+              })),
+            );
+          } else {
+            console.error(
+              "Failed to load education qualifications:",
+              educationResult.error || "Unknown error",
+            );
+            showError("Failed to load education qualifications");
+          }
+        } catch (error) {
+          console.error("Error loading fallback data:", error);
+          showError("Failed to load required data");
+        } finally {
+          setLoadingCategories(false);
+          setLoadingEducation(false);
+        }
       }
-      setLoadingEducation(false);
 
       // Now handle ad data loading or setting defaults
       if (isEditing) {
@@ -826,7 +873,16 @@ const AdForm = () => {
                     setErrors((prev) => ({ ...prev, categoryId: "" }));
                   }
                 }}
-                options={categories}
+                options={contextCategories && contextCategories.length > 0 
+                  ? contextCategories.map(category => ({
+                      value: category.id,
+                      label: category.name
+                    }))
+                  : categories.map(category => ({
+                      value: category.value,
+                      label: category.label
+                    }))
+                }
                 loading={loadingCategories}
                 placeholder="Search and select job category..."
                 error={errors.categoryId}
@@ -992,7 +1048,7 @@ const AdForm = () => {
 
   return (
     <div className="bg-gray-50 sm:bg-white">
-      {/* Mobile-native Header - Non-sticky */}
+      {/* Mobile-native Header - Non-sticky - Hidden on desktop */}
       <div className="bg-white border-b border-gray-200 shadow-sm sm:hidden">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center">
@@ -1021,17 +1077,17 @@ const AdForm = () => {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto pb-24">
+      {/* Main Content Area - Mobile only */}
+      <div className="flex-1 overflow-y-auto pb-24 sm:hidden">
         <div className="py-6">{renderStepContent()}</div>
       </div>
 
-      {/* Mobile-native Bottom Action Bar */}
+      {/* Mobile-native Bottom Action Bar - Hidden on desktop */}
       <div
-        className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-4 z-40 fixed-footer"
-        style={{ paddingBottom: "calc(1rem + var(--safe-area-inset-bottom))" }}
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-6 z-40 fixed-footer sm:hidden"
+        style={{ paddingBottom: "calc(1.5rem + --safe-area-inset-bottom)" }}
       >
-        <div className="flex space-x-3">
+        <div className="flex space-x-4">
           {currentStep > 1 && (
             <Button
               type="button"
@@ -1089,7 +1145,7 @@ const AdForm = () => {
         )}
       </div>
 
-      {/* Desktop View (Hidden on Mobile) */}
+      {/* Desktop View - Visible on desktop only */}
       <div className="hidden sm:block">
         <div className="min-h-screen bg-gray-50">
           <div className="bg-white shadow-sm">

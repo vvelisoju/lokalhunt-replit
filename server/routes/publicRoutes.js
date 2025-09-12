@@ -1,4 +1,3 @@
-
 const express = require("express");
 const publicController = require("../controllers/publicController");
 const { optionalAuth } = require("../middleware/auth");
@@ -25,7 +24,33 @@ router.get("/jobs/featured", publicController.getFeaturedJobs);
 router.get("/categories", publicController.getCategories);
 
 // Get education qualifications
-router.get("/education-qualifications", publicController.getEducationQualifications);
+router.get('/education-qualifications', async (req, res) => {
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+
+    const qualifications = await prisma.educationQualification.findMany({
+      orderBy: { sortOrder: 'asc' }
+    });
+
+    await prisma.$disconnect();
+
+    res.json({
+      status: 'success',
+      message: 'Education qualifications retrieved successfully',
+      timestamp: new Date().toISOString(),
+      data: qualifications
+    });
+  } catch (error) {
+    console.error('Error fetching education qualifications:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch education qualifications',
+      timestamp: new Date().toISOString(),
+      data: null
+    });
+  }
+});
 
 // Get job roles
 router.get("/job-roles", publicController.getJobRoles);
@@ -187,6 +212,35 @@ router.get("/files/resumes/:userId/:fileName", async (req, res) => {
 });
 
 // Get skills
-router.get("/skills", publicController.getSkills);
+router.get('/skills', async (req, res) => {
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+
+    const skills = await prisma.skill.findMany({
+      orderBy: [
+        { category: 'asc' },
+        { name: 'asc' }
+      ]
+    });
+
+    await prisma.$disconnect();
+
+    res.json({
+      status: 'success',
+      message: 'Skills retrieved successfully',
+      timestamp: new Date().toISOString(),
+      data: skills
+    });
+  } catch (error) {
+    console.error('Error fetching skills:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch skills',
+      timestamp: new Date().toISOString(),
+      data: null
+    });
+  }
+});
 
 module.exports = router;

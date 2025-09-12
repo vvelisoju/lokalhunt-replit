@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   BriefcaseIcon,
@@ -26,12 +26,8 @@ const Dashboard = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const {
-    profile,
-    fetchProfile,
     applications,
     fetchApplications,
-    bookmarks,
-    fetchBookmarks,
     loading,
   } = useCandidate();
   const { user } = useCandidateAuth();
@@ -46,46 +42,56 @@ const Dashboard = () => {
     bookmarks: 0,
     hasResume: false,
   });
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const [showProfileCompletion, setShowProfileCompletion] = useState(() => {
+    // Initialize from localStorage or default to true
+    const cached = localStorage.getItem('showProfileCompletion');
+    return cached !== null ? JSON.parse(cached) : true;
+  });
+  const [backgroundLoading, setBackgroundLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingCheckComplete, setOnboardingCheckComplete] = useState(false);
   const [testNotificationLoading, setTestNotificationLoading] = useState(false);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [initialRenderComplete, setInitialRenderComplete] = useState(false);
   const [actionLoading, setActionLoading] = useState({
     apply: null,
     remove: null,
     withdraw: null,
   });
   const { success: showSuccess, error: showError } = useToast();
-  // Optimized data fetching - fetch all required data in one go
-  const fetchAllDashboardData = useCallback(async () => {
-    if (!user || initialLoadComplete) return;
 
-    console.log("Starting dashboard data fetch...");
-    setDataLoaded(false);
+  // Check if we have enough data to render the dashboard
+  const hasMinimalDataToRender = useMemo(() => {
+    return (
+      user && 
+      onboardingCheckComplete && 
+      (applications !== null || stats !== null)
+    );
+  }, [user, onboardingCheckComplete, applications, stats]);
+
+  // Optimized data fetching - background updates without blocking UI
+  const fetchAllDashboardData = useCallback(async (isInitialLoad = false) => {
+    if (!user) return;
+
+    console.log("Starting dashboard data fetch...", isInitialLoad ? "(initial)" : "(background)");
+    
+    // Only show loading on absolute first load when we have no data at all
+    if (isInitialLoad && !user) {
+      setBackgroundLoading(true);
+    }
 
     try {
-      // Fetch all data concurrently to reduce loading time
+      // Fetch only essential data for dashboard
       const [
-        profileResponse,
         onboardingResponse,
         applicationsResponse,
         statsResponse,
       ] = await Promise.allSettled([
-        fetchProfile && typeof fetchProfile === "function"
-          ? fetchProfile(false)
-          : Promise.resolve(),
         candidateApi.getOnboardingData(),
         fetchApplications && typeof fetchApplications === "function"
           ? fetchApplications({}, false)
           : Promise.resolve(),
         candidateApi.getDashboardStats(),
       ]);
-
-      // Handle profile data
-      if (profileResponse.status === "fulfilled") {
-        console.log("Profile data loaded");
-      }
 
       // Handle onboarding data
       if (onboardingResponse.status === "fulfilled") {
@@ -119,10 +125,19 @@ const Dashboard = () => {
       if (applicationsResponse.status === "fulfilled") {
         console.log("Applications data loaded");
       }
-      console.log("statsResponse.status......", statsResponse);
+
       // Handle stats data
       if (statsResponse.status === "fulfilled" && statsResponse.value?.data) {
-        setStats(statsResponse.value.data?.data);
+        const statsData = statsResponse.value.data?.data;
+        setStats(statsData);
+        
+        // Update profile completion visibility based on actual data
+        if (statsData?.profileCompletion !== undefined) {
+          const shouldShow = statsData.profileCompletion > 0 && statsData.profileCompletion < 100;
+          setShowProfileCompletion(shouldShow);
+          localStorage.setItem('showProfileCompletion', JSON.stringify(shouldShow));
+        }
+        
         console.log("Dashboard stats loaded");
       } else {
         console.warn("Failed to load dashboard stats");
@@ -130,18 +145,32 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error loading dashboard data:", error);
     } finally {
-      setDataLoaded(true);
       setOnboardingCheckComplete(true);
-      setInitialLoadComplete(true);
+      if (isInitialLoad && !initialRenderComplete) {
+        setBackgroundLoading(false);
+        setInitialRenderComplete(true);
+      }
     }
-  }, [user, initialLoadComplete]);
+  }, [user, fetchApplications]);
 
-  // Single effect to handle all initial data loading
+  // Initial data loading - only run once when user is available
   useEffect(() => {
-    if (user && !initialLoadComplete) {
-      fetchAllDashboardData();
+    if (user && !initialRenderComplete) {
+      fetchAllDashboardData(true);
     }
-  }, [user, fetchAllDashboardData]);
+  }, [user, initialRenderComplete]); // Removed fetchAllDashboardData to prevent infinite loops
+
+  // Background refresh - update data without blocking UI
+  useEffect(() => {
+    if (user && initialRenderComplete) {
+      // Refresh data in background every 30 seconds
+      const refreshInterval = setInterval(() => {
+        fetchAllDashboardData(false);
+      }, 30000);
+
+      return () => clearInterval(refreshInterval);
+    }
+  }, [user, initialRenderComplete, fetchAllDashboardData]);
 
   // Initialize safe area manager
   useEffect(() => {
@@ -156,10 +185,9 @@ const Dashboard = () => {
     localStorage.removeItem("showOnboarding");
     localStorage.setItem("onboardingCompleted", "true");
 
-    // Reset initial load to trigger fresh data fetch
-    setInitialLoadComplete(false);
-    setDataLoaded(false);
-  }, []);
+    // Background refresh of data after onboarding
+    fetchAllDashboardData(false);
+  }, [fetchAllDashboardData]);
 
   // Test notification handler
   const handleTestNotification = async () => {
@@ -189,8 +217,8 @@ const Dashboard = () => {
     try {
       await candidateApi.withdrawApplication(applicationId);
       showSuccess("Application withdrawn successfully");
-      // Refresh applications to update the list
-      await fetchApplications();
+      // Force refresh applications to update the list
+      await fetchApplications({}, true);
     } catch (error) {
       console.error("Failed to withdraw application:", error);
       showError(
@@ -201,8 +229,8 @@ const Dashboard = () => {
     }
   };
 
-  // Show loading until onboarding check is complete and data is loaded
-  if (loading || !dataLoaded || !onboardingCheckComplete) {
+  // Show loading only on very first load when we have no data at all
+  if (!hasMinimalDataToRender && !user) {
     return <Loader.Page />;
   }
 
@@ -358,7 +386,7 @@ const Dashboard = () => {
       {/* Resume Upload Alert */}
 
       {/* Profile Completion Alert - Mobile optimized */}
-      {stats.profileCompletion > 0 && stats.profileCompletion < 100 && (
+      {showProfileCompletion && stats.profileCompletion > 0 && stats.profileCompletion < 100 && (
         <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
           <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0">
             <UserIcon className="h-5 w-5 text-primary-600 sm:mr-3" />
@@ -455,24 +483,25 @@ const Dashboard = () => {
         })}
       </div>
 
-      {/* Recent Applications - Mobile optimized */}
-      <Card>
-        <Card.Header>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
-            <Card.Title className="text-lg">
-              {t("applications.recent", "Recent Applications")}
-            </Card.Title>
-            <Link to="/candidate/applications">
-              <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                {t("applications.viewAll", "View All")}
-              </Button>
-            </Link>
-          </div>
-        </Card.Header>
-        <Card.Content>
-          {!applications ||
-          !Array.isArray(applications) ||
-          applications.length === 0 ? (
+      {/* Recent Applications - Direct display like bookmarks */}
+      <div className="space-y-2">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
+          <h2 className="text-lg font-semibold text-gray-900">
+            {t("applications.recent", "Recent Applications")}
+          </h2>
+          <Link to="/candidate/applications">
+            <Button variant="outline" size="sm" className="w-full sm:w-auto">
+              {t("applications.viewAll", "View All")}
+            </Button>
+          </Link>
+        </div>
+
+        {/* Applications List */}
+        {!applications ||
+        !Array.isArray(applications) ||
+        applications.length === 0 ? (
+          <Card>
             <div className="text-center py-8">
               <BriefcaseIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">
@@ -488,141 +517,107 @@ const Dashboard = () => {
                 <Button>{t("applications.browseJobs", "Find Jobs")}</Button>
               </Link>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {(applications && Array.isArray(applications) ? applications : [])
-                .slice(0, 5)
-                .map((application) => {
-                  // Ensure we have a valid job ID
-                  const jobId =
-                    application.adId ||
-                    application.job?.id ||
-                    application.jobId;
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {(applications && Array.isArray(applications) ? applications : [])
+              .slice(0, 5)
+              .map((job) => {
+                // Ensure we have a valid job ID
+                const jobId = job?.id;
 
-                  if (!jobId) {
-                    console.warn(
-                      "Missing job ID for application:",
-                      application,
-                    );
-                    return null;
-                  }
+                if (!jobId) {
+                  console.warn("Missing job ID for application:");
+                  return null;
+                }
 
-                  // Transform application data to match shared JobCard expectations
-                  const jobData = {
-                    id: jobId,
-                    title:
-                      application.title ||
-                      application.ad?.title ||
-                      application.job?.title ||
-                      application.adTitle ||
-                      "Job Title",
-                    employer: application?.ad.employer,
-                    description:
-                      application.description ||
-                      application.ad?.description ||
-                      application.job?.description ||
-                      application.adDescription,
-                    location:
-                      application.location ||
-                      application.city ||
-                      application.ad?.city ||
-                      application.job?.location ||
-                      application.job?.city?.name ||
-                      "Location not specified",
-                    locationName:
-                      application.city ||
-                      application.location ||
-                      application.ad?.city ||
-                      application.job?.city?.name,
-                    locationState:
-                      application.state || application.job?.city?.state,
-                    salary:
-                      application.salary ||
-                      application.salaryRange ||
-                      application.ad?.salary ||
-                      application.job?.salary,
-                    salaryRange:
-                      application.salaryRange ||
-                      application.ad?.salaryRange ||
-                      application.job?.salaryRange,
-                    jobType:
-                      application.employmentType ||
-                      application.jobType ||
-                      application.ad?.employmentType ||
-                      application.job?.jobType ||
-                      application.job?.employmentType ||
-                      "Full Time",
-                    skills:
-                      application.skills ||
-                      application.requirements ||
-                      application.ad?.skills ||
-                      application.job?.skills ||
-                      application.job?.requirements ||
-                      [],
-                    postedAt:
-                      application.postedAt ||
-                      application.createdAt ||
-                      application.ad?.createdAt ||
-                      application.job?.createdAt,
-                    candidatesCount:
-                      application.ad?.candidatesCount ||
-                      application.ad?.applicationCount ||
-                      application.ad?._count?.allocations ||
-                      application.applicationCount ||
-                      application.job?.applicationCount ||
-                      0,
+                // Transform job data to match shared JobCard expectations
+                const jobData = {
+                  id: jobId,
+                  title: job?.title || "Job Title",
+                  employer: job?.employer,
+                  description: job?.description,
 
-                    company: {
-                      name:
-                        application.companyName ||
-                        application.employerName ||
-                        application.company?.name ||
-                        application.ad?.company?.name ||
-                        application.job?.company?.name ||
-                        application.ad?.employerName ||
-                        application.job?.employerName ||
-                        "Company",
-                      industry:
-                        application.company?.industry ||
-                        application.ad?.company?.industry ||
-                        application.job?.company?.industry,
-                    },
-                    hasApplied: true, // Since these are applications, user has already applied
-                    gender:
-                      application.gender ||
-                      application.ad?.gender ||
-                      application.job?.gender,
-                  };
+                  locationName: job?.locationName || job?.location?.name,
 
-                  return (
-                    <JobCard
-                      key={application.id}
-                      job={jobData}
-                      variant="application"
-                      applicationStatus={application.status}
-                      applicationDate={application.createdAt}
-                      showApplicationDate={true}
-                      onClick={() => {
-                        // Navigate to candidate job details with 'from' parameter for proper back navigation
-                        navigate(`/candidate/jobs/${jobId}?from=dashboard`);
-                      }}
-                      onWithdraw={() => {
-                        console.log("Withdraw application:", application.id);
-                        handleWithdrawApplication(application.id);
-                      }}
-                      loading={{
-                        apply: false,
-                        bookmark: false,
-                        withdraw: actionLoading.withdraw === application.id,
-                      }}
-                    />
-                  );
-                })
-                .filter(Boolean)}
-            </div>
-          )}
-        </Card.Content>
-      </Card>
+                  location: job?.location
+                    ? typeof job.location === "string"
+                      ? job.location
+                      : `${job.location.name}, ${job.location.state || ""}`
+                          .trim()
+                          .replace(/,$/, "")
+                    : "Location not specified",
+
+                  locationState: job?.locationState || job?.location?.state,
+
+                  salary: job?.salary || job?.salaryRange,
+                  salaryRange: job?.salaryRange || job?.salary,
+
+                  jobType: job?.jobType || job?.employmentType || "Full Time",
+
+                  skills: job?.skills || [],
+
+                  postedAt: job?.postedAt || job?.createdAt,
+
+                  candidatesCount:
+                    job?.candidatesCount ||
+                    job?.applicationCount ||
+                    job?._count?.allocations ||
+                    0,
+
+                  company: {
+                    name: job?.company?.name || "Company",
+                    industry: job?.company?.industry,
+                  },
+
+                  hasApplied: true, // Since these are applications, user has already applied
+                  gender: job?.gender,
+
+                  salaryDisplay:
+                    job?.salaryDisplay ||
+                    (typeof job?.salary === "string"
+                      ? job.salary
+                      : job?.salary && typeof job.salary === "object"
+                        ? job.salary.min && job.salary.max
+                          ? `₹${job.salary.min.toLocaleString()} - ₹${job.salary.max.toLocaleString()}`
+                          : job.salary.min
+                            ? `₹${job.salary.min.toLocaleString()}+`
+                            : "Not disclosed"
+                        : "Not disclosed"),
+                };
+
+                return (
+                  <JobCard
+                    key={job.id}
+                    job={jobData}
+                    variant="application"
+                    applicationStatus={job.applicationInfo?.status}
+                    applicationDate={job.createdAt}
+                    showApplicationDate={true}
+                    onClick={() => {
+                      // Navigate to candidate job details with 'from' parameter for proper back navigation
+                      navigate(`/candidate/jobs/${jobId}?from=dashboard`);
+                    }}
+                    onWithdraw={() => {
+                      console.log(
+                        "Withdraw application:",
+                        job.applicationInfo?.id,
+                      );
+                      handleWithdrawApplication(job.applicationInfo?.id);
+                    }}
+                    loading={{
+                      apply: false,
+                      bookmark: false,
+                      withdraw:
+                        actionLoading.withdraw === job.applicationInfo?.id,
+                    }}
+                  />
+                );
+              })
+              .filter(Boolean)}
+          </div>
+        )}
+      </div>
 
       {/* Recommended Jobs */}
       <Card>

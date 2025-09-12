@@ -56,7 +56,8 @@ const EditExperienceModal = ({ isOpen, onClose, experience, onSave, isEditing = 
     }))
   }
 
-  const handleSave = async () => {
+  const handleSave = async (e) => {
+    e.preventDefault()
     setLoading(true)
     try {
       await onSave(formData)
@@ -77,7 +78,7 @@ const EditExperienceModal = ({ isOpen, onClose, experience, onSave, isEditing = 
       title={isEditing ? "Edit Experience" : "Add Experience"}
       maxWidth="md"
     >
-      <div className="space-y-4">
+      <form onSubmit={handleSave} className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-2">
@@ -202,18 +203,20 @@ const EditExperienceModal = ({ isOpen, onClose, experience, onSave, isEditing = 
             type="button"
             variant="outline"
             onClick={onClose}
+            disabled={loading}
             className="w-full sm:w-auto py-3 px-6 text-base font-semibold rounded-xl"
           >
             Cancel
           </Button>
           <Button
             type="submit"
-            className="w-full sm:w-auto py-3 px-6 text-base font-semibold rounded-xl bg-blue-600 hover:bg-blue-700"
+            disabled={loading}
+            className="w-full sm:w-auto py-3 px-6 text-base font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
           >
-            {isEditing ? "Update" : "Add"} Experience
+            {loading ? "Saving..." : isEditing ? "Update" : "Add"} {loading ? "" : "Experience"}
           </Button>
         </div>
-      </div>
+      </form>
     </Modal>
   )
 }
